@@ -8,11 +8,11 @@
 static const int DEFAULT_BREAK_LEN = 200;
 
 //-- Characters used in creating the alignment edit matrix, DO NOT ALTER!
-static const char DELETE = 0;
-static const char INSERT = 1;
-static const char MATCH  = 2;
-static const char START  = 3;
-static const char NONE   = 4;
+static const int DELETE = 0;
+static const int INSERT = 1;
+static const int MATCH  = 2;
+static const int START  = 3;
+static const int NONE   = 4;
 
 
 int _break_len = DEFAULT_BREAK_LEN;
