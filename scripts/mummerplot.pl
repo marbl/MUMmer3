@@ -127,8 +127,8 @@ my $HELP = qq~
     -rv             Reverse video for x11 plots
     -r|IdR          Plot a particular reference sequence ID on the X-axis
     -q|IdQ          Plot a particular query sequence ID on the Y-axis
-    -R|Rfile        Get the set of reference sequences to plot from Rfile
-    -Q|Qfile        Get the set of query sequences to plot from Qfile
+    -R|Rfile        Plot an ordered set of reference sequences from Rfile
+    -Q|Qfile        Plot an ordered set of query sequences from Qfile
                     Rfile/Qfile Can either be the original DNA multi-FastA
                     files or lists of sequence IDs, lens and dirs [ /+/-]
     -s|size         Set the output size to small, medium or large
