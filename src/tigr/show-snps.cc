@@ -21,8 +21,10 @@
 #include <vector>
 #include <algorithm>
 #include <string>
+#include <sstream>
 #include <cstring>
 #include <map>
+#include <set>
 #include <cstdio>
 using namespace std;
 
@@ -40,15 +42,18 @@ bool    OPT_ShowLength    = false;      // -l option
 bool    OPT_ShowConflict  = false;      // -c option
 bool    OPT_PrintTabular  = false;      // -T option
 bool    OPT_PrintHeader   = true;       // -H option
+bool    OPT_SelectAligns  = false;      // -S option
 
 int     OPT_Context       = 0;          // -x option
+
+set<string> OPT_Aligns;                 // -S option
 
 
 
 
 //============================================================= Constants ====//
 typedef unsigned char DataType_t;
-const DataType_t NULL_DATA = 0;
+const DataType_t   NULL_DATA = 0;
 const DataType_t NUCMER_DATA = 1;
 const DataType_t PROMER_DATA = 2;
 
@@ -56,9 +61,9 @@ typedef unsigned char Dir_t;
 const Dir_t FORWARD_DIR = 0;
 const Dir_t REVERSE_DIR = 1;
 
-const char INDEL_CHAR  = '.';
+const char  INDEL_CHAR = '.';
 const char SEQEND_CHAR = '-';
-const int  FRAMES      = 6;
+
 
 
 struct SNP_t
@@ -319,6 +324,10 @@ void PrintTabular (const vector<const SNP_t *> & snps,
 void ReadSequences (DeltaGraph_t & graph);
 
 
+//---------------------------------------------------------- SelectAligns ----//
+void SelectAligns ( );
+
+
 //------------------------------------------------------------- ParseArgs ----//
 void ParseArgs (int argc, char ** argv);
 
@@ -342,6 +351,10 @@ int main (int argc, char ** argv)
 
   //-- Command line parsing
   ParseArgs (argc, argv);
+
+  //-- Select alignments
+  if ( OPT_SelectAligns )
+    SelectAligns ( );
 
   //-- Build the alignment graph from the delta file
   BuildGraph (graph);
@@ -448,6 +461,15 @@ void BuildGraph (DeltaGraph_t & graph)
     {
       dep = new DeltaEdge_t( );
 
+      //-- Build the edge
+      BuildEdge (*dep, dr . getRecord( ));
+
+      if ( dep -> edgelets . empty( ) )
+        {
+          delete dep;
+          continue;
+        }
+
 
       //-- Find the reference node in the graph, add a new one if necessary
       insret = graph . refnodes . insert
@@ -477,8 +499,7 @@ void BuildGraph (DeltaGraph_t & graph)
         }
 
 
-      //-- Build the edge
-      BuildEdge (*dep, dr . getRecord( ));
+      //-- Link the nodes
       dep -> refnode -> edges . push_back (dep);
       dep -> qrynode -> edges . push_back (dep);
     }
@@ -579,17 +600,14 @@ void FindSNPs (DeltaGraph_t & graph)
   vector<DeltaEdge_t *>::iterator ei;
   vector<DeltaEdgelet_t *>::iterator li;
 
-
   //-- For each alignment, identify the SNPs
   for ( mi = graph.refnodes.begin( ); mi != graph.refnodes.end( ); ++ mi )
     for ( ei = mi->second.edges.begin( ); ei != mi->second.edges.end( ); ++ ei )
       {
         SNP_t snp;
         int ri, qi;
-        char * R [FRAMES + 1] =
-          {(*ei)->refnode->seq, NULL, NULL, NULL, NULL, NULL, NULL};
-        char * Q [FRAMES + 1] =
-          {(*ei)->qrynode->seq, NULL, NULL, NULL, NULL, NULL, NULL};
+        char * R[] = {(*ei)->refnode->seq, NULL, NULL, NULL, NULL, NULL, NULL};
+        char * Q[] = {(*ei)->qrynode->seq, NULL, NULL, NULL, NULL, NULL, NULL};
 
         long long int i;
         unsigned long int lenR = (*ei) -> refnode -> len;
@@ -610,6 +628,31 @@ void FindSNPs (DeltaGraph_t & graph)
             vector<long int>::iterator dp;
             unsigned long int alenR = lenR;
             unsigned long int alenQ = lenQ;
+
+            //-- Only do the ones requested by user
+            if ( OPT_SelectAligns )
+              {
+                ostringstream ss;
+                set<string>::iterator si;
+
+                if ( (*li) -> dirR == FORWARD_DIR )
+                  ss << (*li) -> loR << ' ' << (*li) -> hiR << ' ';
+                else
+                  ss << (*li) -> hiR << ' ' << (*li) -> loR << ' ';
+
+                if ( (*li) -> dirQ == FORWARD_DIR )
+                  ss << (*li) -> loQ << ' ' << (*li) -> hiQ << ' ';
+                else
+                  ss << (*li) -> hiQ << ' ' << (*li) -> loQ << ' ';
+
+                ss << *snp . idR << ' ' << *snp . idQ;
+
+                si = OPT_Aligns . find (ss .str( ));
+                if ( si == OPT_Aligns . end( ) )
+                  continue;
+                else
+                  OPT_Aligns . erase (si);
+              }
 
             //-- Point the coords the right direction
             frameR = 1;
@@ -841,12 +884,18 @@ void FindSNPs (DeltaGraph_t & graph)
           }
 
         //-- Clear up the seq
-        for ( i = 1; i <= FRAMES; i ++ )
+        for ( i = 1; i <= 6; i ++ )
           {
             free (R[i]);
             free (Q[i]);
           }
       }
+
+  if ( OPT_SelectAligns  &&  ! OPT_Aligns . empty( ) )
+    {
+      cerr << "ERROR: One or more alignments from stdin could not be found\n";
+      exit (EXIT_FAILURE);
+    }
 }
 
 
@@ -1085,6 +1134,51 @@ void ReadSequences (DeltaGraph_t & graph)
 
 
 
+//---------------------------------------------------------- SelectAligns ----//
+void SelectAligns ( )
+{
+  string line, part;
+  string s1, e1, s2, e2, tR, tQ;
+  istringstream sin;
+  ostringstream sout;
+
+  while ( cin )
+    {
+      getline (cin, line);
+      if ( line . empty( ) )
+        continue;
+
+      sin . clear( );
+      sin . str (line);
+      sin >> s1 >> e1 >> s2;
+      if ( s2 == "|" ) sin >> s2;
+      sin >> e2 >> tR >> tQ;
+
+      if ( sin . fail( ) )
+        {
+          cerr << "ERROR: Could not parse input from stdin\n";
+          exit (EXIT_FAILURE);
+        }
+
+      while ( sin >> part )
+        {
+          tR = tQ;
+          tQ = part;
+        }
+
+      sout . clear( );
+      sout . str ("");
+      sout << s1 << ' ' << e1 << ' '
+           << s2 << ' ' << e2 << ' '
+           << tR << ' ' << tQ;
+
+      OPT_Aligns . insert (sout . str( ));
+    }
+}
+
+
+
+
 //------------------------------------------------------------- ParseArgs ----//
 void ParseArgs (int argc, char ** argv)
 {
@@ -1092,7 +1186,7 @@ void ParseArgs (int argc, char ** argv)
   optarg = NULL;
   
   while ( !errflg  &&
-          ((ch = getopt (argc, argv, "chHlqrTx:")) != EOF) )
+          ((ch = getopt (argc, argv, "chHlqrSTx:")) != EOF) )
     switch (ch)
       {
       case 'c':
@@ -1118,6 +1212,10 @@ void ParseArgs (int argc, char ** argv)
 
       case 'r':
         OPT_SortReference = true;
+        break;
+
+      case 'S':
+        OPT_SelectAligns = true;
         break;
 
       case 'T':
@@ -1171,6 +1269,8 @@ void PrintHelp (const char * s)
     << "-l            Include sequence length information in the output\n"
     << "-q            Sort output lines by query IDs and SNP positions\n"
     << "-r            Sort output lines by reference IDs and SNP positions\n"
+    << "-S            Specify which alignments to report by passing\n"
+    << "              'show-coords' lines to stdin\n"
     << "-T            Switch to tab-delimited format\n"
     << "-x int        Include x characters of surrounding SNP context in the\n"
     << "              output, default "
