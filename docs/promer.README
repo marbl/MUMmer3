@@ -48,7 +48,10 @@ Output will be...
 To generate more output, investigate the options of any of the 'show-*'
 programs, these programs can interpret the .delta output of PROmer and provide
 useful information regarding the alignment. In addition, dotplots can be
-generated (if you have gnuplot installed) via the 'mummerplot' script.
+generated (if you have gnuplot installed) via the 'mummerplot' script. Also,
+the 'delta-filter' utility is very useful for removing chance and repeat-induced
+alignments. It can significantly reduce the number of alignments in the nucmer
+output, making it easier to interpret (see html manual for more information).
 
 
 -- RUNNING 'promer' --

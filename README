@@ -343,6 +343,35 @@ and usage definitions for these utilities.
                          the number of alignment errors for each gap.
 
 
+   ** delta-filter **
+
+        DESCRIPTION:
+        This program filters a delta alignment file produced by either nucmer
+        or promer, leaving only the desired alignments which are output to
+        stdout in the same delta format as the input. Its primary function is
+        the LIS clustering algorithm which calculates the longest increasing
+        subset of alignments. It can also exclude alignments based on uniqueness
+        and identity constraints. This allows the user to exclude chance and
+        repeat induced alignments, leaving only the "correct" alignments between
+        the two data sets.
+
+        USAGE:
+        delta-filter  [options]  <deltafile>
+
+        [options]    type 'delta-filter -h' for a list of options.
+        <deltafile>  the .delta output file from either NUCmer or PROmer.
+
+        OUTPUT:
+        stdout  The same delta alignment format as output by nucmer and promer.
+
+        NOTES:
+        Use the -g option for sequences with no rearrangements.
+        Use the -q -r option for sequences with rearrangements.
+        Add the -u option with a value like 25 to insure uniqueness.
+        Thus, for SNP calling, 'delta-filter -r -q -u 25' would be a good
+        pre-filter.
+
+
    ** exact-tandems **
 
         DESCRIPTION:
@@ -705,4 +734,4 @@ and usage definitions for these utilities.
 
 Please address questions and bug reports to: <mummer@tigr.org>
 
-Last Revised March 05, 2004
+Last Revised September 28, 2004
