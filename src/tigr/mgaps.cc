@@ -459,16 +459,22 @@ static int  Process_Cluster
          A [i] . Simple_From = -1;
          for  (j = 0;  j < i;  j ++)
            {
+            long int  Pen;
             long int  Olap, Olap1, Olap2;
 
             Olap1 = A [j] . Start1 + A [j] . Len - A [i] . Start1;
             Olap = Max (0, Olap1);
             Olap2 = A [j] . Start2 + A [j] . Len - A [i] . Start2;
             Olap = Max (Olap, Olap2);
-            if  (A [j] . Simple_Score + A [i] . Len - Olap > A [i] . Simple_Score)
+
+            // penalize off diagonal matches
+            Pen = Olap + abs ( (A [i] . Start2 - A [i] . Start1) -
+                               (A [j] . Start2 - A [j] . Start1) );
+
+            if  (A [j] . Simple_Score + A [i] . Len - Pen > A [i] . Simple_Score)
                 {
                  A [i] . Simple_From = j;
-                 A [i] . Simple_Score = A [j] . Simple_Score + A [i] . Len - Olap;
+                 A [i] . Simple_Score = A [j] . Simple_Score + A [i] . Len - Pen;
                  A [i] . Simple_Adj = Olap;
                 }
            }
