@@ -452,7 +452,7 @@ static void generateDelta
   char * Reverse_Path;       // path space
 
   Score curr_score;
-  char edit;
+  int edit;
 
   //-- malloc space for the edit path
   Reverse_Path = (char *) Safe_malloc ( PSize * sizeof(char) );
