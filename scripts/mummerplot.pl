@@ -868,18 +868,13 @@ sub PlotData ($$$)
         if ( $OPT_coverage ) {
             foreach $fh ( @fha ) {
                 print $fh
-                    "$sR 10 $sim\n",
-                    "$eR 10 $sim\n\n\n",
-
-                    "$sR $sim 0\n",
-                    "$eR $sim 0\n\n\n";
+                    "$sR 10 $sim\n", "$eR 10 $sim\n\n\n",
+                    "$sR $sim 0\n", "$eR $sim 0\n\n\n";
             }
         }
         else {
             foreach $fh ( @fha ) {
-                print $fh
-                    "$sR $sQ $sim\n",
-                    "$eR $eQ $sim\n\n\n";
+                print $fh "$sR $sQ $sim\n", "$eR $eQ $sim\n\n\n";
             }
         }            
 
