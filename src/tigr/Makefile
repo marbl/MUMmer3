@@ -17,7 +17,7 @@ VPATH := $(AUX_BIN_DIR):$(BIN_DIR)
 
 ALL := annotate combineMUMs delta-filter gaps mgaps \
      postnuc postpro prenuc prepro repeat-match \
-     show-aligns show-coords show-tiling
+     show-aligns show-coords show-tiling show-snps
 
 
 #-- PHONY rules --#
