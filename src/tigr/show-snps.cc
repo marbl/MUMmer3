@@ -74,9 +74,9 @@ struct DeltaNode_t;
 struct SNP_t
      //!< A single nuc/aa poly
 {
+  long int dist;
   char cQ, cR;
   long int pQ, pR;
-  long int loD, hiD;
   int conQ, conR;
   string ctxQ, ctxR;
   DeltaEdgelet_t * lp;
@@ -85,7 +85,7 @@ struct SNP_t
   SNP_t ( )
   {
     cQ = cR = 0;
-    loD = hiD = pQ = pR = 0;
+    dist = pQ = pR = 0;
     conQ = conR = 0;
   };
 };
@@ -904,16 +904,17 @@ void FindSNPs (DeltaGraph_t & graph)
                     psi = si - 1;
                     nsi = si + 1;
 
-                    (*si) -> loD = (*si) -> pR - (*li) -> loR + 1;
-                    (*si) -> hiD = (*li) -> hiR - (*si) -> pR + 1;
+                    (*si) -> dist = 1 +
+                      ((*si)->pR - (*li)->loR < (*li)->hiR - (*si)->pR ?
+                       (*si)->pR - (*li)->loR : (*li)->hiR - (*si)->pR);
 
                     if ( psi >= (*li) -> snps . begin( )  &&
-                         (*si) -> pR - (*psi) -> pR < (*si) -> loD )
-                      (*si) -> loD = (*si) -> pR - (*psi) -> pR;
+                         (*si)->pR - (*psi)->pR < (*si)->dist )
+                      (*si) -> dist = (*si)->pR - (*psi)->pR;
                     
                     if ( nsi < (*li) -> snps . end( )  &&
-                         (*nsi) -> pR - (*si) -> pR < (*si) -> hiD )
-                      (*si) -> hiD = (*nsi) -> pR - (*si) -> pR;
+                         (*nsi)->pR - (*si)->pR < (*si)->dist )
+                      (*si) -> dist = (*nsi)->pR - (*si)->pR;
                   }
               }
             else
@@ -925,16 +926,17 @@ void FindSNPs (DeltaGraph_t & graph)
                     psi = si - 1;
                     nsi = si + 1;
  
-                    (*si) -> loD = (*si) -> pQ - (*li) -> loQ + 1;
-                    (*si) -> hiD = (*li) -> hiQ - (*si) -> pQ + 1;
+                    (*si) -> dist = 1 +
+                      ((*si)->pQ - (*li)->loQ < (*li)->hiQ - (*si)->pQ ?
+                       (*si)->pQ - (*li)->loQ : (*li)->hiQ - (*si)->pQ);
 
                     if ( psi >= (*li) -> snps . begin( )  &&
-                         (*si) -> pQ - (*psi) -> pQ < (*si) -> loD )
-                      (*si) -> loD = (*si) -> pQ - (*psi) -> pQ;
+                         (*si)->pQ - (*psi)->pQ < (*si)->dist )
+                      (*si) -> dist = (*si)->pQ - (*psi)->pQ;
                     
                     if ( nsi < (*li) -> snps . end( )  &&
-                         (*nsi) -> pQ - (*si) -> pQ < (*si) -> hiD )
-                      (*si) -> hiD = (*nsi) -> pQ - (*si) -> pQ;
+                         (*nsi)->pQ - (*si)->pQ < (*si)->dist )
+                      (*si) -> dist = (*nsi)->pQ - (*si)->pQ;
                   }
               }
           }
@@ -961,7 +963,8 @@ void FindSNPs (DeltaGraph_t & graph)
 void PrintHuman (const vector<const SNP_t *> & snps,
                  const DeltaGraph_t & graph)
 {
-  vector<const SNP_t *>::const_iterator si;
+  vector<const SNP_t *>::const_iterator si, psi;
+  long int diff;
   int ctxw = 2 * OPT_Context + 1;
   int ctxc = ctxw < 7 ? 7 : ctxw;
 
@@ -971,7 +974,7 @@ void PrintHuman (const vector<const SNP_t *> & snps,
               graph . refpath . c_str( ), graph . qrypath . c_str( ),
               graph . datatype == NUCMER_DATA ? "NUCMER" : "PROMER");
       printf ("%8s  %5s  %-8s  | ", "[P1]", "[SUB]", "[P2]");
-      printf ("%8s %8s  | ", "[LO]", "[HI]");
+      printf ("%8s %8s  | ", "[DIFF]", "[DIST]");
       if ( OPT_ShowConflict )
         printf ("%4s %4s  | ", "[R]", "[Q]");
       if ( OPT_ShowLength )
@@ -1002,9 +1005,27 @@ void PrintHuman (const vector<const SNP_t *> & snps,
 
   for ( si = snps . begin( ); si != snps . end( ); ++ si )
     {
+      psi = si - 1;
+      if ( OPT_SortReference )
+        {
+          if ( psi < snps . begin( )  ||
+               (*si)->ep->refnode->id != (*psi)->ep->refnode->id )
+            diff = (*si) -> pR;
+          else
+            diff = (*si) -> pR - (*psi) -> pR;
+        }
+      else
+        {
+          if ( psi < snps . begin( )  ||
+               (*si)->ep->qrynode->id != (*psi)->ep->qrynode->id)
+            diff = (*si) -> pQ;
+          else
+            diff = (*si) -> pQ - (*psi) -> pQ;
+        }
+
       printf ("%8ld   %c %c   %-8ld  | ",
               (*si)->pR, (*si)->cR, (*si)->cQ, (*si)->pQ);
-      printf ("%8ld %8ld  | ", (*si)->loD, (*si)->hiD);
+      printf ("%8ld %8ld  | ", diff, (*si)->dist);
       if ( OPT_ShowConflict )
         printf ("%4d %4d  | ", (*si)->conR, (*si)->conQ);
       if ( OPT_ShowLength )
@@ -1034,7 +1055,8 @@ void PrintHuman (const vector<const SNP_t *> & snps,
 void PrintTabular (const vector<const SNP_t *> & snps,
                    const DeltaGraph_t & graph)
 {
-  vector<const SNP_t *>::const_iterator si;
+  vector<const SNP_t *>::const_iterator si, psi;
+  long int diff;
 
   if ( OPT_PrintHeader )
     {
@@ -1042,7 +1064,7 @@ void PrintTabular (const vector<const SNP_t *> & snps,
               graph . refpath . c_str( ), graph . qrypath . c_str( ),
               graph . datatype == NUCMER_DATA ? "NUCMER" : "PROMER");
       printf ("%s\t%s\t%s\t%s\t", "[P1]", "[SUB]", "[SUB]", "[P2]");
-      printf ("%s\t%s\t", "[LO]", "[HI]");
+      printf ("%s\t%s\t", "[DIFF]", "[DIST]");
       if ( OPT_ShowConflict )
         printf ("%s\t%s\t", "[R]", "[Q]");
       if ( OPT_ShowLength )
@@ -1055,9 +1077,27 @@ void PrintTabular (const vector<const SNP_t *> & snps,
 
   for ( si = snps . begin( ); si != snps . end( ); ++ si )
     {
+      psi = si - 1;
+      if ( OPT_SortReference )
+        {
+          if ( psi < snps . begin( )  ||
+               (*si)->ep->refnode->id != (*psi)->ep->refnode->id )
+            diff = (*si) -> pR;
+          else
+            diff = (*si) -> pR - (*psi) -> pR;
+        }
+      else
+        {
+          if ( psi < snps . begin( )  ||
+               (*si)->ep->qrynode->id != (*psi)->ep->qrynode->id)
+            diff = (*si) -> pQ;
+          else
+            diff = (*si) -> pQ - (*psi) -> pQ;
+        }
+
       printf ("%ld\t%c\t%c\t%ld\t",
               (*si)->pR, (*si)->cR, (*si)->cQ, (*si)->pQ);
-      printf ("%ld\t%ld\t", (*si)->loD, (*si)->hiD);
+      printf ("%ld\t%ld\t", diff, (*si)->dist);
       if ( OPT_ShowConflict )
         printf ("%d\t%d\t", (*si)->conR, (*si)->conQ);
       if ( OPT_ShowLength )
@@ -1300,10 +1340,11 @@ void PrintHelp (const char * s)
     << "passed on the command line.\n"
     << "  Output is to stdout, and consists of a list of SNPs (or amino acid\n"
     << "substitutions for promer) with positions and other useful info.\n"
-    << "Output will be sorted with -r by default and the distance columns\n"
-    << "[LO] [HI] will always refer to the sequence whose positions have been\n"
-    << "sorted. These values specify the distance to the next mismatch on the\n"
-    << "lo and hi sides of the SNP within the same alignment. SNPs for which\n"
+    << "Output will be sorted with -r by default and the [DIFF] [DIST]\n"
+    << "columns will always refer to the sequence whose positions have been\n"
+    << "sorted. These values specify the difference between this SNP and the\n"
+    << "previously reported SNP; and the distance from this SNP to the\n"
+    << "nearest mismatch (end of sequence, indel, SNP, etc). SNPs for which\n"
     << "the [R] and [Q] columns are greater than 0 should be evaluated with\n"
     << "caution, as these columns specify the number of other alignments\n"
     << "which overlap this position. Use the -C option to assure SNPs are\n"
