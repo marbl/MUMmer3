@@ -130,6 +130,9 @@ bool CompareIUPAC (char x, char y)
   x = tolower(x);
   y = tolower(y);
 
+  if ( x == 'n' || x == 'x' || y == 'n' || y == 'x' )
+    return true;
+
   switch ( x )
     {
     case 'a' :
@@ -303,9 +306,6 @@ bool CompareIUPAC (char x, char y)
           return true;
         }
       return false;
-
-    case 'n' :          // a, c, g or t
-      return true;
     }
   return false;
 }
