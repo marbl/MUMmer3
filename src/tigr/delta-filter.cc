@@ -35,6 +35,7 @@ bool           OPT_RLIS         = false;      // do reference based LIS
 bool           OPT_GLIS         = false;      // do global LIS
 float          OPT_MinIdentity  = 0.0;        // minimum %identity
 float          OPT_MinUnique    = 0.0;        // minimum %unique
+float          OPT_MaxOverlap   = 75.0;       // maximum olap as % of align len
 
 
 
@@ -153,8 +154,8 @@ struct DeltaGraph_t
     vector<DeltaEdge_t *>::iterator j;
     for ( i = refnodes . begin( ); i != refnodes . end( ); ++ i )
       for ( j  = i -> second . edges . begin( );
-	    j != i -> second . edges . end( ); ++ j )
-	delete (*j);
+            j != i -> second . edges . end( ); ++ j )
+        delete (*j);
   }
 };
 
@@ -189,7 +190,7 @@ struct LIS_t
 //========================================================== Fuction Decs ====//
 //------------------------------------------------------------------ RevC ----//
 inline unsigned long int RevC (const unsigned long int & coord,
-			       const unsigned long int & len)
+                               const unsigned long int & len)
 {
   return len - coord + 1;
 }
@@ -199,7 +200,9 @@ inline unsigned long int RevC (const unsigned long int & coord,
 inline long int ScoreLocal
 (long int scorej, long int leni, long int lenj, long int olap, float idyi)
 {
-  if ( olap > 0  &&  (olap > (leni >> 2) * 3  ||  olap > (lenj >> 2) * 3) )
+  if ( olap > 0  &&
+       ((float)olap / (float)leni * 100.0 > OPT_MaxOverlap  ||
+	(float)olap / (float)lenj * 100.0 > OPT_MaxOverlap) )
     return -1;
   else
     return (scorej + (long int)((leni - olap) * pow (idyi, 2)));
@@ -341,17 +344,17 @@ void BuildEdge (DeltaEdge_t & edge, const DeltaRecord_t & rec)
 
       //-- Get the delta information
       for ( di = i -> deltas . begin( ); di != i -> deltas . end( ); ++ di )
-	{
-	  ss << *di << '\n';
-	  p -> delta . append (ss . str( ));
-	  ss . str (NULL_STRING);
-	}
+        {
+          ss << *di << '\n';
+          p -> delta . append (ss . str( ));
+          ss . str (NULL_STRING);
+        }
 
       //-- Force loR < hiR && loQ < hiQ
       if ( p -> dirR == REVERSE_DIR )
-	Swap (p -> loR, p -> hiR);
+        Swap (p -> loR, p -> hiR);
       if ( p -> dirQ == REVERSE_DIR )
-	Swap (p -> loQ, p -> hiQ);
+        Swap (p -> loQ, p -> hiQ);
 
       edge . edgelets . push_back (p);
     }
@@ -389,8 +392,8 @@ void BuildGraph (DeltaGraph_t & graph)
 
       //-- Find the reference node in the graph, add a new one if necessary
       insret = graph . refnodes . insert
-	(map<string, DeltaNode_t>::value_type
-	 (dr . getRecord( ) . idR, DeltaNode_t( )));
+        (map<string, DeltaNode_t>::value_type
+         (dr . getRecord( ) . idR, DeltaNode_t( )));
       dep -> refnode = &((insret . first) -> second);
 
       //-- If a new reference node
@@ -403,8 +406,8 @@ void BuildGraph (DeltaGraph_t & graph)
 
       //-- Find the query node in the graph, add a new one if necessary
       insret = graph . qrynodes . insert
-	(map<string, DeltaNode_t>::value_type
-	 (dr . getRecord( ) . idQ, DeltaNode_t( )));
+        (map<string, DeltaNode_t>::value_type
+         (dr . getRecord( ) . idQ, DeltaNode_t( )));
       dep -> qrynode = &((insret . first) -> second);
 
       //-- If a new query node
@@ -446,106 +449,106 @@ void FlagGLIS (DeltaGraph_t & graph)
     {
       //-- For each query aligning to this reference
       for ( ei  = (mi -> second) . edges . begin( );
-	    ei != (mi -> second) . edges . end( ); ++ ei )
-	{
-	  //-- Collect all the good edgelets
-	  edgelets . clear( );
-	  for ( eli  = (*ei) -> edgelets . begin( );
-		eli != (*ei) -> edgelets . end( ); ++ eli )
-	    if ( (*eli) -> isGOOD )
-	      {
-		edgelets . push_back (*eli);
+            ei != (mi -> second) . edges . end( ); ++ ei )
+        {
+          //-- Collect all the good edgelets
+          edgelets . clear( );
+          for ( eli  = (*ei) -> edgelets . begin( );
+                eli != (*ei) -> edgelets . end( ); ++ eli )
+            if ( (*eli) -> isGOOD )
+              {
+                edgelets . push_back (*eli);
 
-		//-- Fix the coordinates to make global LIS work
-		if ( (*eli) -> dirR == (*eli) -> dirQ )
-		  {
-		    (*eli) -> dirQ = FORWARD_DIR;
-		  }
-		else
-		  {
-		    if ( (*eli) -> dirQ == REVERSE_DIR )
-		      Swap ((*eli) -> loQ, (*eli) -> hiQ);
-		    (*eli) -> loQ = RevC ((*eli) -> loQ, (*ei)->qrynode->len);
-		    (*eli) -> hiQ = RevC ((*eli) -> hiQ, (*ei)->qrynode->len);
-		    (*eli) -> dirQ = REVERSE_DIR;
-		  }
-	      }
+                //-- Fix the coordinates to make global LIS work
+                if ( (*eli) -> dirR == (*eli) -> dirQ )
+                  {
+                    (*eli) -> dirQ = FORWARD_DIR;
+                  }
+                else
+                  {
+                    if ( (*eli) -> dirQ == REVERSE_DIR )
+                      Swap ((*eli) -> loQ, (*eli) -> hiQ);
+                    (*eli) -> loQ = RevC ((*eli) -> loQ, (*ei)->qrynode->len);
+                    (*eli) -> hiQ = RevC ((*eli) -> hiQ, (*ei)->qrynode->len);
+                    (*eli) -> dirQ = REVERSE_DIR;
+                  }
+              }
 
-	  //-- Resize
-	  n = edgelets . size( );
-	  if ( n > lis_size )
-	    {
-	      lis = (LIS_t *) Safe_realloc (lis, sizeof (LIS_t) * n);
-	      lis_size = n;
-	    }
+          //-- Resize
+          n = edgelets . size( );
+          if ( n > lis_size )
+            {
+              lis = (LIS_t *) Safe_realloc (lis, sizeof (LIS_t) * n);
+              lis_size = n;
+            }
 
-	  //-- Sort by lo query coord
-	  sort (edgelets . begin( ), edgelets . end( ), EdgeletQCmp_t( ));
+          //-- Sort by lo query coord
+          sort (edgelets . begin( ), edgelets . end( ), EdgeletQCmp_t( ));
 
-	  //-- Dynamic
-	  for ( i = 0; i < n; ++ i )
-	    {
-	      lis[i] . a = edgelets[i];
-	      lis[i] . score = lis[i] . a -> hiQ - lis[i] . a -> loQ + 1;
-	      lis[i] . from = -1;
+          //-- Dynamic
+          for ( i = 0; i < n; ++ i )
+            {
+              lis[i] . a = edgelets[i];
+              lis[i] . score = lis[i] . a -> hiQ - lis[i] . a -> loQ + 1;
+              lis[i] . from = -1;
 
-	      for ( j = 0; j < i; ++ j )
-		{
-		  if ( lis[i] . a -> dirQ != lis[j] . a -> dirQ )
-		    continue;
-		  
-		  lenR = lis[i] . a -> hiR - lis[i] . a -> loR + 1;
-		  lenQ = lis[i] . a -> hiQ - lis[i] . a -> loQ + 1;
-		  len = lenR > lenQ ? lenQ : lenR;
-		  
-		  olapR = lis[j] . a -> hiR - lis[i] . a -> loR + 1;
-		  olapQ = lis[j] . a -> hiQ - lis[i] . a -> loQ + 1;
-		  olap = olapR > olapQ ? olapR : olapQ;
-		  if ( olap < 0 )
-		    olap = 0;
+              for ( j = 0; j < i; ++ j )
+                {
+                  if ( lis[i] . a -> dirQ != lis[j] . a -> dirQ )
+                    continue;
+                  
+                  lenR = lis[i] . a -> hiR - lis[i] . a -> loR + 1;
+                  lenQ = lis[i] . a -> hiQ - lis[i] . a -> loQ + 1;
+                  len = lenR > lenQ ? lenQ : lenR;
+                  
+                  olapR = lis[j] . a -> hiR - lis[i] . a -> loR + 1;
+                  olapQ = lis[j] . a -> hiQ - lis[i] . a -> loQ + 1;
+                  olap = olapR > olapQ ? olapR : olapQ;
+                  if ( olap < 0 )
+                    olap = 0;
 
-		  score =
-		    ScoreGlobal
-		    (lis[j] . score, len, olap, lis[i] . a -> idy);
-		  if ( score > lis[i] . score )
-		    {
-		      lis[i] . from = j;
-		      lis[i] . score = score;
-		    }
-		}
-	    }
+                  score =
+                    ScoreGlobal
+                    (lis[j] . score, len, olap, lis[i] . a -> idy);
+                  if ( score > lis[i] . score )
+                    {
+                      lis[i] . from = j;
+                      lis[i] . score = score;
+                    }
+                }
+            }
 
-	  //-- Backtrack and flag the GLIS edgelets
-	  best = 0;
-	  for ( i = 1; i < n; ++ i )
-	    if ( lis[i] . score > lis[best] . score )
-	      best = i;
+          //-- Backtrack and flag the GLIS edgelets
+          best = 0;
+          for ( i = 1; i < n; ++ i )
+            if ( lis[i] . score > lis[best] . score )
+              best = i;
 
-	  for ( i = best; i >= 0  &&  i < n; i = lis[i] . from )
-	    lis[i] . a -> isGLIS = true;
+          for ( i = best; i >= 0  &&  i < n; i = lis[i] . from )
+            lis[i] . a -> isGLIS = true;
 
-	  //-- Flag the edgelets not in the GLIS
-	  for ( eli = edgelets . begin( ); eli != edgelets . end( ); ++ eli )
-	    {
-	      if ( ! (*eli) -> isGLIS )
-		(*eli) -> isGOOD = false;
+          //-- Flag the edgelets not in the GLIS
+          for ( eli = edgelets . begin( ); eli != edgelets . end( ); ++ eli )
+            {
+              if ( ! (*eli) -> isGLIS )
+                (*eli) -> isGOOD = false;
 
-	      //-- Bring the coordinates back to normal
-	      if ( (*eli) -> dirQ == FORWARD_DIR )
-		{
-		  (*eli) -> dirQ = (*eli) -> dirR;
-		}
-	      else
-		{
-		  if ( (*eli) -> dirR == FORWARD_DIR )
-		    Swap ((*eli) -> loQ, (*eli) -> hiQ);
-		  (*eli) -> loQ = RevC ((*eli) -> loQ, (*ei)->qrynode->len);
-		  (*eli) -> hiQ = RevC ((*eli) -> hiQ, (*ei)->qrynode->len);
-		  (*eli) -> dirQ =
-		    (*eli) -> dirR == FORWARD_DIR ? REVERSE_DIR : FORWARD_DIR;
-		}
-	    }
-	}
+              //-- Bring the coordinates back to normal
+              if ( (*eli) -> dirQ == FORWARD_DIR )
+                {
+                  (*eli) -> dirQ = (*eli) -> dirR;
+                }
+              else
+                {
+                  if ( (*eli) -> dirR == FORWARD_DIR )
+                    Swap ((*eli) -> loQ, (*eli) -> hiQ);
+                  (*eli) -> loQ = RevC ((*eli) -> loQ, (*ei)->qrynode->len);
+                  (*eli) -> hiQ = RevC ((*eli) -> hiQ, (*ei)->qrynode->len);
+                  (*eli) -> dirQ =
+                    (*eli) -> dirR == FORWARD_DIR ? REVERSE_DIR : FORWARD_DIR;
+                }
+            }
+        }
     }
 
   free (lis);
@@ -564,17 +567,17 @@ void FlagIDY (DeltaGraph_t & graph)
 
   for ( mi = graph.refnodes.begin( ); mi != graph.refnodes.end( ); ++ mi )
     for ( ei  = (mi -> second) . edges . begin( );
-	  ei != (mi -> second) . edges . end( ); ++ ei )
+          ei != (mi -> second) . edges . end( ); ++ ei )
       for ( eli  = (*ei) -> edgelets . begin( );
-	    eli != (*ei) -> edgelets . end( ); ++ eli )
-	if ( (*eli) -> isGOOD )
-	  {
-	    //-- Flag low identities
-	    if ( (*eli) -> idy * 100.0 < OPT_MinIdentity )
-	      (*eli) -> isGOOD = false;
-	    else
-	      (*eli) -> isIDY = true;
-	  }
+            eli != (*ei) -> edgelets . end( ); ++ eli )
+        if ( (*eli) -> isGOOD )
+          {
+            //-- Flag low identities
+            if ( (*eli) -> idy * 100.0 < OPT_MinIdentity )
+              (*eli) -> isGOOD = false;
+            else
+              (*eli) -> isIDY = true;
+          }
 }
 
 
@@ -601,62 +604,61 @@ void FlagQLIS (DeltaGraph_t & graph)
       //-- Collect all the good edgelets
       edgelets . clear( );
       for ( ei  = (mi -> second) . edges . begin( );
-	    ei != (mi -> second) . edges . end( ); ++ ei )
-	for ( eli  = (*ei) -> edgelets . begin( );
-	      eli != (*ei) -> edgelets . end( ); ++ eli )
-	  if ( (*eli) -> isGOOD )
-	    edgelets . push_back (*eli);
+            ei != (mi -> second) . edges . end( ); ++ ei )
+        for ( eli  = (*ei) -> edgelets . begin( );
+              eli != (*ei) -> edgelets . end( ); ++ eli )
+          if ( (*eli) -> isGOOD )
+            edgelets . push_back (*eli);
 
       //-- Resize
       n = edgelets . size( );
       if ( n > lis_size )
-	{
-	  lis = (LIS_t *) Safe_realloc (lis, sizeof (LIS_t) * n);
-	  lis_size = n;
-	}
+        {
+          lis = (LIS_t *) Safe_realloc (lis, sizeof (LIS_t) * n);
+          lis_size = n;
+        }
 
       //-- Sort by lo query coord
       sort (edgelets . begin( ), edgelets . end( ), EdgeletQCmp_t( ));
 
       //-- Dynamic
       for ( i = 0; i < n; ++ i )
-	{
-	  lis[i] . a = edgelets[i];
-	  lis[i] . score = lis[i] . a -> hiQ - lis[i] . a -> loQ + 1;
-	  lis[i] . from = -1;
+        {
+          lis[i] . a = edgelets[i];
+          lis[i] . score = lis[i] . a -> hiQ - lis[i] . a -> loQ + 1;
+          lis[i] . from = -1;
 
-	  for ( j = 0; j < i; ++ j )
-	    {
-	      leni = lis[i] . a -> hiQ - lis[i] . a -> loQ + 1;
-	      lenj = lis[j] . a -> hiQ - lis[j] . a -> loQ + 1;
-	      olap = lis[j] . a -> hiQ - lis[i] . a -> loQ + 1;
-	      if ( olap < 0 )
-		olap = 0;
-	      
-	      score =
-		ScoreLocal
-		(lis[j] . score, leni, lenj, olap, lis[i] . a -> idy);
-	      if ( score > lis[i] . score )
-		{
-		  lis[i] . from = j;
-		  lis[i] . score = score;
-		}
-	    }
-	}
+          for ( j = 0; j < i; ++ j )
+            {
+              leni = lis[i] . a -> hiQ - lis[i] . a -> loQ + 1;
+              lenj = lis[j] . a -> hiQ - lis[j] . a -> loQ + 1;
+              olap = lis[j] . a -> hiQ - lis[i] . a -> loQ + 1;
+              if ( olap < 0 )
+                olap = 0;
+              
+              score = ScoreLocal
+                (lis[j] . score, leni, lenj, olap, lis[i] . a -> idy);
+              if ( score > lis[i] . score )
+                {
+                  lis[i] . from = j;
+                  lis[i] . score = score;
+                }
+            }
+        }
 
       //-- Backtrack and flag the QLIS edgelets
       best = 0;
       for ( i = 1; i < n; ++ i )
-	if ( lis[i] . score > lis[best] . score )
-	  best = i;
+        if ( lis[i] . score > lis[best] . score )
+          best = i;
 
       for ( i = best; i >= 0  &&  i < n; i = lis[i] . from )
-	lis[i] . a -> isQLIS = true;
+        lis[i] . a -> isQLIS = true;
 
       //-- Flag the edgelets not in the QLIS
       for ( eli = edgelets . begin( ); eli != edgelets . end( ); ++ eli )
-	if ( ! (*eli) -> isQLIS )
-	  (*eli) -> isGOOD = false;
+        if ( ! (*eli) -> isQLIS )
+          (*eli) -> isGOOD = false;
     }
 
   free (lis);
@@ -686,57 +688,56 @@ void FlagRLIS (DeltaGraph_t & graph)
       //-- Collect all the good edgelets
       edgelets . clear( );
       for ( ei  = (mi -> second) . edges . begin( );
-	    ei != (mi -> second) . edges . end( ); ++ ei )
-	for ( eli  = (*ei) -> edgelets . begin( );
-	      eli != (*ei) -> edgelets . end( ); ++ eli )
-	  if ( (*eli) -> isGOOD )
-	    edgelets . push_back (*eli);
+            ei != (mi -> second) . edges . end( ); ++ ei )
+        for ( eli  = (*ei) -> edgelets . begin( );
+              eli != (*ei) -> edgelets . end( ); ++ eli )
+          if ( (*eli) -> isGOOD )
+            edgelets . push_back (*eli);
 
       //-- Resize
       n = edgelets . size( );
       if ( n > lis_size )
-	{
-	  lis = (LIS_t *) Safe_realloc (lis, sizeof (LIS_t) * n);
-	  lis_size = n;
-	}
+        {
+          lis = (LIS_t *) Safe_realloc (lis, sizeof (LIS_t) * n);
+          lis_size = n;
+        }
 
       //-- Sort by lo reference coord
       sort (edgelets . begin( ), edgelets . end( ), EdgeletRCmp_t( ));
 
       //-- Dynamic
       for ( i = 0; i < n; ++ i )
-	{
-	  lis[i] . a = edgelets[i];
-	  lis[i] . score = lis[i] . a -> hiR - lis[i] . a -> loR + 1;
-	  lis[i] . from = -1;
+        {
+          lis[i] . a = edgelets[i];
+          lis[i] . score = lis[i] . a -> hiR - lis[i] . a -> loR + 1;
+          lis[i] . from = -1;
 
-	  for ( j = 0; j < i; ++ j )
-	    {
-	      leni = lis[i] . a -> hiR - lis[i] . a -> loR + 1;
-	      lenj = lis[j] . a -> hiR - lis[j] . a -> loR + 1;
-	      olap = lis[j] . a -> hiR - lis[i] . a -> loR + 1;
-	      if ( olap < 0 )
-		olap = 0;
+          for ( j = 0; j < i; ++ j )
+            {
+              leni = lis[i] . a -> hiR - lis[i] . a -> loR + 1;
+              lenj = lis[j] . a -> hiR - lis[j] . a -> loR + 1;
+              olap = lis[j] . a -> hiR - lis[i] . a -> loR + 1;
+              if ( olap < 0 )
+                olap = 0;
 
-	      score =
-		ScoreLocal
-		(lis[j] . score, leni, lenj, olap, lis[i] . a -> idy);
-	      if ( score > lis[i] . score )
-		{
-		  lis[i] . from = j;
-		  lis[i] . score = score;
-		}
-	    }
-	}
+              score = ScoreLocal
+                (lis[j] . score, leni, lenj, olap, lis[i] . a -> idy);
+              if ( score > lis[i] . score )
+                {
+                  lis[i] . from = j;
+                  lis[i] . score = score;
+                }
+            }
+        }
 
       //-- Backtrack and flag the RLIS edgelets
       best = 0;
       for ( i = 1; i < n; ++ i )
-	if ( lis[i] . score > lis[best] . score )
-	  best = i;
+        if ( lis[i] . score > lis[best] . score )
+          best = i;
 
       for ( i = best; i >= 0  &&  i < n; i = lis[i] . from )
-	lis[i] . a -> isRLIS = true;
+        lis[i] . a -> isRLIS = true;
 
       //-- Flag the edgelets not in the RLIS
       for ( eli = edgelets . begin( ); eli != edgelets . end( ); ++ eli )
@@ -771,44 +772,44 @@ void FlagUNIQ (DeltaGraph_t & graph)
       //-- Reset the reference coverage array
       ref_len = (mi -> second) . len;
       if ( ref_len > ref_size )
-	{
-	  ref_cov = (unsigned char *) Safe_realloc (ref_cov, ref_len + 1);
-	  ref_size = ref_len;
-	}
+        {
+          ref_cov = (unsigned char *) Safe_realloc (ref_cov, ref_len + 1);
+          ref_size = ref_len;
+        }
       for ( i = 1; i <= ref_len; ++ i )
-	ref_cov[i] = 0;
+        ref_cov[i] = 0;
 
       //-- Collect all the good edgelets
       edgelets . clear( );
       for ( ei  = (mi -> second) . edges . begin( );
-	    ei != (mi -> second) . edges . end( ); ++ ei )
-	for ( eli  = (*ei) -> edgelets . begin( );
-	      eli != (*ei) -> edgelets . end( ); ++ eli )
-	  if ( (*eli) -> isGOOD )
-	    {
-	      edgelets . push_back (*eli);
+            ei != (mi -> second) . edges . end( ); ++ ei )
+        for ( eli  = (*ei) -> edgelets . begin( );
+              eli != (*ei) -> edgelets . end( ); ++ eli )
+          if ( (*eli) -> isGOOD )
+            {
+              edgelets . push_back (*eli);
 
-	      //-- Add to the reference coverage
-	      for ( i = (*eli) -> loR; i <= (*eli) -> hiR; i ++ )
-		if ( ref_cov[i] < UCHAR_MAX )
-		  ref_cov[i] ++;
-	    }
+              //-- Add to the reference coverage
+              for ( i = (*eli) -> loR; i <= (*eli) -> hiR; i ++ )
+                if ( ref_cov[i] < UCHAR_MAX )
+                  ref_cov[i] ++;
+            }
 
       //-- Calculate the uniqueness of each edgelet
       for ( eli = edgelets . begin( ); eli != edgelets . end( ); ++ eli )
-	{
-	  uniq = 0;
-	  len = (*eli) -> hiR - (*eli) -> loR + 1;
-	  for ( i = (*eli) -> loR; i <= (*eli) -> hiR; i ++ )
-	    if ( ref_cov[i] == 1 )
-	      uniq ++;
+        {
+          uniq = 0;
+          len = (*eli) -> hiR - (*eli) -> loR + 1;
+          for ( i = (*eli) -> loR; i <= (*eli) -> hiR; i ++ )
+            if ( ref_cov[i] == 1 )
+              uniq ++;
 
-	  //-- Flag low reference uniqueness
-	  if ( (float)uniq / (float)len * 100.0 < OPT_MinUnique )
-	    (*eli) -> isGOOD = false;
-	  else
-	    (*eli) -> isUNIQ = true;
-	}
+          //-- Flag low reference uniqueness
+          if ( (float)uniq / (float)len * 100.0 < OPT_MinUnique )
+            (*eli) -> isGOOD = false;
+          else
+            (*eli) -> isUNIQ = true;
+        }
     }
   free (ref_cov);
 
@@ -822,44 +823,44 @@ void FlagUNIQ (DeltaGraph_t & graph)
       //-- Reset the query coverage array
       qry_len = (mi -> second) . len;
       if ( qry_len > qry_size )
-	{
-	  qry_cov = (unsigned char *) Safe_realloc (qry_cov, qry_len + 1);
-	  qry_size = qry_len;
-	}
+        {
+          qry_cov = (unsigned char *) Safe_realloc (qry_cov, qry_len + 1);
+          qry_size = qry_len;
+        }
       for ( i = 1; i <= qry_len; ++ i )
-	qry_cov[i] = 0;
+        qry_cov[i] = 0;
 
       //-- Collect all the good edgelets
       edgelets . clear( );
       for ( ei  = (mi -> second) . edges . begin( );
-	    ei != (mi -> second) . edges . end( ); ++ ei )
-	for ( eli  = (*ei) -> edgelets . begin( );
-	      eli != (*ei) -> edgelets . end( ); ++ eli )
-	  if ( (*eli) -> isGOOD )
-	    {
-	      edgelets . push_back (*eli);
+            ei != (mi -> second) . edges . end( ); ++ ei )
+        for ( eli  = (*ei) -> edgelets . begin( );
+              eli != (*ei) -> edgelets . end( ); ++ eli )
+          if ( (*eli) -> isGOOD )
+            {
+              edgelets . push_back (*eli);
 
-	      //-- Add to the query coverage
-	      for ( i = (*eli) -> loQ; i <= (*eli) -> hiQ; i ++ )
-		if ( qry_cov[i] < UCHAR_MAX )
-		  qry_cov[i] ++;
-	    }
+              //-- Add to the query coverage
+              for ( i = (*eli) -> loQ; i <= (*eli) -> hiQ; i ++ )
+                if ( qry_cov[i] < UCHAR_MAX )
+                  qry_cov[i] ++;
+            }
 
       //-- Calculate the uniqueness of each edgelet
       for ( eli = edgelets . begin( ); eli != edgelets . end( ); ++ eli )
-	{
-	  uniq = 0;
-	  len = (*eli) -> hiQ - (*eli) -> loQ + 1;
-	  for ( i = (*eli) -> loQ; i <= (*eli) -> hiQ; i ++ )
-	    if ( qry_cov[i] == 1 )
-	      uniq ++;
-	  
-	  //-- Flag low query uniqueness
-	  if ( (float)uniq / (float)len * 100.0 < OPT_MinUnique )
-	    (*eli) -> isGOOD = false;
-	  else
-	    (*eli) -> isUNIQ = true;
-	}
+        {
+          uniq = 0;
+          len = (*eli) -> hiQ - (*eli) -> loQ + 1;
+          for ( i = (*eli) -> loQ; i <= (*eli) -> hiQ; i ++ )
+            if ( qry_cov[i] == 1 )
+              uniq ++;
+          
+          //-- Flag low query uniqueness
+          if ( (float)uniq / (float)len * 100.0 < OPT_MinUnique )
+            (*eli) -> isGOOD = false;
+          else
+            (*eli) -> isUNIQ = true;
+        }
     }
   free (qry_cov);
 }
@@ -885,46 +886,46 @@ void PrintDelta (const DeltaGraph_t & graph)
   for ( mi = graph.qrynodes.begin( ); mi != graph.qrynodes.end( ); ++ mi )
     {
       for ( ei  = (mi -> second) . edges . begin( );
-	    ei != (mi -> second) . edges . end( ); ++ ei )
-	{
-	  header = false;
+            ei != (mi -> second) . edges . end( ); ++ ei )
+        {
+          header = false;
 
-	  for ( eli  = (*ei) -> edgelets . begin( );
-		eli != (*ei) -> edgelets . end( ); ++ eli )
-	    {
-	      if ( ! (*eli) -> isGOOD )
-		continue;
+          for ( eli  = (*ei) -> edgelets . begin( );
+                eli != (*ei) -> edgelets . end( ); ++ eli )
+            {
+              if ( ! (*eli) -> isGOOD )
+                continue;
 
-	      //-- Print the sequence header
-	      if ( ! header )
-		{
-		  cout
-		    << '>'
-		    << *((*ei) -> refnode -> id) << ' '
-		    << *((*ei) -> qrynode -> id) << ' '
-		    << (*ei) -> refnode -> len << ' '
-		    << (*ei) -> qrynode -> len << endl;
-		  header = true;
-		}
+              //-- Print the sequence header
+              if ( ! header )
+                {
+                  cout
+                    << '>'
+                    << *((*ei) -> refnode -> id) << ' '
+                    << *((*ei) -> qrynode -> id) << ' '
+                    << (*ei) -> refnode -> len << ' '
+                    << (*ei) -> qrynode -> len << endl;
+                  header = true;
+                }
 
-	      //-- Print the alignment
-	      s1 = (*eli) -> loR;
-	      e1 = (*eli) -> hiR;
-	      s2 = (*eli) -> loQ;
-	      e2 = (*eli) -> hiQ;
-	      if ( (*eli) -> dirR == REVERSE_DIR )
-		Swap (s1, e1);
-	      if ( (*eli) -> dirQ == REVERSE_DIR )
-		Swap (s2, e2);
+              //-- Print the alignment
+              s1 = (*eli) -> loR;
+              e1 = (*eli) -> hiR;
+              s2 = (*eli) -> loQ;
+              e2 = (*eli) -> hiQ;
+              if ( (*eli) -> dirR == REVERSE_DIR )
+                Swap (s1, e1);
+              if ( (*eli) -> dirQ == REVERSE_DIR )
+                Swap (s2, e2);
 
-	      cout
-		<< s1 << ' ' << e1 << ' ' << s2 << ' ' << e2 << ' '
-		<< (*eli) -> idyc << ' '
-		<< (*eli) -> simc << ' '
-		<< (*eli) -> stpc << endl
-		<< (*eli) -> delta;
-	    }
-	}
+              cout
+                << s1 << ' ' << e1 << ' ' << s2 << ' ' << e2 << ' '
+                << (*eli) -> idyc << ' '
+                << (*eli) -> simc << ' '
+                << (*eli) -> stpc << endl
+                << (*eli) -> delta;
+            }
+        }
     }
 }
 
@@ -938,36 +939,40 @@ void ParseArgs (int argc, char ** argv)
   optarg = NULL;
   
   while ( !errflg  &&
-          ((ch = getopt (argc, argv, "ghi:qru:")) != EOF) )
+          ((ch = getopt (argc, argv, "ghi:o:qru:")) != EOF) )
     switch (ch)
       {
       case 'g':
-	OPT_GLIS = true;
-	break;
+        OPT_GLIS = true;
+        break;
 
       case 'h':
-	PrintHelp (argv[0]);
-	exit (EXIT_SUCCESS);
-	break;
+        PrintHelp (argv[0]);
+        exit (EXIT_SUCCESS);
+        break;
 
       case 'i':
-	OPT_MinIdentity = atof (optarg);
+        OPT_MinIdentity = atof (optarg);
+        break;
+
+      case 'o':
+	OPT_MaxOverlap = atof (optarg);
 	break;
 
       case 'q':
-	OPT_QLIS = true;
-	break;
+        OPT_QLIS = true;
+        break;
 
       case 'r':
-	OPT_RLIS = true;
-	break;
+        OPT_RLIS = true;
+        break;
 
       case 'u':
-	OPT_MinUnique = atof (optarg);
-	break;
+        OPT_MinUnique = atof (optarg);
+        break;
 
       default:
-	errflg ++;
+        errflg ++;
       }
 
   if ( OPT_MinIdentity < 0.0  ||  OPT_MinIdentity > 100.0 )
@@ -976,9 +981,15 @@ void ParseArgs (int argc, char ** argv)
       errflg ++;
     }
 
-  if ( OPT_MinUnique < 0.0  || OPT_MinUnique > 100.0 )
+  if ( OPT_MinUnique < 0.0  ||  OPT_MinUnique > 100.0 )
     {
       cerr << "ERROR: Minimum uniqueness must be within the range [0, 100]\n";
+      errflg ++;
+    }
+
+  if ( OPT_MaxOverlap < 0.0  ||  OPT_MaxOverlap > 100.0 )
+    {
+      cerr << "ERROR: Maximum overlap must be within the range [0, 100]\n";
       errflg ++;
     }
 
@@ -1010,6 +1021,9 @@ void PrintHelp (const char * s)
     << "              the alignment matching to unique reference AND query\n"
     << "              sequence [0, 100], default "
     << OPT_MinUnique << endl
+    << "-o float      Set the maximum alignment overlap for -r and -q options\n"
+    << "              as a percent of the alignment length [0, 100], default "
+    << OPT_MaxOverlap << endl
     << endl;
 
   cerr
