@@ -15,7 +15,7 @@ AUX_BIN_RULE = $(CXX) $(CPPFLAGS) $^ -o $(AUX_BIN_DIR)/$@; \
            chmod 755 $(AUX_BIN_DIR)/$@
 VPATH := $(AUX_BIN_DIR):$(BIN_DIR)
 
-ALL := annotate combineMUMs gaps mgaps \
+ALL := annotate combineMUMs delta-filter gaps mgaps \
      postnuc postpro prenuc prepro repeat-match \
      show-aligns show-coords show-tiling
 
