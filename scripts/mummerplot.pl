@@ -136,7 +136,8 @@ my $HELP = qq~
     -h
     --help          Display help information and exit
     -l
-    --layout        Layout a .delta multiplot in an intelligible fashion
+    --layout        Layout a .delta multiplot in an intelligible fashion,
+                    this option requires the -R -Q options
     -p|prefix       Set the prefix of the output files (default '$OPT_prefix')
     -rv             Reverse video for x11 plots
     -r|IdR          Plot a particular reference sequence ID on the X-axis
@@ -598,9 +599,7 @@ sub ParseTiling ($)
 # recursively span reference and query sequences by their smaller
 # counterparts until all spanning sequences have been placed. The goal
 # is to cluster all the "major" alignment information along the main
-# diagonal for easy viewing and interpretation. Alignments not falling
-# on the main diagonal show now highlight discrepancies between the two
-# sequence sets.
+# diagonal for easy viewing and interpretation.
 sub LayoutIDs ($$)
 {
     my $rref = shift;
