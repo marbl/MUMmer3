@@ -184,6 +184,7 @@ sub ParseMummer($);
 sub ParseTiling($);
 
 sub LayoutIDs($$);
+sub SpanXwY ($$$$$);
 
 sub PlotData($$$);
 sub WriteGP($$);
@@ -241,12 +242,12 @@ MAIN:
     
     #-- Layout the alignment data if requested
     if ( $OPT_layout ) {
-        if ( !defined %refs && !defined %qrys ) {
-            print STDERR "WARNING: --layout option only works with -R or -Q\n";
-            undef $OPT_layout;
+        if ( scalar (keys %refs) || scalar (keys %qrys) ) {
+            LayoutIDs (\%refs, \%qrys);
         }
         else {
-            LayoutIDs (\%refs, \%qrys);
+            print STDERR "WARNING: --layout option only works with -R or -Q\n";
+            undef $OPT_layout;
         }
     }
 
