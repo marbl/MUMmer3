@@ -127,6 +127,8 @@ my $HELP = qq~
                     breaklen nucleotides from the nearest sequence end
     --[no]color     Color plot lines with a percent similarity gradient or
                     turn off all plot color (default color by match dir)
+                    If the plot is very sparse, edit the .gp script to plot
+                    with 'linespoints' instead of 'lines'
     -c
     --[no]coverage  Generate a reference coverage plot (default for .tiling)
     --depend        Print the dependency information and exit
