@@ -749,8 +749,8 @@ long int longestConsistentSubset
   for ( i = Best; i >= 0; i = A[i].From )
     A[i].Ap->isTiled = true;
 
-  free ( A );
   return A[Best].Score;
+  free ( A );
 }
 
 
