@@ -877,9 +877,10 @@ sub WriteGP ($$)
     }
 
     foreach my $s ( ($FWD, $REV, $HLT) ) {
-        my $ss = "$P_LS $s lw $P_LW{$s}";
-        if ( ! $OPT_coverage ) { $ss .= " pt $P_PT{$s} ps $P_PS{$s}"; }
+        my $ss = "$P_LS $s ";
         $ss .= $OPT_color ? " palette" : " lt $P_LT{$s}";
+        $ss .= " lw $P_LW{$s}";
+        if ( ! $OPT_coverage ) { $ss .= " pt $P_PT{$s} ps $P_PS{$s}"; }
         print GFILE "$ss\n";
     }
 
@@ -1022,7 +1023,7 @@ sub ParseOptions ( )
             undef $OPT_color;
         }
 
-        if ( $OPT_terminal eq $PNG  &&  $OPT_size != $SMALL ) { 
+        if ( $OPT_terminal eq $PNG  &&  $OPT_size ne $SMALL ) { 
             print STDERR
                 "WARNING: Turning of --size option for compatibility\n";
             $OPT_size = $SMALL;
