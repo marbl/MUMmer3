@@ -768,6 +768,10 @@ void FindSNPs (DeltaGraph_t & graph)
                 for ( i = 1; i < delta; i ++ )
                   if ( R [ri] [rpos ++] != Q [qi] [qpos ++] )
                     {
+                      if ( graph.datatype == NUCMER_DATA &&
+                           CompareIUPAC (R [ri][rpos-1], Q [qi][qpos-1]) )
+                        continue;
+
                       snp = new SNP_t;
                       snp -> ep = *ei;
                       snp -> lp = *li;
@@ -864,6 +868,10 @@ void FindSNPs (DeltaGraph_t & graph)
             for ( i = 0; i < remain; i ++ )
               if ( R [ri] [rpos ++] != Q [qi] [qpos ++] )
                 {
+                  if ( graph.datatype == NUCMER_DATA &&
+                       CompareIUPAC (R [ri][rpos-1], Q [qi][qpos-1]) )
+                    continue;
+
                   snp = new SNP_t;
                   snp -> ep = *ei;
                   snp -> lp = *li;

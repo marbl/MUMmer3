@@ -80,6 +80,7 @@ my $OPT_IdQ;                       # -q option
 my $OPT_IDRfile;                   # -R option
 my $OPT_IDQfile;                   # -Q option
 my $OPT_size      = $SMALL;        # -small, -medium, -large
+my $OPT_SNP;                       # -S option
 my $OPT_xrange;                    # -x option
 my $OPT_yrange;                    # -y option
 
@@ -95,7 +96,7 @@ my $OPT_gpstatus;                  # gnuplot status
 
 
 #============================================================== Foundation ====#
-my $VERSION = '3.1';
+my $VERSION = '3.2';
 
 my $USAGE = qq~
   USAGE: mummerplot  [options]  <match file>
@@ -148,6 +149,8 @@ my $HELP = qq~
                     files or lists of sequence IDs, lens and dirs [ /+/-]
     -s|size         Set the output size to small, medium or large
                     --small --medium --large (default '$OPT_size')
+    -S
+    --SNP           Highlight SNP locations in each alignment
     -t|terminal     Set the output terminal to x11, postscript or png
                     --x11 --postscript --png (default '$OPT_terminal')
     -x|xrange       Set the xrange for the plot '[min:max]'
@@ -161,6 +164,7 @@ my @DEPEND =
      "$SCRIPT_DIR/Foundation.pm",
      "$BIN_DIR/delta-filter",
      "$BIN_DIR/show-coords",
+     "$BIN_DIR/show-snps",
      "gnuplot"
      );
 
@@ -207,6 +211,13 @@ MAIN:
     #-- Get the alignment type
     my $parsefunc = GetParseFunc( );
 
+    if ( $parsefunc != \&ParseDelta &&
+         ($OPT_filter || $OPT_layout || $OPT_SNP) ) {
+        print STDERR "WARNING: -f -l -S only work with delta input\n";
+        undef $OPT_filter;
+        undef $OPT_layout;
+        undef $OPT_SNP;
+    }
 
     #-- Parse the reference and query IDs
     if    ( defined $OPT_IdR ) { $refs{$OPT_IdR} = [ 0, 0, 1 ]; }
@@ -222,17 +233,10 @@ MAIN:
 
     #-- Filter the alignments
     if ( $OPT_filter || $OPT_layout ) {
-        if ( $parsefunc != \&ParseDelta ) {
-            print STDERR "WARNING: -f and -l only work with delta input\n";
-            undef $OPT_filter;
-            undef $OPT_layout;
-        }
-        else {
-            print STDERR "Writing filtered delta file $OPT_Dfile\n";
-            system ("$BIN_DIR/delta-filter -r -q $OPT_Mfile > $OPT_Dfile")
-                and die "ERROR: Could not run delta-filter, $!\n";
-            if ( $OPT_filter ) { $OPT_Mfile = $OPT_Dfile; }
-        }
+        print STDERR "Writing filtered delta file $OPT_Dfile\n";
+        system ("$BIN_DIR/delta-filter -r -q $OPT_Mfile > $OPT_Dfile")
+            and die "ERROR: Could not run delta-filter, $!\n";
+        if ( $OPT_filter ) { $OPT_Mfile = $OPT_Dfile; }
     }
 
 
@@ -625,15 +629,16 @@ sub LayoutIDs ($$)
     my ($loR, $hiR, $loQ, $hiQ);
     my ($dR, $dQ, $slope);
     while ( <BTAB> ) {
+        chomp;
         @align = split "\t";
         if ( scalar @align != 21 ) {
             die "ERROR: Could not read show-coords pipe, invalid btab format\n";
         }
 
-        $sR = $align[8];     $eR = $align[9];
-        $sQ = $align[6];     $eQ = $align[7];
+        $sR   = $align[8];   $eR   = $align[9];
+        $sQ   = $align[6];   $eQ   = $align[7];
         $lenR = $align[18];  $lenQ = $align[2];
-        $idR = $align[5];    $idQ = $align[0];
+        $idR  = $align[5];   $idQ  = $align[0];
 
         #-- skip it if not on include list
         if ( !exists $rref->{$idR} || !exists $qref->{$idQ} ) { next; }
@@ -839,35 +844,43 @@ sub PlotData ($$$)
         }
 
         #-- forward file, reverse file, highlight file
-        if ( !defined $OPT_breaklen ||
-             ( ($sR - 1 <= $OPT_breaklen ||
-                $sQ - 1 <= $OPT_breaklen ||
-                $reflen - $sR <= $OPT_breaklen ||
-                $qrylen - $sQ <= $OPT_breaklen)
-               &&
-               ($eR - 1 <= $OPT_breaklen ||
-                $eQ - 1 <= $OPT_breaklen ||
-                $reflen - $eR <= $OPT_breaklen ||
-                $qrylen - $eQ <= $OPT_breaklen) ) ) {
+        my @fha;
 
-            $fh = ($sR < $eR) == ($sQ < $eQ) ? \*FFILE : \*RFILE;
+        if ( defined $OPT_breaklen &&
+             ( ($sR - 1 > $OPT_breaklen &&
+                $sQ - 1 > $OPT_breaklen &&
+                $reflen - $sR > $OPT_breaklen &&
+                $qrylen - $sQ > $OPT_breaklen)
+               ||
+               ($eR - 1 > $OPT_breaklen &&
+                $eQ - 1 > $OPT_breaklen &&
+                $reflen - $eR > $OPT_breaklen &&
+                $qrylen - $eQ > $OPT_breaklen) ) ) {
+            push @fha, \*HFILE;
         }
-        else {
-            $fh = \*HFILE;
-        }
+
+        push @fha, (($sR < $eR) == ($sQ < $eQ) ? \*FFILE : \*RFILE);
 
         #-- plot it
         $sR += $refoff; $eR += $refoff;
         $sQ += $qryoff; $eQ += $qryoff;
 
         if ( $OPT_coverage ) {
-            print $fh
-                "$sR 10 $sim\n", "$eR 10 $sim\n\n\n",
-                "$sR $sim 0\n", "$eR $sim 0\n\n\n";
+            foreach $fh ( @fha ) {
+                print $fh
+                    "$sR 10 $sim\n",
+                    "$eR 10 $sim\n\n\n",
+
+                    "$sR $sim 0\n",
+                    "$eR $sim 0\n\n\n";
+            }
         }
         else {
-            print $fh
-                "$sR $sQ $sim\n", "$eR $eQ $sim\n\n\n";
+            foreach $fh ( @fha ) {
+                print $fh
+                    "$sR $sQ $sim\n",
+                    "$eR $eQ $sim\n\n\n";
+            }
         }            
 
         #-- set some flags
@@ -875,6 +888,73 @@ sub PlotData ($$$)
         if ( !$ismultiqry && $idQ ne $pidQ ) { $ismultiqry = 1; }
         if ( !$isplotted ) { $isplotted = 1; }
     }
+
+
+    #-- highlight the SNPs
+    if ( defined $OPT_SNP ) {
+
+        print STDERR "Determining SNPs from sequence and alignment data\n";
+
+        open (SNPS, "$BIN_DIR/show-snps -H -T -l $OPT_Mfile |")
+            or die "ERROR: Could not open show-snps pipe, $!\n";
+
+        my @snps;
+        my ($pR, $pQ, $lenR, $lenQ, $idR, $idQ);
+        while ( <SNPS> ) {
+            chomp;
+            @snps = split "\t";
+            if ( scalar @snps != 14 ) {
+                die "ERROR: Could not read show-snps pipe, invalid format\n";
+            }
+
+            $pR   = $snps[0];   $pQ   = $snps[3];
+            $lenR = $snps[8];   $lenQ = $snps[9];
+            $idR  = $snps[12];  $idQ  = $snps[13];
+
+            #-- set the sequence offset, length, direction, etc...
+            my ($refoff, $reflen, $refdir);
+            my ($qryoff, $qrylen, $qrydir);
+            
+            if ( defined (%$rref) ) {
+                #-- skip reference sequence or set atts from hash
+                if ( !exists ($rref->{$idR}) ) { next; }
+                else { ($refoff, $reflen, $refdir) = @{$rref->{$idR}}; }
+            }
+            else {
+                #-- no reference hash, so default atts
+                ($refoff, $reflen, $refdir) = (0, $lenR, 1);
+            }
+            
+            if ( defined (%$qref) ) {
+                #-- skip query sequence or set atts from hash
+                if ( !exists ($qref->{$idQ}) ) { next; }
+                else { ($qryoff, $qrylen, $qrydir) = @{$qref->{$idQ}}; }
+            }
+            else {
+                #-- no query hash, so default atts
+                ($qryoff, $qrylen, $qrydir) = (0, $lenQ, 1);
+            }
+
+            #-- get the orientation right
+            if ( $refdir == -1 ) { $pR = $reflen - $pR + 1; }
+            if ( $qrydir == -1 ) { $pQ = $qrylen - $pQ + 1; }
+
+            #-- plot it
+            $pR += $refoff;
+            $pQ += $qryoff;
+
+            if ( $OPT_coverage ) {
+                print HFILE "$pR 10 0\n", "$pR 10 0\n\n\n",
+            }
+            else {
+                print HFILE "$pR $pQ 0\n", "$pR $pQ 0\n\n\n";
+            }            
+        }
+
+        close (SNPS)
+            or print STDERR "WARNING: Trouble closing show-snps pipe, $!\n";
+    }
+
 
     close (FFILE)
         or print STDERR "WARNING: Trouble closing $OPT_Ffile, $!\n";
@@ -995,7 +1075,7 @@ sub WriteGP ($$)
     #-- plot commands
     my ($P_WITH, $P_FORMAT, $P_LS, $P_KEY, %P_PT, %P_LT);
 
-    %P_PT = ( $FWD => 6, $REV => 6, $HLT => 6 );
+    %P_PT = ( $FWD => 6, $REV => 6, $HLT => 1 );
     %P_LT = defined $OPT_Hfile ?
         ( $FWD => 2, $REV => 2, $HLT => 1 ) :
         ( $FWD => 1, $REV => 3, $HLT => 2 );
@@ -1116,7 +1196,9 @@ sub WriteGP ($$)
         my $ss = "$P_LS $s ";
         $ss .= $OPT_color ? " palette" : " lt $P_LT{$s}";
         $ss .= " lw $P_LW{$s}";
-        if ( ! $OPT_coverage ) { $ss .= " pt $P_PT{$s} ps $P_PS{$s}"; }
+        if ( ! $OPT_coverage || $s == $HLT ) {
+            $ss .= " pt $P_PT{$s} ps $P_PS{$s}";
+        }
         print GFILE "$ss\n";
     }
 
@@ -1127,7 +1209,7 @@ sub WriteGP ($$)
         " \"$OPT_Ffile\" title \"FWD\" $P_WITH ls $FWD, \\\n",
         " \"$OPT_Rfile\" title \"REV\" $P_WITH ls $REV",
         (! defined $OPT_Hfile ? "\n" :
-         ", \\\n \"$OPT_Hfile\" title \"HLT\" $P_WITH ls $HLT");
+         ", \\\n \"$OPT_Hfile\" title \"HLT\" w lp ls $HLT");
     
     #-- interactive mode
     if ( $OPT_terminal eq $X11 ) {
@@ -1210,6 +1292,7 @@ sub ParseOptions ( )
          "R|Rfile=s"    => \$OPT_IDRfile,
          "Q|Qfile=s"    => \$OPT_IDQfile,
          "s|size=s"     => \$OPT_size,
+         "S|SNP"        => \$OPT_SNP,
          "t|terminal=s" => \$OPT_terminal,
          "x|xrange=s"   => \$OPT_xrange,
          "y|yrange=s"   => \$OPT_yrange,
@@ -1289,12 +1372,6 @@ sub ParseOptions ( )
             or die "ERROR: Invalid yrange format, $OPT_yrange\n";
     }
 
-    if ( defined $OPT_color && defined $OPT_breaklen ) {
-        print STDERR
-            "WARNING: --[no]color and -b are mutually exclusive, using -b\n";
-        undef $OPT_color;
-    }
-
     #-- Set file names
     $OPT_Mfile = $ARGV[0];
     $tigr->isReadableFile ($OPT_Mfile)
@@ -1308,7 +1385,7 @@ sub ParseOptions ( )
     $tigr->isWritableFile ($OPT_Rfile) or $tigr->isCreatableFile ($OPT_Rfile)
         or die "ERROR: Could not write $OPT_Rfile, $!\n";
 
-    if ( defined $OPT_breaklen ) {
+    if ( defined $OPT_breaklen || defined $OPT_SNP ) {
         $OPT_Hfile = $OPT_prefix . $SUFFIX{$HLTPLOT};
         $tigr->isWritableFile($OPT_Hfile) or $tigr->isCreatableFile($OPT_Hfile)
             or die "ERROR: Could not write $OPT_Hfile, $!\n";
@@ -1338,5 +1415,12 @@ sub ParseOptions ( )
     if ( defined $OPT_IDQfile ) {
         $tigr->isReadableFile ($OPT_IDQfile)
             or die "ERROR: Could not read $OPT_IDQfile, $!\n";
+    }
+
+
+    if ( defined $OPT_color && defined $OPT_Hfile ) {
+        print STDERR
+            "WARNING: Turning off --color option so highlighting is visible\n";
+        undef $OPT_color;
     }
 }

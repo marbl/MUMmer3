@@ -35,6 +35,7 @@ void *  Safe_calloc  (size_t, size_t);
 void *  Safe_malloc  (size_t);
 void *  Safe_realloc  (void *, size_t);
 char  Complement  (char);
+bool CompareIUPAC (char, char);
 int  Read_String  (FILE *, char * &, long int &, char [], int);
 void  Reverse_Complement (char S [], long int Lo, long int Hi);
 

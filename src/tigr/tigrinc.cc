@@ -125,6 +125,179 @@ char  Complement  (char Ch)
   }
 
 
+bool CompareIUPAC (char x, char y)
+{
+  x = tolower(x);
+  y = tolower(y);
+
+  switch ( x )
+    {
+    case 'a' :
+      switch ( y )
+        {
+        case 'a':
+        case 'r':
+        case 'w':
+        case 'm':
+        case 'd':
+        case 'h':
+        case 'v':
+          return true;
+        }
+
+    case 'c' :
+      switch ( y )
+        {
+        case 'c':
+        case 'y':
+        case 's':
+        case 'm':
+        case 'b':
+        case 'h':
+        case 'v':
+          return true;
+        }
+
+    case 'g' :
+      switch ( y )
+        {
+        case 'g':
+        case 'r':
+        case 's':
+        case 'k':
+        case 'b':
+        case 'd':
+        case 'v':
+          return true;
+        }
+
+    case 't' :
+      switch ( y )
+        {
+        case 't':
+        case 'y':
+        case 'w':
+        case 'k':
+        case 'b':
+        case 'd':
+        case 'h':
+          return true;
+        }
+
+    case 'r' :          // a or g
+      switch ( y )
+        {
+        case 'r':
+        case 'a':
+        case 'g':
+        case 'd':
+        case 'v':
+          return true;
+        }
+
+    case 'y' :          // c or t
+      switch ( y )
+        {
+        case 'y':
+        case 'c':
+        case 't':
+        case 'b':
+        case 'h':
+          return true;
+        }
+
+    case 's' :          // c or g
+      switch ( y )
+        {
+        case 's':
+        case 'c':
+        case 'g':
+        case 'b':
+        case 'v':
+          return true;
+        }
+
+    case 'w' :          // a or t
+      switch ( y )
+        {
+        case 'w':
+        case 'a':
+        case 't':
+        case 'd':
+        case 'h':
+          return true;
+        }
+
+    case 'm' :          // a or c
+      switch ( y )
+        {
+        case 'm':
+        case 'a':
+        case 'c':
+        case 'h':
+        case 'v':
+          return true;
+        }
+
+    case 'k' :          // g or t
+      switch ( y )
+        {
+        case 'k':
+        case 'g':
+        case 't':
+        case 'b':
+        case 'd':
+          return true;
+        }
+
+    case 'b' :          // c, g or t
+      switch ( y )
+        {
+        case 'b':
+        case 'c':
+        case 'g':
+        case 't':
+          return true;
+        }
+
+    case 'd' :          // a, g or t
+      switch ( y )
+        {
+        case 'd':
+        case 'a':
+        case 'g':
+        case 't':
+          return true;
+        }
+
+    case 'h' :          // a, c or t
+      switch ( y )
+        {
+        case 'h':
+        case 'a':
+        case 'c':
+        case 't':
+          return true;
+        }
+
+    case 'v' :          // a, c or g
+      switch ( y )
+        {
+        case 'v':
+        case 'a':
+        case 'c':
+        case 'g':
+          return true;
+        }
+
+    case 'n' :          // a, c, g or t
+      return true;
+    }
+
+  return false;
+}
+
+
 int Read_String  (FILE * fp, char * & T, long int & Size, char Name [],
 		  int Partial)
 
