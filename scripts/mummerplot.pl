@@ -272,7 +272,7 @@ sub ParseIDs ($$)
         #-- FastA header
         if ( /^>(\S+)/ ) {
             if ( exists $href->{$1} ) {
-#                print STDERR "WARNING: Duplicate sequence '$1' ignored\n";
+                print STDERR "WARNING: Duplicate sequence '$1' ignored\n";
                 undef $aref;
                 next;
             }
@@ -294,7 +294,7 @@ sub ParseIDs ($$)
         #-- ID len dir
         if ( !$isfasta  &&  /^(\S+)\s+(\d+)\s+([+-]?)$/ ) {
             if ( exists $href->{$1} ) {
-#                print STDERR "WARNING: Duplicate sequence '$1' ignored\n";
+                print STDERR "WARNING: Duplicate sequence '$1' ignored\n";
                 undef $aref;
                 next;
             }
@@ -772,14 +772,14 @@ sub WriteGP ($$)
 
     #-- terminal specific sizes
     if ( $OPT_terminal eq $X11 ) {
-        print GFILE ($OPT_coverage ? "set size 1,1\n" : "set size 1,1\n");    
+        print GFILE ($OPT_coverage ? "set size 1,1\n" : "set size 1,1\n");
     }
     elsif ( $OPT_terminal eq $PS ) {
         if ( $OPT_coverage ) {
-            print GFILE "set size ", 1 * $SIZE, ",", .5 * $SIZE, "\n";
+            print GFILE "set size ", 1.0000 * $SIZE, ",", 0.5 * $SIZE, "\n";
         }
         else {
-            print GFILE "set size ", .7727 * $SIZE, ",", 1 * $SIZE, "\n"
+            print GFILE "set size ", 0.7727 * $SIZE, ",", 1.0 * $SIZE, "\n";
         }
     }
     elsif ( $OPT_terminal eq $PNG ) {
