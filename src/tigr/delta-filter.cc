@@ -575,8 +575,8 @@ void FlagScore (DeltaGraph_t & graph)
               (*eli) -> isGOOD = false;
 
             //-- Flag small lengths
-            if ( (*eli)->hiR-(*eli)->loR+1 < (unsigned long) OPT_MinLength ||
-                 (*eli)->hiQ-(*eli)->loQ+1 < (unsigned long) OPT_MinLength )
+            if ( (*eli)->hiR - (*eli)->loR + 1 < (unsigned long)OPT_MinLength ||
+                 (*eli)->hiQ - (*eli)->loQ + 1 < (unsigned long)OPT_MinLength )
               (*eli) -> isGOOD = false;
           }
 }
@@ -936,7 +936,7 @@ void ParseArgs (int argc, char ** argv)
   optarg = NULL;
   
   while ( !errflg  &&
-          ((ch = getopt (argc, argv, "ghi:o:qru:")) != EOF) )
+          ((ch = getopt (argc, argv, "ghi:l:o:qru:")) != EOF) )
     switch (ch)
       {
       case 'g':
