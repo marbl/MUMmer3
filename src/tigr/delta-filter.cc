@@ -36,7 +36,7 @@ bool           OPT_GLIS         = false;      // do global LIS
 long int       OPT_MinLength    = 0;          // minimum alignment length
 float          OPT_MinIdentity  = 0.0;        // minimum %identity
 float          OPT_MinUnique    = 0.0;        // minimum %unique
-float          OPT_MaxOverlap   = 75.0;       // maximum olap as % of align len
+float          OPT_MaxOverlap   = 100.0;      // maximum olap as % of align len
 
 
 
