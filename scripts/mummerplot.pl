@@ -1070,7 +1070,7 @@ sub WriteGP ($$)
     #-- plot commands
     my ($P_WITH, $P_FORMAT, $P_LS, $P_KEY, %P_PT, %P_LT);
 
-    %P_PT = ( $FWD => 6, $REV => 6, $HLT => 1 );
+    %P_PT = ( $FWD => 6, $REV => 6, $HLT => 6 );
     %P_LT = defined $OPT_Hfile ?
         ( $FWD => 2, $REV => 2, $HLT => 1 ) :
         ( $FWD => 1, $REV => 3, $HLT => 2 );
