@@ -70,6 +70,7 @@ my %SUFFIX =
 my $OPT_breaklen;                  # -b option
 my $OPT_color;                     # --[no]color option
 my $OPT_coverage;                  # --[no]coverage option
+my $OPT_filter;                    # -f option
 my $OPT_layout;                    # -l option
 my $OPT_prefix    = "out";         # -p option
 my $OPT_rv;                        # --rv option
@@ -128,6 +129,10 @@ my $HELP = qq~
     -c
     --[no]coverage  Generate a reference coverage plot (default for .tiling)
     --depend        Print the dependency information and exit
+    -f
+    --filter        Only display .delta alignments which represent the "best"
+                    hit to any particular spot on either sequence, i.e. a
+                    one-to-one mapping of reference and query subsequences
     -h
     --help          Display help information and exit
     -l
@@ -196,8 +201,10 @@ MAIN:
     #-- Get the command line options (sets OPT_ global vars)
     ParseOptions( );
 
+
     #-- Get the alignment type
     my $parsefunc = GetParseFunc( );
+
 
     #-- Parse the reference and query IDs
     if    ( defined $OPT_IdR ) { $refs{$OPT_IdR} = [ 0, 0, 1 ]; }
@@ -210,19 +217,31 @@ MAIN:
         ParseIDs ($OPT_IDQfile, \%qrys);
     }
 
+
+    #-- Filter the alignments
+    if ( $OPT_filter || $OPT_layout ) {
+        if ( $parsefunc != \&ParseDelta ) {
+            print STDERR "WARNING: -f and -l only work with delta input\n";
+            undef $OPT_filter;
+            undef $OPT_layout;
+        }
+        else {
+            print STDERR "Writing filtered delta file $OPT_Dfile\n";
+            system ("$BIN_DIR/delta-filter -r -q $OPT_Mfile > $OPT_Dfile")
+                and die "ERROR: Could not run delta-filter, $!\n";
+            if ( $OPT_filter ) { $OPT_Mfile = $OPT_Dfile; }
+        }
+    }
+
+
     #-- Parse the alignment data
     $parsefunc->(\@aligns);
+
     
     #-- Layout the alignment data if requested
     if ( $OPT_layout ) {
-        if ( $parsefunc != \&ParseDelta ) {
-            print STDERR
-                "WARNING: --layout option only works with delta input\n";
-            undef $OPT_layout;
-        }
-        elsif ( !defined %refs && !defined %qrys ) {
-            print STDERR
-                "WARNING: --layout option only works with -R or -Q\n";
+        if ( !defined %refs && !defined %qrys ) {
+            print STDERR "WARNING: --layout option only works with -R or -Q\n";
             undef $OPT_layout;
         }
         else {
@@ -230,11 +249,14 @@ MAIN:
         }
     }
 
+
     #-- Plot the alignment data
     PlotData (\@aligns, \%refs, \%qrys);
 
+
     #-- Write the gnuplot script
     WriteGP (\%refs, \%qrys);
+
 
     #-- Run the gnuplot script
     unless ( $OPT_gpstatus == -1 ) {
@@ -366,10 +388,10 @@ sub ParseDelta ($)
 {
     my $aref = shift;
 
+    print STDERR "Reading delta file $OPT_Mfile\n";
+
     open (MFILE, "<$OPT_Mfile")
         or die "ERROR: Could not open $OPT_Mfile, $!\n";
-
-    print STDERR "Reading delta file $OPT_Mfile\n";
 
     my @align;
     my $ispromer;
@@ -427,10 +449,10 @@ sub ParseCluster ($)
 {
     my $aref = shift;
 
+    print STDERR "Reading cluster file $OPT_Mfile\n";
+
     open (MFILE, "<$OPT_Mfile")
         or die "ERROR: Could not open $OPT_Mfile, $!\n";
-
-    print STDERR "Reading cluster file $OPT_Mfile\n";
 
     my @align;
     my ($dR, $dQ, $len);
@@ -477,10 +499,10 @@ sub ParseMummer ($)
 {
     my $aref = shift;
 
+    print STDERR "Reading mummer file $OPT_Mfile (use mummer -c)\n";
+
     open (MFILE, "<$OPT_Mfile")
         or die "ERROR: Could not open $OPT_Mfile, $!\n";
-
-    print STDERR "Reading mummer file $OPT_Mfile (use mummer -c)\n";
 
     my @align;
     my ($dQ, $len);
@@ -529,12 +551,10 @@ sub ParseTiling ($)
 {
     my $aref = shift;
 
-    if ( ! defined $OPT_coverage ) { $OPT_coverage = 1; }
+    print STDERR "Reading tiling file $OPT_Mfile\n";
 
     open (MFILE, "<$OPT_Mfile")
         or die "ERROR: Could not open $OPT_Mfile, $!\n";
-
-    print STDERR "Reading tiling file $OPT_Mfile\n";
 
     my @align;
     my ($dR, $dQ, $len);
@@ -563,6 +583,8 @@ sub ParseTiling ($)
 
     close (MFILE)
         or print STDERR "WARNING: Trouble closing $OPT_Mfile, $!\n";
+
+    if ( ! defined $OPT_coverage ) { $OPT_coverage = 1; }
 }
 
 
@@ -581,7 +603,6 @@ sub ParseTiling ($)
 # sequence sets.
 sub LayoutIDs ($$)
 {
-
     my $rref = shift;
     my $qref = shift;
 
@@ -594,11 +615,6 @@ sub LayoutIDs ($$)
     my @ql;          # oo of qry seqs
     #  [ [idR, slope] ]
     #  [ [idQ, slope] ]
-
-    #-- run the delta-filter
-    print STDERR "Generating filtered delta file $OPT_Dfile\n";
-    system ("$BIN_DIR/delta-filter -r -q $OPT_Mfile > $OPT_Dfile")
-        and die "ERROR: Could not run delta-filter, $!\n";
 
     #-- get the filtered alignments
     open (BTAB, "$BIN_DIR/show-coords -B $OPT_Dfile |")
@@ -755,6 +771,9 @@ sub PlotData ($$$)
     my $rref = shift;
     my $qref = shift;
 
+    print STDERR "Writing plot files $OPT_Ffile, $OPT_Rfile",
+    (defined $OPT_Hfile ? ", $OPT_Hfile\n" : "\n");
+
     open (FFILE, ">$OPT_Ffile")
         or die "ERROR: Could not open $OPT_Ffile, $!\n";
     print FFILE "#-- forward hits sorted by %sim\n0 0 0\n0 0 0\n\n\n";
@@ -901,6 +920,11 @@ sub WriteGP ($$)
     my $rref = shift;
     my $qref = shift;
 
+    print STDERR "Writing gnuplot script $OPT_Gfile\n";
+
+    open (GFILE, ">$OPT_Gfile")
+        or die "ERROR: Could not open $OPT_Gfile, $!\n";
+
     my ($FWD, $REV, $HLT) = (1, 2, 3);
     my $SIZE = $TERMSIZE{$OPT_terminal}{$OPT_size};
 
@@ -990,9 +1014,6 @@ sub WriteGP ($$)
     }
 
 
-    open (GFILE, ">$OPT_Gfile")
-        or die "ERROR: Could not open $OPT_Gfile, $!\n";
-
     my @refk = keys (%$rref);
     my @qryk = keys (%$qref);
     my ($xrange, $yrange);
@@ -1076,7 +1097,6 @@ sub WriteGP ($$)
     if ( $OPT_color ) {
         print GFILE
             "set zrange [0:100]\n",
-# "set colorbox vertical user origin .9,.3 size .02,.4\n",
             "set colorbox default\n",
             "set cblabel \"%similarity\"\n",
             "set cbrange [0:100]\n",
@@ -1181,6 +1201,7 @@ sub ParseOptions ( )
          "b|breaklen:i" => \$OPT_breaklen,
          "color!"       => \$OPT_color,
          "c|coverage!"  => \$OPT_coverage,
+         "f|filter!"    => \$OPT_filter,
          "l|layout!"    => \$OPT_layout,
          "p|prefix=s"   => \$OPT_prefix,
          "rv"           => \$OPT_rv,
@@ -1293,7 +1314,7 @@ sub ParseOptions ( )
             or die "ERROR: Could not write $OPT_Hfile, $!\n";
     }
 
-    if ( defined $OPT_layout ) {
+    if ( $OPT_filter || $OPT_layout ) {
         $OPT_Dfile = $OPT_prefix . $SUFFIX{$FILTER};
         $tigr->isWritableFile($OPT_Dfile) or $tigr->isCreatableFile($OPT_Dfile)
             or die "ERROR: Could not write $OPT_Dfile, $!\n";
