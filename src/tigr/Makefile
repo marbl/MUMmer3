@@ -87,3 +87,7 @@ show-coords: show-coords.cc tigrinc.o delta.o
 
 show-tiling: show-tiling.cc tigrinc.o delta.o
 	$(BIN_RULE)
+
+show-snps: show-snps.cc tigrinc.o translate.o delta.o
+	$(BIN_RULE)
+

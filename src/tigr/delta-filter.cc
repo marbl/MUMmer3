@@ -60,7 +60,8 @@ const string NULL_STRING ("");
 //   named "DeltaNode_t". We connect a node in R to a node in Q if an alignment
 //   is present between the two sequences. The group of all alignments between
 //   the two is named "DeltaEdge_t" and a single alignment between the two is
-//   named a "DeltaEdgelet_t".
+//   named a "DeltaEdgelet_t". Alignment coordinates reference the forward
+//   strand and are stored lo before hi.
 //
 struct DeltaNode_t;
 struct DeltaEdgelet_t
