@@ -144,6 +144,7 @@ bool CompareIUPAC (char x, char y)
         case 'v':
           return true;
         }
+      return false;
 
     case 'c' :
       switch ( y )
@@ -157,6 +158,7 @@ bool CompareIUPAC (char x, char y)
         case 'v':
           return true;
         }
+      return false;
 
     case 'g' :
       switch ( y )
@@ -170,6 +172,7 @@ bool CompareIUPAC (char x, char y)
         case 'v':
           return true;
         }
+      return false;
 
     case 't' :
       switch ( y )
@@ -183,6 +186,7 @@ bool CompareIUPAC (char x, char y)
         case 'h':
           return true;
         }
+      return false;
 
     case 'r' :          // a or g
       switch ( y )
@@ -194,6 +198,7 @@ bool CompareIUPAC (char x, char y)
         case 'v':
           return true;
         }
+      return false;
 
     case 'y' :          // c or t
       switch ( y )
@@ -205,6 +210,7 @@ bool CompareIUPAC (char x, char y)
         case 'h':
           return true;
         }
+      return false;
 
     case 's' :          // c or g
       switch ( y )
@@ -216,6 +222,7 @@ bool CompareIUPAC (char x, char y)
         case 'v':
           return true;
         }
+      return false;
 
     case 'w' :          // a or t
       switch ( y )
@@ -227,6 +234,7 @@ bool CompareIUPAC (char x, char y)
         case 'h':
           return true;
         }
+      return false;
 
     case 'm' :          // a or c
       switch ( y )
@@ -238,6 +246,7 @@ bool CompareIUPAC (char x, char y)
         case 'v':
           return true;
         }
+      return false;
 
     case 'k' :          // g or t
       switch ( y )
@@ -249,6 +258,7 @@ bool CompareIUPAC (char x, char y)
         case 'd':
           return true;
         }
+      return false;
 
     case 'b' :          // c, g or t
       switch ( y )
@@ -259,6 +269,7 @@ bool CompareIUPAC (char x, char y)
         case 't':
           return true;
         }
+      return false;
 
     case 'd' :          // a, g or t
       switch ( y )
@@ -269,6 +280,7 @@ bool CompareIUPAC (char x, char y)
         case 't':
           return true;
         }
+      return false;
 
     case 'h' :          // a, c or t
       switch ( y )
@@ -279,6 +291,7 @@ bool CompareIUPAC (char x, char y)
         case 't':
           return true;
         }
+      return false;
 
     case 'v' :          // a, c or g
       switch ( y )
@@ -289,11 +302,11 @@ bool CompareIUPAC (char x, char y)
         case 'g':
           return true;
         }
+      return false;
 
     case 'n' :          // a, c, g or t
       return true;
     }
-
   return false;
 }
 
