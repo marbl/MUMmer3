@@ -49,6 +49,15 @@ struct DeltaAlignment_t {
   unsigned long int eQ;
   //!< End coordinate in the reference
 
+  unsigned long int idyc;
+  //!< number of mismatches in the alignment
+
+  unsigned long int simc;
+  //!< number of similarity scores < 1 in the alignment
+
+  unsigned long int stpc;
+  //!< number of stop codons in the alignment
+
   float idy;
   //!< Percent identity [0 - 100]
 

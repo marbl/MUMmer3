@@ -56,12 +56,12 @@ void DeltaReader_t::readNextAlignment
   delta_stream_m >> align.eR;
   delta_stream_m >> align.sQ;
   delta_stream_m >> align.eQ;
-  delta_stream_m >> align.idy;
-  delta_stream_m >> align.sim;
-  delta_stream_m >> align.stp;
+  delta_stream_m >> align.idyc;
+  delta_stream_m >> align.simc;
+  delta_stream_m >> align.stpc;
   if ( align.sR <= 0  ||  align.eR <= 0  ||
        align.sQ <= 0  ||  align.eQ <= 0  ||
-       align.idy < 0  ||  align.sim < 0  ||  align.stp < 0 )
+       align.idyc < 0  ||  align.simc < 0  ||  align.stpc < 0 )
     delta_stream_m.setstate (ios::badbit);
   checkStream ( );
 
@@ -85,9 +85,9 @@ void DeltaReader_t::readNextAlignment
   while ( delta_stream_m.get ( ) != '\n' );
 
   //-- Calculate the identity, similarity and stopity
-  align.idy = (total - align.idy) / total * 100.0;
-  align.sim = (total - align.sim) / total * 100.0;
-  align.stp = align.stp / (total * 2.0) * 100.0;
+  align.idy = (total - (float)align.idyc) / total * 100.0;
+  align.sim = (total - (float)align.simc) / total * 100.0;
+  align.stp = (float)align.stpc / (total * 2.0) * 100.0;
 }
 
 

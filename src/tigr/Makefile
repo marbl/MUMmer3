@@ -55,6 +55,9 @@ annotate: annotate.cc tigrinc.o
 combineMUMs: combineMUMs.cc tigrinc.o
 	$(BIN_RULE)
 
+delta-filter: delta-filter.cc tigrinc.o delta.o
+	$(BIN_RULE)
+
 gaps: gaps.cc tigrinc.o
 	$(BIN_RULE)
 
