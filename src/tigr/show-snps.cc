@@ -39,7 +39,7 @@ string  OPT_QueryName;                  // query sequence file name
 bool    OPT_SortReference = false;      // -r option
 bool    OPT_SortQuery     = false;      // -q option
 bool    OPT_ShowLength    = false;      // -l option
-bool    OPT_ShowConflict  = false;      // -c option
+bool    OPT_ShowConflict  = true;       // -C option
 bool    OPT_ShowIndels    = true;       // -I option
 bool    OPT_PrintTabular  = false;      // -T option
 bool    OPT_PrintHeader   = true;       // -H option
@@ -76,6 +76,7 @@ struct SNP_t
 {
   char cQ, cR;
   long int pQ, pR;
+  long int loD, hiD;
   int conQ, conR;
   string ctxQ, ctxR;
   DeltaEdgelet_t * lp;
@@ -84,7 +85,7 @@ struct SNP_t
   SNP_t ( )
   {
     cQ = cR = 0;
-    pQ = pR = 0;
+    loD = hiD = pQ = pR = 0;
     conQ = conR = 0;
   };
 };
@@ -110,13 +111,20 @@ struct DeltaEdgelet_t
   int frmQ, frmR;
 
   vector<long int> delta;        // delta information
-  vector<SNP_t> snps;            // snps for this edgelet
+  vector<SNP_t *> snps;          // snps for this edgelet
 
   DeltaEdgelet_t ( )
   {
     dirR = dirQ = FORWARD_DIR;
     loQ = hiQ = loR = hiR = 0;
     frmQ = frmR = 1;
+  }
+
+  ~DeltaEdgelet_t ( )
+  {
+    vector<SNP_t *>::iterator i;
+    for ( i = snps . begin( ); i != snps . end( ); ++ i )
+      delete (*i);
   }
 };
 
@@ -373,12 +381,17 @@ int main (int argc, char ** argv)
   map<string, DeltaNode_t>::iterator mi;
   vector<DeltaEdge_t *>::iterator ei;
   vector<DeltaEdgelet_t *>::iterator li;
-  vector<SNP_t>::iterator si;
+  vector<SNP_t *>::iterator si;
   for ( mi = graph.refnodes.begin( ); mi != graph.refnodes.end( ); ++ mi )
     for ( ei = mi->second.edges.begin( ); ei != mi->second.edges.end( ); ++ ei )
       for ( li = (*ei)->edgelets.begin( ); li != (*ei)->edgelets.end( ); ++ li )
         for ( si = (*li)->snps.begin( ); si != (*li)->snps.end( ); ++ si )
-          snps . push_back (&(*si));
+          if ( (OPT_ShowConflict ||
+                ((*si)->conR == 0 && (*si)->conQ == 0))
+               &&
+               (OPT_ShowIndels ||
+                ((*si)->cR != INDEL_CHAR && (*si)->cQ != INDEL_CHAR)) )
+            snps . push_back (*si);
 
   if ( OPT_SortReference )
     sort (snps . begin( ), snps . end( ), SNP_R_Sort( ));
@@ -514,7 +527,7 @@ void CheckSNPs (DeltaGraph_t & graph)
   map<string, DeltaNode_t>::const_iterator mi;
   vector<DeltaEdge_t *>::const_iterator ei;
   vector<DeltaEdgelet_t *>::iterator eli;
-  vector<SNP_t>::iterator si;
+  vector<SNP_t *>::iterator si;
   long int i;
 
   //-- For each reference sequence
@@ -548,7 +561,7 @@ void CheckSNPs (DeltaGraph_t & graph)
         for ( eli  = (*ei) -> edgelets . begin( );
               eli != (*ei) -> edgelets . end( ); ++ eli )
           for ( si = (*eli)->snps.begin( ); si != (*eli)->snps.end( ); ++ si )
-            si -> conR = ref_cov [si->pR] - 1;
+            (*si) -> conR = ref_cov [(*si)->pR] - 1;
     }
   free (ref_cov);
 
@@ -584,7 +597,7 @@ void CheckSNPs (DeltaGraph_t & graph)
         for ( eli  = (*ei) -> edgelets . begin( );
               eli != (*ei) -> edgelets . end( ); ++ eli )
           for ( si = (*eli)->snps.begin( ); si != (*eli)->snps.end( ); ++ si )
-            si -> conQ = qry_cov [si->pQ] - 1;
+            (*si) -> conQ = qry_cov [(*si)->pQ] - 1;
     }
   free (qry_cov);
 }
@@ -598,12 +611,13 @@ void FindSNPs (DeltaGraph_t & graph)
   map<string, DeltaNode_t>::iterator mi;
   vector<DeltaEdge_t *>::iterator ei;
   vector<DeltaEdgelet_t *>::iterator li;
+  vector<SNP_t *>::iterator si, psi, nsi;
 
   //-- For each alignment, identify the SNPs
   for ( mi = graph.refnodes.begin( ); mi != graph.refnodes.end( ); ++ mi )
     for ( ei = mi->second.edges.begin( ); ei != mi->second.edges.end( ); ++ ei )
       {
-        SNP_t snp;
+        SNP_t * snp;
         int ri, qi;
         char * R[] = {(*ei)->refnode->seq, NULL, NULL, NULL, NULL, NULL, NULL};
         char * Q[] = {(*ei)->qrynode->seq, NULL, NULL, NULL, NULL, NULL, NULL};
@@ -612,20 +626,16 @@ void FindSNPs (DeltaGraph_t & graph)
         long int lenR = (*ei) -> refnode -> len;
         long int lenQ = (*ei) -> qrynode -> len;
 
-        snp . ep = *ei;
-
         for (li = (*ei)->edgelets.begin( ); li != (*ei)->edgelets.end( ); ++ li)
           {
             long int delta;
             int frameR, frameQ, sign;
             long int sR, eR, sQ, eQ;
-            long long int rpos, qpos, remain;
-            long long int rctx, qctx;
+            long int rpos, qpos, remain;
+            long int rctx, qctx;
             vector<long int>::iterator dp;
             long int alenR = lenR;
             long int alenQ = lenQ;
-
-            snp . lp = *li;
 
             //-- Only do the ones requested by user
             if ( OPT_SelectAligns )
@@ -758,93 +768,95 @@ void FindSNPs (DeltaGraph_t & graph)
                 for ( i = 1; i < delta; i ++ )
                   if ( R [ri] [rpos ++] != Q [qi] [qpos ++] )
                     {
-                      snp . pR = Norm (rpos-1, lenR, frameR, graph.datatype);
-                      snp . pQ = Norm (qpos-1, lenQ, frameQ, graph.datatype);
-                      snp . cR = toupper (R [ri] [rpos-1]);
-                      snp . cQ = toupper (Q [qi] [qpos-1]);
+                      snp = new SNP_t;
+                      snp -> ep = *ei;
+                      snp -> lp = *li;
+                      snp -> pR = Norm (rpos-1, lenR, frameR, graph.datatype);
+                      snp -> pQ = Norm (qpos-1, lenQ, frameQ, graph.datatype);
+                      snp -> cR = toupper (R [ri] [rpos-1]);
+                      snp -> cQ = toupper (Q [qi] [qpos-1]);
 
-                      snp . ctxR . erase( );
                       for ( rctx = rpos - OPT_Context - 1;
                             rctx < rpos + OPT_Context; rctx ++ )
                         if ( rctx < 1  ||  rctx > alenR )
-                          snp . ctxR . push_back (SEQEND_CHAR);
+                          snp -> ctxR . push_back (SEQEND_CHAR);
                         else if ( rctx == rpos - 1 )
-                          snp . ctxR . push_back (snp . cR);
+                          snp -> ctxR . push_back (snp -> cR);
                         else
-                          snp . ctxR . push_back (toupper (R [ri] [rctx]));
-
-                      snp . ctxQ . erase( );
+                          snp -> ctxR . push_back (toupper (R [ri] [rctx]));
+                          
                       for ( qctx = qpos - OPT_Context - 1;
                             qctx < qpos + OPT_Context; qctx ++ )
                         if ( qctx < 1  ||  qctx > alenQ )
-                          snp . ctxQ . push_back (SEQEND_CHAR);
+                          snp -> ctxQ . push_back (SEQEND_CHAR);
                         else if ( qctx == qpos - 1 )
-                          snp . ctxQ . push_back (snp . cQ);
+                          snp -> ctxQ . push_back (snp -> cQ);
                         else
-                          snp . ctxQ . push_back (toupper (Q [qi] [qctx]));
+                          snp -> ctxQ . push_back (toupper (Q [qi] [qctx]));
 
                       (*li) -> snps . push_back (snp);
                     }
 
                 //-- For the indel
-                snp . ctxR . erase( );
+                snp = new SNP_t;
+                snp -> ep = *ei;
+                snp -> lp = *li;
+
                 for ( rctx = rpos - OPT_Context; rctx < rpos; rctx ++ )
                   if ( rctx < 1 )
-                    snp . ctxR . push_back (SEQEND_CHAR);
+                    snp -> ctxR . push_back (SEQEND_CHAR);
                   else
-                    snp . ctxR . push_back (toupper (R [ri] [rctx]));
-
-                snp . ctxQ . erase( );
+                    snp -> ctxR . push_back (toupper (R [ri] [rctx]));
+                
                 for ( qctx = qpos - OPT_Context; qctx < qpos; qctx ++ )
                   if ( qctx < 1 )
-                    snp . ctxQ . push_back (SEQEND_CHAR);
+                    snp -> ctxQ . push_back (SEQEND_CHAR);
                   else
-                    snp . ctxQ . push_back (toupper (Q [qi] [qctx]));
+                    snp -> ctxQ . push_back (toupper (Q [qi] [qctx]));
 
                 if ( sign > 0 )
                   {
-                    snp . pR = Norm (rpos, lenR, frameR, graph.datatype);
+                    snp -> pR = Norm (rpos, lenR, frameR, graph.datatype);
                     if ( frameQ > 0 )
-                      snp . pQ = Norm (qpos - 1, lenQ, frameQ, graph.datatype);
+                      snp -> pQ = Norm (qpos - 1, lenQ, frameQ, graph.datatype);
                     else
-                      snp . pQ = Norm (qpos, lenQ, frameQ, graph.datatype);
+                      snp -> pQ = Norm (qpos, lenQ, frameQ, graph.datatype);
 
-                    snp . cR = toupper (R [ri] [rpos ++]);
-                    snp . cQ = INDEL_CHAR;
-                    snp . ctxR . push_back (snp . cR);
-                    snp . ctxQ . push_back (snp . cQ);
+                    snp -> cR = toupper (R [ri] [rpos ++]);
+                    snp -> cQ = INDEL_CHAR;
+
                     remain -= i;
                     rctx ++;
                   }
                 else
                   {
-                    snp . pQ = Norm (qpos, lenQ, frameQ, graph.datatype);
+                    snp -> pQ = Norm (qpos, lenQ, frameQ, graph.datatype);
                     if ( frameR > 0 )
-                      snp . pR = Norm (rpos - 1, lenR, frameR, graph.datatype);
+                      snp -> pR = Norm (rpos - 1, lenR, frameR, graph.datatype);
                     else
-                      snp . pR = Norm (rpos, lenR, frameR, graph.datatype);
+                      snp -> pR = Norm (rpos, lenR, frameR, graph.datatype);
 
-                    snp . cR = INDEL_CHAR;
-                    snp . cQ = toupper (Q [qi] [qpos ++]);
-                    snp . ctxR . push_back (snp . cR);
-                    snp . ctxQ . push_back (snp . cQ);
+                    snp -> cR = INDEL_CHAR;
+                    snp -> cQ = toupper (Q [qi] [qpos ++]);
+
                     remain -= i - 1;
                     qctx ++;
                   }
 
+                snp -> ctxR . push_back (snp -> cR);
                 for ( ; rctx < rpos + OPT_Context; rctx ++ )
                   if ( rctx > alenR )
-                    snp . ctxR . push_back (SEQEND_CHAR);
+                    snp -> ctxR . push_back (SEQEND_CHAR);
                   else
-                    snp . ctxR . push_back (toupper (R [ri] [rctx]));
-
+                    snp -> ctxR . push_back (toupper (R [ri] [rctx]));
+                
+                snp -> ctxQ . push_back (snp -> cQ);
                 for ( ; qctx < qpos + OPT_Context; qctx ++ )
                   if ( qctx > alenQ )
-                    snp . ctxQ . push_back (SEQEND_CHAR);
+                    snp -> ctxQ . push_back (SEQEND_CHAR);
                   else
-                    snp . ctxQ . push_back (toupper (Q [qi] [qctx]));
-
-
+                    snp -> ctxQ . push_back (toupper (Q [qi] [qctx]));
+                
                 (*li) -> snps . push_back (snp);
               }
 
@@ -852,33 +864,79 @@ void FindSNPs (DeltaGraph_t & graph)
             for ( i = 0; i < remain; i ++ )
               if ( R [ri] [rpos ++] != Q [qi] [qpos ++] )
                 {
-                  snp . pR = Norm (rpos-1, lenR, frameR, graph.datatype);
-                  snp . pQ = Norm (qpos-1, lenQ, frameQ, graph.datatype);
-                  snp . cR = toupper (R [ri] [rpos-1]);
-                  snp . cQ = toupper (Q [qi] [qpos-1]);
+                  snp = new SNP_t;
+                  snp -> ep = *ei;
+                  snp -> lp = *li;
+                  snp -> pR = Norm (rpos-1, lenR, frameR, graph.datatype);
+                  snp -> pQ = Norm (qpos-1, lenQ, frameQ, graph.datatype);
+                  snp -> cR = toupper (R [ri] [rpos-1]);
+                  snp -> cQ = toupper (Q [qi] [qpos-1]);
 
-                  snp . ctxR . erase( );
                   for ( rctx = rpos - OPT_Context - 1;
                         rctx < rpos + OPT_Context; rctx ++ )
                     if ( rctx < 1  ||  rctx > alenR )
-                      snp . ctxR . push_back (SEQEND_CHAR);
+                      snp -> ctxR . push_back (SEQEND_CHAR);
                     else if ( rctx == rpos - 1 )
-                      snp . ctxR . push_back (snp . cR);
+                      snp -> ctxR . push_back (snp -> cR);
                     else
-                      snp . ctxR . push_back (toupper (R [ri] [rctx]));
-                      
-                  snp . ctxQ . erase( );
+                      snp -> ctxR . push_back (toupper (R [ri] [rctx]));
+                  
                   for ( qctx = qpos - OPT_Context - 1;
                         qctx < qpos + OPT_Context; qctx ++ )
                     if ( qctx < 1  ||  qctx > alenQ )
-                      snp . ctxQ . push_back (SEQEND_CHAR);
+                      snp -> ctxQ . push_back (SEQEND_CHAR);
                     else if ( qctx == qpos - 1 )
-                      snp . ctxQ . push_back (snp . cQ);
+                      snp -> ctxQ . push_back (snp -> cQ);
                     else
-                      snp . ctxQ . push_back (toupper (Q [qi] [qctx]));
-                
+                      snp -> ctxQ . push_back (toupper (Q [qi] [qctx]));
+
                   (*li) -> snps . push_back (snp);
                 }
+
+
+            //-- Sort SNPs and calculate distances
+            if ( OPT_SortReference )
+              {
+                sort ((*li)->snps.begin( ), (*li)->snps.end( ), SNP_R_Sort( ));
+
+                for ( si = (*li)->snps.begin(); si != (*li)->snps.end(); ++ si )
+                  {
+                    psi = si - 1;
+                    nsi = si + 1;
+
+                    (*si) -> loD = (*si) -> pR - (*li) -> loR + 1;
+                    (*si) -> hiD = (*li) -> hiR - (*si) -> pR + 1;
+
+                    if ( psi >= (*li) -> snps . begin( )  &&
+                         (*si) -> pR - (*psi) -> pR < (*si) -> loD )
+                      (*si) -> loD = (*si) -> pR - (*psi) -> pR;
+                    
+                    if ( nsi < (*li) -> snps . end( )  &&
+                         (*nsi) -> pR - (*si) -> pR < (*si) -> hiD )
+                      (*si) -> hiD = (*nsi) -> pR - (*si) -> pR;
+                  }
+              }
+            else
+              {
+                sort ((*li)->snps.begin( ), (*li)->snps.end( ), SNP_Q_Sort( ));
+
+                for ( si = (*li)->snps.begin(); si != (*li)->snps.end(); ++ si )
+                  {
+                    psi = si - 1;
+                    nsi = si + 1;
+ 
+                    (*si) -> loD = (*si) -> pQ - (*li) -> loQ + 1;
+                    (*si) -> hiD = (*li) -> hiQ - (*si) -> pQ + 1;
+
+                    if ( psi >= (*li) -> snps . begin( )  &&
+                         (*si) -> pQ - (*psi) -> pQ < (*si) -> loD )
+                      (*si) -> loD = (*si) -> pQ - (*psi) -> pQ;
+                    
+                    if ( nsi < (*li) -> snps . end( )  &&
+                         (*nsi) -> pQ - (*si) -> pQ < (*si) -> hiD )
+                      (*si) -> hiD = (*nsi) -> pQ - (*si) -> pQ;
+                  }
+              }
           }
 
         //-- Clear up the seq
@@ -903,8 +961,7 @@ void FindSNPs (DeltaGraph_t & graph)
 void PrintHuman (const vector<const SNP_t *> & snps,
                  const DeltaGraph_t & graph)
 {
-  vector<const SNP_t *>::const_iterator si, psi, nsi;
-  long int diff, dist, distR, distQ;
+  vector<const SNP_t *>::const_iterator si;
   int ctxw = 2 * OPT_Context + 1;
   int ctxc = ctxw < 7 ? 7 : ctxw;
 
@@ -914,12 +971,12 @@ void PrintHuman (const vector<const SNP_t *> & snps,
               graph . refpath . c_str( ), graph . qrypath . c_str( ),
               graph . datatype == NUCMER_DATA ? "NUCMER" : "PROMER");
       printf ("%8s  %5s  %-8s  | ", "[P1]", "[SUB]", "[P2]");
-      printf ("%8s %8s  | ", "[DIFF]", "[DIST]");
+      printf ("%8s %8s  | ", "[LO]", "[HI]");
       if ( OPT_ShowConflict )
         printf ("%4s %4s  | ", "[R]", "[Q]");
       if ( OPT_ShowLength )
         printf ("%8s %8s  | ", "[LEN R]", "[LEN Q]");
-      if ( OPT_Context != 0 )
+      if ( OPT_Context )
         {
           for ( int i = 0; i < ctxc - 7; i ++ )
             putchar (' ');
@@ -936,7 +993,7 @@ void PrintHuman (const vector<const SNP_t *> & snps,
         printf ("=============");
       if ( OPT_ShowLength )
         printf ("=====================");
-      if ( OPT_Context != 0 )
+      if ( OPT_Context )
         for ( int i = 0; i < 2 * ctxc + 7; i ++ )
           putchar ('=');
       printf("================================="
@@ -945,59 +1002,15 @@ void PrintHuman (const vector<const SNP_t *> & snps,
 
   for ( si = snps . begin( ); si != snps . end( ); ++ si )
     {
-      psi = si - 1;
-      nsi = si + 1;
-
-      //-- Distance to the nearest alignment bound
-      distR = (*si)->pR - (*si)->lp->loR < (*si)->lp->hiR - (*si)->pR ?
-        (*si)->pR - (*si)->lp->loR : (*si)->lp->hiR - (*si)->pR;
-      distQ = (*si)->pQ - (*si)->lp->loQ < (*si)->lp->hiQ - (*si)->pQ ?
-        (*si)->pQ - (*si)->lp->loQ : (*si)->lp->hiQ - (*si)->pQ;
-      dist = distR < distQ ? distR : distQ;
-
-      //-- Distance to the nearest mismatch
-      if ( OPT_SortReference )
-        {
-          diff = distR;
-
-          if ( psi >= snps . begin( )  &&
-               (*psi)->ep->refnode->id == (*si)->ep->refnode->id  &&
-               (*si)->pR - (*psi)->pR < diff )
-            diff = (*si)->pR - (*psi)->pR;
-
-          if ( nsi < snps . end( )  &&
-               (*nsi)->ep->refnode->id == (*si)->ep->refnode->id  &&
-               (*nsi)->pR - (*si)->pR < diff )
-            diff = (*nsi)->pR - (*si)->pR;
-        }
-      else
-        {
-          diff = distQ;
-
-          if ( psi >= snps . begin( )  &&
-               (*psi)->ep->refnode->id == (*si)->ep->refnode->id  &&
-               (*si)->pQ - (*psi)->pQ < diff )
-            diff = (*si)->pQ - (*psi)->pQ;
-
-          if ( nsi < snps . end( )  &&
-               (*nsi)->ep->refnode->id == (*si)->ep->refnode->id  &&
-               (*nsi)->pQ - (*si)->pQ < diff )
-            diff = (*nsi)->pQ - (*si)->pQ;
-        }
-
-      //-- Skip this SNP if we are hiding it
-      if ( ! OPT_ShowConflict  &&  ((*si)->conR != 0  ||  (*si)->conQ != 0) )
-        continue;
-
       printf ("%8ld   %c %c   %-8ld  | ",
               (*si)->pR, (*si)->cR, (*si)->cQ, (*si)->pQ);
-      printf ("%8ld %8ld  | ", diff, dist);
+      printf ("%8ld %8ld  | ", (*si)->loD, (*si)->hiD);
       if ( OPT_ShowConflict )
         printf ("%4d %4d  | ", (*si)->conR, (*si)->conQ);
       if ( OPT_ShowLength )
         printf ("%8ld %8ld  | ",
                 (*si)->ep->refnode->len, (*si)->ep->qrynode->len);
-      if ( OPT_Context != 0 )
+      if ( OPT_Context )
         {
           for ( int i = 0; i < ctxc - ctxw; i ++ )
             putchar (' ');
@@ -1021,8 +1034,7 @@ void PrintHuman (const vector<const SNP_t *> & snps,
 void PrintTabular (const vector<const SNP_t *> & snps,
                    const DeltaGraph_t & graph)
 {
-  vector<const SNP_t *>::const_iterator si, psi, nsi;
-  long int diff, dist, distR, distQ;
+  vector<const SNP_t *>::const_iterator si;
 
   if ( OPT_PrintHeader )
     {
@@ -1030,12 +1042,12 @@ void PrintTabular (const vector<const SNP_t *> & snps,
               graph . refpath . c_str( ), graph . qrypath . c_str( ),
               graph . datatype == NUCMER_DATA ? "NUCMER" : "PROMER");
       printf ("%s\t%s\t%s\t%s\t", "[P1]", "[SUB]", "[SUB]", "[P2]");
-      printf ("%s\t%s\t", "[DIFF]", "[DIST]");
+      printf ("%s\t%s\t", "[LO]", "[HI]");
       if ( OPT_ShowConflict )
         printf ("%s\t%s\t", "[R]", "[Q]");
       if ( OPT_ShowLength )
         printf ("%s\t%s\t", "[LEN R]", "[LEN Q]");
-      if ( OPT_Context != 0 )
+      if ( OPT_Context )
         printf ("%s\t%s\t", "[CTX R]", "[CTX Q]");
       printf ("%s\t", "[FRM]");
       printf ("%s\n", "[TAGS]");
@@ -1043,63 +1055,15 @@ void PrintTabular (const vector<const SNP_t *> & snps,
 
   for ( si = snps . begin( ); si != snps . end( ); ++ si )
     {
-      psi = si - 1;
-      nsi = si + 1;
-
-      //-- Distance to the nearest alignment bound
-      distR = (*si)->pR - (*si)->lp->loR < (*si)->lp->hiR - (*si)->pR ?
-        (*si)->pR - (*si)->lp->loR : (*si)->lp->hiR - (*si)->pR;
-      distQ = (*si)->pQ - (*si)->lp->loQ < (*si)->lp->hiQ - (*si)->pQ ?
-        (*si)->pQ - (*si)->lp->loQ : (*si)->lp->hiQ - (*si)->pQ;
-      dist = distR < distQ ? distR : distQ;
-
-      //-- Distance to the nearest mismatch
-      if ( OPT_SortReference )
-        {
-          diff = distR;
-
-          if ( psi >= snps . begin( )  &&
-               (*psi)->ep->refnode->id == (*si)->ep->refnode->id  &&
-               (*si)->pR - (*psi)->pR < diff )
-            diff = (*si)->pR - (*psi)->pR;
-
-          if ( nsi < snps . end( )  &&
-               (*nsi)->ep->refnode->id == (*si)->ep->refnode->id  &&
-               (*nsi)->pR - (*si)->pR < diff )
-            diff = (*nsi)->pR - (*si)->pR;
-        }
-      else
-        {
-          diff = distQ;
-
-          if ( psi >= snps . begin( )  &&
-               (*psi)->ep->refnode->id == (*si)->ep->refnode->id  &&
-               (*si)->pQ - (*psi)->pQ < diff )
-            diff = (*si)->pQ - (*psi)->pQ;
-
-          if ( nsi < snps . end( )  &&
-               (*nsi)->ep->refnode->id == (*si)->ep->refnode->id  &&
-               (*nsi)->pQ - (*si)->pQ < diff )
-            diff = (*nsi)->pQ - (*si)->pQ;
-        }
-
-      //-- Skip this SNP if we are hiding it
-      if ( (! OPT_ShowConflict  &&
-            ((*si)->conR != 0  ||  (*si)->conQ != 0))
-           ||
-           (! OPT_ShowIndels  &&
-            ((*si)->cR == INDEL_CHAR  ||  (*si)->cQ == INDEL_CHAR)) )
-        continue;
-
       printf ("%ld\t%c\t%c\t%ld\t",
               (*si)->pR, (*si)->cR, (*si)->cQ, (*si)->pQ);
-      printf ("%ld\t%ld\t", diff, dist);
+      printf ("%ld\t%ld\t", (*si)->loD, (*si)->hiD);
       if ( OPT_ShowConflict )
         printf ("%d\t%d\t", (*si)->conR, (*si)->conQ);
       if ( OPT_ShowLength )
         printf ("%ld\t%ld\t",
                 (*si)->ep->refnode->len, (*si)->ep->qrynode->len);
-      if ( OPT_Context != 0 )
+      if ( OPT_Context )
         printf ("%s\t%s\t", (*si)->ctxR.c_str( ), (*si)->ctxQ.c_str( ));
       printf ("%d\t%d\t", (*si)->lp->frmR, (*si)->lp->frmQ);
       printf ("%s\t%s",
@@ -1236,11 +1200,11 @@ void ParseArgs (int argc, char ** argv)
   optarg = NULL;
   
   while ( !errflg  &&
-          ((ch = getopt (argc, argv, "chHIlqrSTx:")) != EOF) )
+          ((ch = getopt (argc, argv, "ChHIlqrSTx:")) != EOF) )
     switch (ch)
       {
-      case 'c':
-        OPT_ShowConflict = true;
+      case 'C':
+        OPT_ShowConflict = false;
         break;
 
       case 'h':
@@ -1314,13 +1278,12 @@ void PrintHelp (const char * s)
 {
   PrintUsage (s);
   cerr
-    << "-c            Report SNPs from conflicting regions, i.e. regions of\n"
-    << "              the reference or query with more than 1 representative\n"
-    << "              alignment. This will also force two additional output\n"
-    << "              columns reporting the number of conflicts.\n"
+    << "-C            Do not report SNPs from alignments with an ambiguous\n"
+    << "              mapping, i.e. only report SNPs where the [R] and [Q]\n"
+    << "              columns equal 0 and do not output these columns\n"
     << "-h            Display help information\n"
     << "-H            Do not print the output header\n"
-    << "-I            Do not output indels\n"            
+    << "-I            Do not report indels\n"            
     << "-l            Include sequence length information in the output\n"
     << "-q            Sort output lines by query IDs and SNP positions\n"
     << "-r            Sort output lines by reference IDs and SNP positions\n"
@@ -1336,11 +1299,15 @@ void PrintHelp (const char * s)
     << "  Input is the .delta output of either the nucmer or promer program\n"
     << "passed on the command line.\n"
     << "  Output is to stdout, and consists of a list of SNPs (or amino acid\n"
-    << "substitutions for promer) with positions and other useful\n"
-    << "information. SNPs will only be reported from regions with an\n"
-    << "unambiguous mapping unless the -c option is specified. Output will be\n"
-    << "sorted with -r by default and the difference column will always\n"
-    << "reference the sequence whose positions have been sorted.\n"
+    << "substitutions for promer) with positions and other useful info.\n"
+    << "Output will be sorted with -r by default and the distance columns\n"
+    << "[LO] [HI] will always refer to the sequence whose positions have been\n"
+    << "sorted. These values specify the distance to the next mismatch on the\n"
+    << "lo and hi sides of the SNP within the same alignment. SNPs for which\n"
+    << "the [R] and [Q] columns are greater than 0 should be evaluated with\n"
+    << "caution, as these columns specify the number of other alignments\n"
+    << "which overlap this position. Use the -C option to assure SNPs are\n"
+    << "only reported from unique alignment regions.\n"
     << endl;
 
   return;
