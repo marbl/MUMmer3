@@ -48,6 +48,7 @@ my $X11     = "x11";
 
 my $FFACE   = "Courier";
 my $FSIZE   = "8";
+my $FORMAT  = "%.0f";
 
 
 my %SUFFIX =
@@ -111,7 +112,7 @@ my $HELP = qq~
     may run gnuplot independently. If the attempt succeeds, either an x11
     window will be spawned or an additional output file will be generated
     (.ps or .png depending on the selected terminal). Feel free to edit the
-    resulting gnuplot files (.gp and .plot) rerun gnuplot to change line
+    resulting gnuplot files (.gp and .plot) and rerun gnuplot to change line
     thinkness, labels, colors, etc.
 
   MANDATORY:
@@ -688,6 +689,7 @@ sub WriteGP ($$)
     }
     else {
         print GFILE  $TERMINAL{$OPT_terminal};
+        print GFILE "set mouse format \"$FORMAT\"\n";
     }
 
     if ( defined $OPT_Pfile ) {
@@ -747,7 +749,7 @@ sub WriteGP ($$)
         "set nokey\n",
         "set border $border\n",
         "set ticscale 0 0.5\n",
-        "set format \"%.0f\"\n",
+        "set format \"$FORMAT\"\n",
         "set xlabel \"$xlabel\"\n",
         "set ylabel \"$ylabel\"\n";
 
@@ -793,6 +795,7 @@ sub WriteGP ($$)
     if ( $OPT_terminal eq $X11 ) {
         print GFILE "print \"-- INTERACTIVE MODE --\"\n";
         print GFILE "print \"consult gnuplot docs for command list\"\n";
+        print GFILE "print \"left mouse for coords, right mouse to zoom\"\n";
         print GFILE "print \"press enter to exit\"\n";
         print GFILE "pause -1\n";
     }
