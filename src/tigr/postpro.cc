@@ -455,6 +455,9 @@ int main
                 }
 
               //-- Add a new cluster to the current synteny
+	      if ( !CurrSp->clusters.empty( ) )
+		if ( CurrSp->clusters.rbegin( )->matches.empty( ) )
+		  CurrSp->clusters.pop_back( ); // hack to remove empties
 	      Aclu.frameA = FrameA;
 	      Aclu.frameB = FrameB;
               Aclu.wasFused = false;
@@ -463,6 +466,9 @@ int main
           else if ( PrevLine == HEADER_LINE )
             {
               //-- Add a new cluster to the current synteny
+	      if ( !CurrSp->clusters.empty( ) )
+		if ( CurrSp->clusters.rbegin( )->matches.empty( ) )
+		  CurrSp->clusters.pop_back( );
 	      Aclu.frameA = FrameA;
 	      Aclu.frameB = FrameB;
               Aclu.wasFused = false;
@@ -485,6 +491,9 @@ int main
     }
 
   //-- Process the left-over syntenys
+  if ( !CurrSp->clusters.empty( ) )
+    if ( CurrSp->clusters.rbegin( )->matches.empty( ) )
+      CurrSp->clusters.pop_back( );
   processSyntenys (Syntenys, Af, As, QryFile, ClusterFile, DeltaFile);
   fclose (QryFile);
 
@@ -1430,7 +1439,7 @@ void processSyntenys
 	  Bf.len = strlen (Bf.seq + 1);
 	}
 
-      //-- Extend clusters and created the alignment information
+      //-- Extend clusters and create the alignment information
       CurrSp->Bf.len = Bf.len;
       extendClusters (CurrSp->clusters, CurrSp->AfP, &Bf, DeltaFile);
     }
