@@ -8,7 +8,7 @@
 
 #include "tigrinc.hh"
 
-const int  ALLOW_WRAPAROUND = TRUE;
+const int  ALLOW_WRAPAROUND = FALSE;
 
 
 struct  Match
