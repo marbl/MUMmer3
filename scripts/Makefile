@@ -51,6 +51,7 @@ mapview: mapview.pl
 mummerplot: mummerplot.pl Foundation.pm
 	$(SED)  -e 's?__PERL_PATH?$(PERL)?g' \
                 -e 's?__SCRIPT_DIR?$(SCRIPT_DIR)?g' \
+                -e 's?__BIN_DIR?$(BIN_DIR)?g' \
                 mummerplot.pl > $(BIN_DIR)/mummerplot
 	chmod 755 $(BIN_DIR)/mummerplot
 

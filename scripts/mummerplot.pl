@@ -20,6 +20,9 @@ use lib "__SCRIPT_DIR";
 use Foundation;
 use strict;
 
+my $BIN_DIR = "__BIN_DIR";
+my $SCRIPT_DIR = "__SCRIPT_DIR";
+
 
 #================================================================= Globals ====#
 #-- terminal types
@@ -45,6 +48,7 @@ my $FSIZE   = "8";
 my $FFORMAT = "%.0f";
 
 #-- output suffixes
+my $FILTER  = "filter";
 my $FWDPLOT = "fplot";
 my $REVPLOT = "rplot";
 my $HLTPLOT = "hplot";
@@ -52,6 +56,7 @@ my $GNUPLOT = "gnuplot";
 
 my %SUFFIX =
     (
+     $FILTER  => ".filter",
      $FWDPLOT => ".fplot",
      $REVPLOT => ".rplot",
      $HLTPLOT => ".hplot",
@@ -65,6 +70,7 @@ my %SUFFIX =
 my $OPT_breaklen;                  # -b option
 my $OPT_color;                     # --[no]color option
 my $OPT_coverage;                  # --[no]coverage option
+my $OPT_layout;                    # -l option
 my $OPT_prefix    = "out";         # -p option
 my $OPT_rv;                        # --rv option
 my $OPT_terminal  = $X11;          # -t option
@@ -77,6 +83,7 @@ my $OPT_xrange;                    # -x option
 my $OPT_yrange;                    # -y option
 
 my $OPT_Mfile;                     # match file
+my $OPT_Dfile;                     # delta filter file
 my $OPT_Ffile;                     # .fplot output
 my $OPT_Rfile;                     # .rplot output
 my $OPT_Hfile;                     # .hplot output
@@ -123,6 +130,8 @@ my $HELP = qq~
     --depend        Print the dependency information and exit
     -h
     --help          Display help information and exit
+    -l
+    --layout        Layout a .delta multiplot in an intelligible fashion
     -p|prefix       Set the prefix of the output files (default '$OPT_prefix')
     -rv             Reverse video for x11 plots
     -r|IdR          Plot a particular reference sequence ID on the X-axis
@@ -141,7 +150,13 @@ my $HELP = qq~
     --version       Display the version information and exit
     ~;
 
-my @DEPEND = ("TIGR::Foundation", "gnuplot");
+my @DEPEND =
+    (
+     "$SCRIPT_DIR/Foundation.pm",
+     "$BIN_DIR/delta-filter",
+     "$BIN_DIR/show-coords",
+     "gnuplot"
+     );
 
 my $tigr = new TIGR::Foundation
     or die "ERROR: TIGR::Foundation could not be initialized\n";
@@ -161,6 +176,8 @@ sub ParseDelta($);
 sub ParseCluster($);
 sub ParseMummer($);
 sub ParseTiling($);
+
+sub LayoutIDs($$);
 
 sub PlotData($$$);
 sub WriteGP($$);
@@ -196,6 +213,23 @@ MAIN:
     #-- Parse the alignment data
     $parsefunc->(\@aligns);
     
+    #-- Layout the alignment data if requested
+    if ( $OPT_layout ) {
+        if ( $parsefunc != \&ParseDelta ) {
+            print STDERR
+                "WARNING: --layout option only works with delta input\n";
+            undef $OPT_layout;
+        }
+        elsif ( !defined %refs && !defined %qrys ) {
+            print STDERR
+                "WARNING: --layout option only works with -R or -Q\n";
+            undef $OPT_layout;
+        }
+        else {
+            LayoutIDs (\%refs, \%qrys);
+        }
+    }
+
     #-- Plot the alignment data
     PlotData (\@aligns, \%refs, \%qrys);
 
@@ -529,6 +563,188 @@ sub ParseTiling ($)
 
     close (MFILE)
         or print STDERR "WARNING: Trouble closing $OPT_Mfile, $!\n";
+}
+
+
+#--------------------------------------------------------------- LayoutIDs ----#
+# For each reference and query sequence, find the set of alignments that
+# produce the heaviest (both in non-redundant coverage and percent
+# identity) alignment subset of each sequence using a modified version
+# of the longest increasing subset algorithm. Let R be the union of all
+# reference LIS subsets, and Q be the union of all query LIS
+# subsets. Let S be the intersection of R and Q. Using this LIS subset,
+# recursively span reference and query sequences by their smaller
+# counterparts until all spanning sequences have been placed. The goal
+# is to cluster all the "major" alignment information along the main
+# diagonal for easy viewing and interpretation. Alignments not falling
+# on the main diagonal show now highlight discrepancies between the two
+# sequence sets.
+sub LayoutIDs ($$)
+{
+
+    my $rref = shift;
+    my $qref = shift;
+
+    my %rc;          # chains of qry seqs needed to span each ref
+    my %qc;          # chains of ref seqs needed to span each qry
+    #  {idR} -> [ placed, len, {idQ} -> [ \slope, \loR, \hiR, \loQ, \hiQ ] ]
+    #  {idQ} -> [ placed, len, {idR} -> [ \slope, \loQ, \hiQ, \loR, \hiR ] ]
+
+    my @rl;          # oo of ref seqs
+    my @ql;          # oo of qry seqs
+    #  [ [idR, slope] ]
+    #  [ [idQ, slope] ]
+
+    #-- run the delta-filter
+    print STDERR "Generating filtered delta file $OPT_Dfile\n";
+    system ("$BIN_DIR/delta-filter -r -q $OPT_Mfile > $OPT_Dfile")
+        and die "ERROR: Could not run delta-filter, $!\n";
+
+    #-- get the filtered alignments
+    open (BTAB, "$BIN_DIR/show-coords -B $OPT_Dfile |")
+        or die "ERROR: Could not open show-coords pipe, $!\n";
+
+    my @align;
+    my ($sR, $eR, $sQ, $eQ, $lenR, $lenQ, $idR, $idQ);
+    my ($loR, $hiR, $loQ, $hiQ);
+    my ($dR, $dQ, $slope);
+    while ( <BTAB> ) {
+        @align = split "\t";
+        if ( scalar @align != 21 ) {
+            die "ERROR: Could not read show-coords pipe, invalid btab format\n";
+        }
+
+        $sR = $align[8];     $eR = $align[9];
+        $sQ = $align[6];     $eQ = $align[7];
+        $lenR = $align[18];  $lenQ = $align[2];
+        $idR = $align[5];    $idQ = $align[0];
+
+        #-- skip it if not on include list
+        if ( !exists $rref->{$idR} || !exists $qref->{$idQ} ) { next; }
+
+        #-- get orientation of both alignments and alignment slope
+        $dR = $sR < $eR ? 1 : -1;
+        $dQ = $sQ < $eQ ? 1 : -1;
+        $slope = $dR == $dQ ? 1 : -1;
+
+        #-- get lo's and hi's
+        $loR = $dR == 1 ? $sR : $eR;
+        $hiR = $dR == 1 ? $eR : $sR;
+
+        $loQ = $dQ == 1 ? $sQ : $eQ;
+        $hiQ = $dQ == 1 ? $eQ : $sQ;
+
+        #-- initialize
+        if ( !exists $rc{$idR} ) { $rc{$idR} = [ 0, $lenR, { } ]; }
+        if ( !exists $qc{$idQ} ) { $qc{$idQ} = [ 0, $lenQ, { } ]; }
+
+        #-- if no alignments for these two exist OR
+        #-- this alignment is bigger than the current
+        if ( !exists $rc{$idR}[2]{$idQ} || !exists $qc{$idQ}[2]{$idR} ||
+             $hiR - $loR >
+             ${$rc{$idR}[2]{$idQ}[2]} - ${$rc{$idR}[2]{$idQ}[1]} ) {
+
+            #-- rc and qc reference these anonymous values
+            my $aref = [ $slope, $loR, $hiR, $loQ, $hiQ ];
+
+            #-- rc is ordered [ slope, loR, hiR, loQ, hiQ ]
+            #-- qc is ordered [ slope, loQ, hiQ, loR, hiR ]
+            $rc{$idR}[2]{$idQ}[0] = $qc{$idQ}[2]{$idR}[0] = \$aref->[0];
+            $rc{$idR}[2]{$idQ}[1] = $qc{$idQ}[2]{$idR}[3] = \$aref->[1];
+            $rc{$idR}[2]{$idQ}[2] = $qc{$idQ}[2]{$idR}[4] = \$aref->[2];
+            $rc{$idR}[2]{$idQ}[3] = $qc{$idQ}[2]{$idR}[1] = \$aref->[3];
+            $rc{$idR}[2]{$idQ}[4] = $qc{$idQ}[2]{$idR}[2] = \$aref->[4];
+        }
+    }
+
+    close (BTAB)
+        or print STDERR "WARNING: Trouble closing show-coords pipe, $!\n";
+
+    #-- recursively span sequences to generate the layout
+    foreach $idR ( sort { $rc{$b}[1] <=> $rc{$a}[1] } keys %rc ) {
+        SpanXwY ($idR, \%rc, \@rl, \%qc, \@ql);
+    }
+
+    #-- undefine the current offsets
+    foreach $idR ( keys %{$rref} ) { undef $rref->{$idR}[0]; }
+    foreach $idQ ( keys %{$qref} ) { undef $qref->{$idQ}[0]; }
+
+    #-- redefine the offsets according to the new layout
+    my $roff = 0;
+    foreach my $r ( @rl ) {
+        $idR = $r->[0];
+        $rref->{$idR}[0] = $roff;
+        $rref->{$idR}[2] = $r->[1];
+        $roff += $rref->{$idR}[1] - 1;
+    }
+    #-- append the guys left out of the layout
+    foreach $idR ( keys %{$rref} ) {
+        if ( !defined $rref->{$idR}[0] ) {
+            $rref->{$idR}[0] = $roff;
+            $roff += $rref->{$idR}[1] - 1;
+        }
+    }
+
+    #-- redefine the offsets according to the new layout
+    my $qoff = 0;
+    foreach my $q ( @ql ) {
+        $idQ = $q->[0];
+        $qref->{$idQ}[0] = $qoff;
+        $qref->{$idQ}[2] = $q->[1];
+        $qoff += $qref->{$idQ}[1] - 1;
+    }
+    #-- append the guys left out of the layout
+    foreach $idQ ( keys %{$qref} ) {
+        if ( !defined $qref->{$idQ}[0] ) {
+            $qref->{$idQ}[0] = $qoff;
+            $qoff += $qref->{$idQ}[1] - 1;
+        }
+    }
+}
+
+
+#----------------------------------------------------------------- SpanXwY ----#
+sub SpanXwY ($$$$$) {
+    my $x   = shift;   # idX
+    my $xcr = shift;   # xc ref
+    my $xlr = shift;   # xl ref
+    my $ycr = shift;   # yc ref
+    my $ylr = shift;   # yl ref
+
+    my @post;
+    foreach my $y ( sort { ${$xcr->{$x}[2]{$a}[1]} <=> ${$xcr->{$x}[2]{$b}[1]} }
+                    keys %{$xcr->{$x}[2]} ) {
+
+        #-- skip if already placed (RECURSION BASE)
+        if ( $ycr->{$y}[0] ) { next; }
+        else { $ycr->{$y}[0] = 1; }
+
+        #-- get len and slope info for y
+        my $len = $ycr->{$y}[1];
+        my $slope = ${$xcr->{$x}[2]{$y}[0]};
+
+        #-- if we need to flip, reverse complement all y records
+        if ( $slope == -1 ) {
+            foreach my $xx ( keys %{$ycr->{$y}[2]} ) {
+                ${$ycr->{$y}[2]{$xx}[0]} *= -1;
+
+                my $loy = ${$ycr->{$y}[2]{$xx}[1]};
+                my $hiy = ${$ycr->{$y}[2]{$xx}[2]};
+                ${$ycr->{$y}[2]{$xx}[1]} = $len - $hiy + 1;
+                ${$ycr->{$y}[2]{$xx}[2]} = $len - $loy + 1;
+            }
+        }
+
+        #-- place y
+        push @{$ylr}, [ $y, $slope ];
+
+        #-- RECURSE if y > x, else save for later
+        if ( $len > $xcr->{$x}[1] ) { SpanXwY ($y, $ycr, $ylr, $xcr, $xlr); }
+        else { push @post, $y; }
+    }
+
+    #-- RECURSE for all y < x
+    foreach my $y ( @post ) { SpanXwY ($y, $ycr, $ylr, $xcr, $xlr); }
 }
 
 
@@ -948,7 +1164,7 @@ sub RunGP ( )
     $cmd .= " $OPT_Gfile";
 
     system ($cmd)
-        and print STDERR "WARNING: Unable to run '$cmd', Unknown error\n";
+        and print STDERR "WARNING: Unable to run '$cmd', $!\n";
 }
 
 
@@ -965,6 +1181,7 @@ sub ParseOptions ( )
          "b|breaklen:i" => \$OPT_breaklen,
          "color!"       => \$OPT_color,
          "c|coverage!"  => \$OPT_coverage,
+         "l|layout!"    => \$OPT_layout,
          "p|prefix=s"   => \$OPT_prefix,
          "rv"           => \$OPT_rv,
          "r|IdR=s"      => \$OPT_IdR,
@@ -1074,6 +1291,12 @@ sub ParseOptions ( )
         $OPT_Hfile = $OPT_prefix . $SUFFIX{$HLTPLOT};
         $tigr->isWritableFile($OPT_Hfile) or $tigr->isCreatableFile($OPT_Hfile)
             or die "ERROR: Could not write $OPT_Hfile, $!\n";
+    }
+
+    if ( defined $OPT_layout ) {
+        $OPT_Dfile = $OPT_prefix . $SUFFIX{$FILTER};
+        $tigr->isWritableFile($OPT_Dfile) or $tigr->isCreatableFile($OPT_Dfile)
+            or die "ERROR: Could not write $OPT_Dfile, $!\n";
     }
 
     $OPT_Gfile = $OPT_prefix . $SUFFIX{$GNUPLOT};
