@@ -40,6 +40,7 @@ bool    OPT_SortReference = false;      // -r option
 bool    OPT_SortQuery     = false;      // -q option
 bool    OPT_ShowLength    = false;      // -l option
 bool    OPT_ShowConflict  = false;      // -c option
+bool    OPT_ShowIndels    = true;       // -I option
 bool    OPT_PrintTabular  = false;      // -T option
 bool    OPT_PrintHeader   = true;       // -H option
 bool    OPT_SelectAligns  = false;      // -S option
@@ -66,25 +67,25 @@ const char SEQEND_CHAR = '-';
 
 
 
+struct DeltaEdgelet_t;
+struct DeltaEdge_t;
+struct DeltaNode_t;
+
 struct SNP_t
      //!< A single nuc/aa poly
 {
   char cQ, cR;
-  unsigned long int pQ, pR;
-  unsigned int conQ, conR;
-  unsigned long int lenQ, lenR;
+  long int pQ, pR;
+  int conQ, conR;
   string ctxQ, ctxR;
-  int frmQ, frmR;
-  const string * idQ, * idR;
+  DeltaEdgelet_t * lp;
+  DeltaEdge_t * ep;
 
   SNP_t ( )
   {
     cQ = cR = 0;
     pQ = pR = 0;
     conQ = conR = 0;
-    lenQ = lenR = 0;
-    frmQ = frmR = 1;
-    idQ = idR = NULL;
   };
 };
 
@@ -99,22 +100,23 @@ struct SNP_t
 //   named a "DeltaEdgelet_t". Alignment coordinates reference the forward
 //   strand and are stored lo before hi.
 //
-struct DeltaNode_t;
 struct DeltaEdgelet_t
      //!< A piece of a delta graph edge, a single alignment
 {
-  unsigned char dirR   : 1;   // reference match direction
-  unsigned char dirQ   : 1;   // query match direction
+  unsigned char dirR   : 1;      // reference match direction
+  unsigned char dirQ   : 1;      // query match direction
 
-  unsigned long int loQ, hiQ, loR, hiR;   // alignment bounds
+  long int loQ, hiQ, loR, hiR;   // alignment bounds
+  int frmQ, frmR;
 
-  vector<long int> delta;                 // delta information
-  vector<SNP_t> snps;                     // snps for this edgelet
+  vector<long int> delta;        // delta information
+  vector<SNP_t> snps;            // snps for this edgelet
 
   DeltaEdgelet_t ( )
   {
     dirR = dirQ = FORWARD_DIR;
     loQ = hiQ = loR = hiR = 0;
+    frmQ = frmR = 1;
   }
 };
 
@@ -145,7 +147,7 @@ struct DeltaNode_t
 {
   const string * id;               // the id of the sequence
   char * seq;                      // the DNA sequence
-  unsigned long int len;           // the length of the sequence
+  long int len;                    // the length of the sequence
   vector<DeltaEdge_t *> edges;     // the set of related edges
 
   DeltaNode_t ( )
@@ -196,7 +198,7 @@ struct SNP_R_Sort
 {
   bool operator() (const SNP_t * a, const SNP_t * b)
   {
-    int i = a -> idR -> compare (*(b -> idR));
+    int i = a->ep->refnode->id->compare (*(b->ep->refnode->id));
 
     if ( i < 0 )
       return true;
@@ -210,7 +212,7 @@ struct SNP_R_Sort
           return false;
         else
           {
-            int j = a -> idQ -> compare (*(b -> idQ));
+            int j = a->ep->qrynode->id->compare (*(b->ep->qrynode->id));
 
             if ( j < 0 )
               return true;
@@ -233,7 +235,7 @@ struct SNP_Q_Sort
 {
   bool operator() (const SNP_t * a, const SNP_t * b)
   {
-    int i = a -> idQ -> compare (*(b -> idQ));
+    int i = a->ep->qrynode->id->compare (*(b->ep->qrynode->id));
 
     if ( i < 0 )
       return true;
@@ -247,7 +249,7 @@ struct SNP_Q_Sort
           return false;
         else
           {
-            int j = a -> idR -> compare (*(b -> idR));
+            int j = a->ep->refnode->id->compare (*(b->ep->refnode->id));
 
             if ( j < 0 )
               return true;
@@ -270,27 +272,25 @@ struct SNP_Q_Sort
 
 //========================================================== Fuction Decs ====//
 //------------------------------------------------------------------ RevC ----//
-inline unsigned long int RevC (unsigned long int coord, unsigned long int len)
+inline long int RevC (long int coord, long int len)
 {
   return len - coord + 1;
 }
 
 
 //------------------------------------------------------------------ Norm ----//
-inline unsigned long int Norm (unsigned long int c, 
-                               unsigned long int l,
-                               int f, DataType_t d)
+inline long int Norm (long int c, long int l, int f, DataType_t d)
 {
-  unsigned long int retval = (d == PROMER_DATA ? c * 3 - (3 - abs(f)) : c);
+  long int retval = (d == PROMER_DATA ? c * 3 - (3 - abs(f)) : c);
   if ( f < 0 ) retval = RevC (retval, l);
   return retval;
 }
 
 
 //------------------------------------------------------------------ Swap ----//
-inline void Swap (unsigned long int & a, unsigned long int & b)
+inline void Swap (long int & a, long int & b)
 {
-  unsigned long int t = a; a = b; b = t;
+  long int t = a; a = b; b = t;
 }
 
 
@@ -370,16 +370,15 @@ int main (int argc, char ** argv)
 
 
   //-- Collect and sort the SNPs
-  map<string, DeltaNode_t>::const_iterator mi;
-  vector<DeltaEdge_t *>::const_iterator ei;
-  vector<DeltaEdgelet_t *>::const_iterator li;
-  vector<SNP_t>::const_iterator si;
+  map<string, DeltaNode_t>::iterator mi;
+  vector<DeltaEdge_t *>::iterator ei;
+  vector<DeltaEdgelet_t *>::iterator li;
+  vector<SNP_t>::iterator si;
   for ( mi = graph.refnodes.begin( ); mi != graph.refnodes.end( ); ++ mi )
     for ( ei = mi->second.edges.begin( ); ei != mi->second.edges.end( ); ++ ei )
       for ( li = (*ei)->edgelets.begin( ); li != (*ei)->edgelets.end( ); ++ li )
         for ( si = (*li)->snps.begin( ); si != (*li)->snps.end( ); ++ si )
-          if ( OPT_ShowConflict || (si->conR == 0  &&  si->conQ == 0) )
-            snps . push_back (&(*si));
+          snps . push_back (&(*si));
 
   if ( OPT_SortReference )
     sort (snps . begin( ), snps . end( ), SNP_R_Sort( ));
@@ -516,11 +515,11 @@ void CheckSNPs (DeltaGraph_t & graph)
   vector<DeltaEdge_t *>::const_iterator ei;
   vector<DeltaEdgelet_t *>::iterator eli;
   vector<SNP_t>::iterator si;
-  unsigned long int i;
+  long int i;
 
   //-- For each reference sequence
-  unsigned long int ref_size = 0;
-  unsigned long int ref_len = 0;
+  long int ref_size = 0;
+  long int ref_len = 0;
   unsigned char * ref_cov = NULL;
   for ( mi = graph.refnodes.begin( ); mi != graph.refnodes.end( ); ++ mi )
     {
@@ -555,8 +554,8 @@ void CheckSNPs (DeltaGraph_t & graph)
 
 
   //-- For each query sequence
-  unsigned long int qry_size = 0;
-  unsigned long int qry_len = 0;
+  long int qry_size = 0;
+  long int qry_len = 0;
   unsigned char * qry_cov = NULL;
   for ( mi = graph.qrynodes.begin( ); mi != graph.qrynodes.end( ); ++ mi )
     {
@@ -609,25 +608,24 @@ void FindSNPs (DeltaGraph_t & graph)
         char * R[] = {(*ei)->refnode->seq, NULL, NULL, NULL, NULL, NULL, NULL};
         char * Q[] = {(*ei)->qrynode->seq, NULL, NULL, NULL, NULL, NULL, NULL};
 
-        long long int i;
-        unsigned long int lenR = (*ei) -> refnode -> len;
-        unsigned long int lenQ = (*ei) -> qrynode -> len;
+        long int i;
+        long int lenR = (*ei) -> refnode -> len;
+        long int lenQ = (*ei) -> qrynode -> len;
 
-        snp . lenR = lenR;
-        snp . lenQ = lenQ;
-        snp . idR = (*ei)->refnode->id;
-        snp . idQ = (*ei)->qrynode->id;
+        snp . ep = *ei;
 
         for (li = (*ei)->edgelets.begin( ); li != (*ei)->edgelets.end( ); ++ li)
           {
-            int frameR, frameQ, sign;
             long int delta;
-            unsigned long int sR, eR, sQ, eQ;
+            int frameR, frameQ, sign;
+            long int sR, eR, sQ, eQ;
             long long int rpos, qpos, remain;
             long long int rctx, qctx;
             vector<long int>::iterator dp;
-            unsigned long int alenR = lenR;
-            unsigned long int alenQ = lenQ;
+            long int alenR = lenR;
+            long int alenQ = lenQ;
+
+            snp . lp = *li;
 
             //-- Only do the ones requested by user
             if ( OPT_SelectAligns )
@@ -645,7 +643,7 @@ void FindSNPs (DeltaGraph_t & graph)
                 else
                   ss << (*li) -> hiQ << ' ' << (*li) -> loQ << ' ';
 
-                ss << *snp . idR << ' ' << *snp . idQ;
+                ss << *((*ei)->refnode->id) << ' ' << *((*ei)->qrynode->id);
 
                 si = OPT_Aligns . find (ss .str( ));
                 if ( si == OPT_Aligns . end( ) )
@@ -746,8 +744,8 @@ void FindSNPs (DeltaGraph_t & graph)
             qpos = sQ;
             remain = eR - sR + 1;
 
-            snp . frmR = frameR;
-            snp . frmQ = frameQ;
+            (*li) -> frmR = frameR;
+            (*li) -> frmQ = frameQ;
 
             for ( dp  = (*li) -> delta . begin( );
                   dp != (*li) -> delta . end( )  &&  *dp != 0; ++ dp )
@@ -905,7 +903,7 @@ void FindSNPs (DeltaGraph_t & graph)
 void PrintHuman (const vector<const SNP_t *> & snps,
                  const DeltaGraph_t & graph)
 {
-  vector<const SNP_t *>::const_iterator si, psi;
+  vector<const SNP_t *>::const_iterator si, psi, nsi;
   long int diff, dist, distR, distQ;
   int ctxw = 2 * OPT_Context + 1;
   int ctxc = ctxw < 7 ? 7 : ctxw;
@@ -948,27 +946,48 @@ void PrintHuman (const vector<const SNP_t *> & snps,
   for ( si = snps . begin( ); si != snps . end( ); ++ si )
     {
       psi = si - 1;
+      nsi = si + 1;
 
-      distR = (*si)->pR - 1 < (*si)->lenR - (*si)->pR ?
-        (*si)->pR - 1 : (*si)->lenR - (*si)->pR;
-      distQ = (*si)->pQ - 1 < (*si)->lenQ - (*si)->pQ ?
-        (*si)->pQ - 1 : (*si)->lenQ - (*si)->pQ;
+      //-- Distance to the nearest alignment bound
+      distR = (*si)->pR - (*si)->lp->loR < (*si)->lp->hiR - (*si)->pR ?
+        (*si)->pR - (*si)->lp->loR : (*si)->lp->hiR - (*si)->pR;
+      distQ = (*si)->pQ - (*si)->lp->loQ < (*si)->lp->hiQ - (*si)->pQ ?
+        (*si)->pQ - (*si)->lp->loQ : (*si)->lp->hiQ - (*si)->pQ;
       dist = distR < distQ ? distR : distQ;
 
+      //-- Distance to the nearest mismatch
       if ( OPT_SortReference )
         {
-          if ( psi < snps . begin( )  ||  (*psi)->idR != (*si)->idR )
-            diff = dist;
-          else
+          diff = distR;
+
+          if ( psi >= snps . begin( )  &&
+               (*psi)->ep->refnode->id == (*si)->ep->refnode->id  &&
+               (*si)->pR - (*psi)->pR < diff )
             diff = (*si)->pR - (*psi)->pR;
+
+          if ( nsi < snps . end( )  &&
+               (*nsi)->ep->refnode->id == (*si)->ep->refnode->id  &&
+               (*nsi)->pR - (*si)->pR < diff )
+            diff = (*nsi)->pR - (*si)->pR;
         }
       else
         {
-          if ( psi < snps . begin( )  ||  (*psi)->idQ != (*si)->idQ )
-            diff = dist;
-          else
+          diff = distQ;
+
+          if ( psi >= snps . begin( )  &&
+               (*psi)->ep->refnode->id == (*si)->ep->refnode->id  &&
+               (*si)->pQ - (*psi)->pQ < diff )
             diff = (*si)->pQ - (*psi)->pQ;
+
+          if ( nsi < snps . end( )  &&
+               (*nsi)->ep->refnode->id == (*si)->ep->refnode->id  &&
+               (*nsi)->pQ - (*si)->pQ < diff )
+            diff = (*nsi)->pQ - (*si)->pQ;
         }
+
+      //-- Skip this SNP if we are hiding it
+      if ( ! OPT_ShowConflict  &&  ((*si)->conR != 0  ||  (*si)->conQ != 0) )
+        continue;
 
       printf ("%8ld   %c %c   %-8ld  | ",
               (*si)->pR, (*si)->cR, (*si)->cQ, (*si)->pQ);
@@ -976,7 +995,8 @@ void PrintHuman (const vector<const SNP_t *> & snps,
       if ( OPT_ShowConflict )
         printf ("%4d %4d  | ", (*si)->conR, (*si)->conQ);
       if ( OPT_ShowLength )
-        printf ("%8ld %8ld  | ", (*si)->lenR, (*si)->lenQ);
+        printf ("%8ld %8ld  | ",
+                (*si)->ep->refnode->len, (*si)->ep->qrynode->len);
       if ( OPT_Context != 0 )
         {
           for ( int i = 0; i < ctxc - ctxw; i ++ )
@@ -986,8 +1006,10 @@ void PrintHuman (const vector<const SNP_t *> & snps,
             putchar (' ');
           printf ("%s  | ", (*si)->ctxQ.c_str( ));
         }
-      printf ("%2d %2d  ", (*si)->frmR, (*si)->frmQ);
-      printf ("%s\t%s", (*si)->idR->c_str( ), (*si)->idQ->c_str( ));
+      printf ("%2d %2d  ", (*si)->lp->frmR, (*si)->lp->frmQ);
+      printf ("%s\t%s",
+              (*si)->ep->refnode->id->c_str( ),
+              (*si)->ep->qrynode->id->c_str( ));
       printf ("\n");
     }
 }
@@ -999,7 +1021,7 @@ void PrintHuman (const vector<const SNP_t *> & snps,
 void PrintTabular (const vector<const SNP_t *> & snps,
                    const DeltaGraph_t & graph)
 {
-  vector<const SNP_t *>::const_iterator si, psi;
+  vector<const SNP_t *>::const_iterator si, psi, nsi;
   long int diff, dist, distR, distQ;
 
   if ( OPT_PrintHeader )
@@ -1007,7 +1029,7 @@ void PrintTabular (const vector<const SNP_t *> & snps,
       printf ("%s %s\n%s\n\n",
               graph . refpath . c_str( ), graph . qrypath . c_str( ),
               graph . datatype == NUCMER_DATA ? "NUCMER" : "PROMER");
-      printf ("%s\t%s\t%s\t", "[P1]", "[SUB]", "[P2]");
+      printf ("%s\t%s\t%s\t%s\t", "[P1]", "[SUB]", "[SUB]", "[P2]");
       printf ("%s\t%s\t", "[DIFF]", "[DIST]");
       if ( OPT_ShowConflict )
         printf ("%s\t%s\t", "[R]", "[Q]");
@@ -1022,39 +1044,67 @@ void PrintTabular (const vector<const SNP_t *> & snps,
   for ( si = snps . begin( ); si != snps . end( ); ++ si )
     {
       psi = si - 1;
+      nsi = si + 1;
 
-      distR = (*si)->pR - 1 < (*si)->lenR - (*si)->pR ?
-        (*si)->pR - 1 : (*si)->lenR - (*si)->pR;
-      distQ = (*si)->pQ - 1 < (*si)->lenQ - (*si)->pQ ?
-        (*si)->pQ - 1 : (*si)->lenQ - (*si)->pQ;
+      //-- Distance to the nearest alignment bound
+      distR = (*si)->pR - (*si)->lp->loR < (*si)->lp->hiR - (*si)->pR ?
+        (*si)->pR - (*si)->lp->loR : (*si)->lp->hiR - (*si)->pR;
+      distQ = (*si)->pQ - (*si)->lp->loQ < (*si)->lp->hiQ - (*si)->pQ ?
+        (*si)->pQ - (*si)->lp->loQ : (*si)->lp->hiQ - (*si)->pQ;
       dist = distR < distQ ? distR : distQ;
 
+      //-- Distance to the nearest mismatch
       if ( OPT_SortReference )
         {
-          if ( psi < snps . begin( )  ||  (*psi)->idR != (*si)->idR )
-            diff = dist;
-          else
+          diff = distR;
+
+          if ( psi >= snps . begin( )  &&
+               (*psi)->ep->refnode->id == (*si)->ep->refnode->id  &&
+               (*si)->pR - (*psi)->pR < diff )
             diff = (*si)->pR - (*psi)->pR;
+
+          if ( nsi < snps . end( )  &&
+               (*nsi)->ep->refnode->id == (*si)->ep->refnode->id  &&
+               (*nsi)->pR - (*si)->pR < diff )
+            diff = (*nsi)->pR - (*si)->pR;
         }
       else
         {
-          if ( psi < snps . begin( )  ||  (*psi)->idQ != (*si)->idQ )
-            diff = dist;
-          else
+          diff = distQ;
+
+          if ( psi >= snps . begin( )  &&
+               (*psi)->ep->refnode->id == (*si)->ep->refnode->id  &&
+               (*si)->pQ - (*psi)->pQ < diff )
             diff = (*si)->pQ - (*psi)->pQ;
+
+          if ( nsi < snps . end( )  &&
+               (*nsi)->ep->refnode->id == (*si)->ep->refnode->id  &&
+               (*nsi)->pQ - (*si)->pQ < diff )
+            diff = (*nsi)->pQ - (*si)->pQ;
         }
 
-      printf ("%ld\t%c %c\t%ld\t",
+      //-- Skip this SNP if we are hiding it
+      if ( (! OPT_ShowConflict  &&
+            ((*si)->conR != 0  ||  (*si)->conQ != 0))
+           ||
+           (! OPT_ShowIndels  &&
+            ((*si)->cR == INDEL_CHAR  ||  (*si)->cQ == INDEL_CHAR)) )
+        continue;
+
+      printf ("%ld\t%c\t%c\t%ld\t",
               (*si)->pR, (*si)->cR, (*si)->cQ, (*si)->pQ);
       printf ("%ld\t%ld\t", diff, dist);
       if ( OPT_ShowConflict )
         printf ("%d\t%d\t", (*si)->conR, (*si)->conQ);
       if ( OPT_ShowLength )
-        printf ("%ld\t%ld\t", (*si)->lenR, (*si)->lenQ);
+        printf ("%ld\t%ld\t",
+                (*si)->ep->refnode->len, (*si)->ep->qrynode->len);
       if ( OPT_Context != 0 )
         printf ("%s\t%s\t", (*si)->ctxR.c_str( ), (*si)->ctxQ.c_str( ));
-      printf ("%d\t%d\t", (*si)->frmR, (*si)->frmQ);
-      printf ("%s\t%s", (*si)->idR->c_str( ), (*si)->idQ->c_str( ));
+      printf ("%d\t%d\t", (*si)->lp->frmR, (*si)->lp->frmQ);
+      printf ("%s\t%s",
+              (*si)->ep->refnode->id->c_str( ),
+              (*si)->ep->qrynode->id->c_str( ));
       printf ("\n");
     }
 }
@@ -1072,7 +1122,7 @@ void ReadSequences (DeltaGraph_t & graph)
   char * Q = NULL;
   char id [MAX_LINE];
   long int initsize;
-  unsigned long int len;
+  long int len;
 
   //-- Read in the reference sequences
   reffile = File_Open (graph . refpath . c_str( ), "r");
@@ -1186,7 +1236,7 @@ void ParseArgs (int argc, char ** argv)
   optarg = NULL;
   
   while ( !errflg  &&
-          ((ch = getopt (argc, argv, "chHlqrSTx:")) != EOF) )
+          ((ch = getopt (argc, argv, "chHIlqrSTx:")) != EOF) )
     switch (ch)
       {
       case 'c':
@@ -1200,6 +1250,10 @@ void ParseArgs (int argc, char ** argv)
 
       case 'H':
         OPT_PrintHeader = false;
+        break;
+
+      case 'I':
+        OPT_ShowIndels = false;
         break;
 
       case 'l':
@@ -1266,6 +1320,7 @@ void PrintHelp (const char * s)
     << "              columns reporting the number of conflicts.\n"
     << "-h            Display help information\n"
     << "-H            Do not print the output header\n"
+    << "-I            Do not output indels\n"            
     << "-l            Include sequence length information in the output\n"
     << "-q            Sort output lines by query IDs and SNP positions\n"
     << "-r            Sort output lines by reference IDs and SNP positions\n"
@@ -1285,9 +1340,7 @@ void PrintHelp (const char * s)
     << "information. SNPs will only be reported from regions with an\n"
     << "unambiguous mapping unless the -c option is specified. Output will be\n"
     << "sorted with -r by default and the difference column will always\n"
-    << "reference the sorted position column.\n"
-    << "  Enough memory must be available to read in the entire reference\n"
-    << "and query sequence files along with the .delta file.\n"
+    << "reference the sequence whose positions have been sorted.\n"
     << endl;
 
   return;
