@@ -1,0 +1,299 @@
+-=- NUCmer to BLAST performance comparison -=-
+
+Input Files
+-----------
+Reference - 809 KB
+Query - 575 KB
+
+These input files are the Mycoplasma genitalium and Mycoplasma pneumonia
+genomes, that are closely related and will produce good nucleotide alignment
+hits. Both input files are single sequence FASTA files.
+
+
+Parameters
+----------
+BLAST - 'blastn' -G 10 -E 7 -q -7 -r 3 -g T -W 20
+NUCmer - -c 40 -g 100 -l 20
+
+The blastall parameters were set to mimic the nucleotide scoring matrix used
+by NUCmer, and also the wordsize of 20 is the default nucmer wordsize. The
+NUCmer clustering parameters were lowered to increase its sensitivity and make
+it comparable to BLAST.
+
+
+Run Time
+--------
+BLAST - 3.08 s
+NUCmer - 4.30 s
+
+It is unusual for BLAST to be faster than NUCmer, but in this case, the data
+set is so small that NUCmer's high overhead caused it to be slightly slower
+than blast. On larger sets, NUCmer is much faster. Also, NUCmer extended its
+alignment regions much further than BLAST. These longer extensions required
+more runtime, but produced larger, more comprehensive alignment regions.
+     These results are for a 1.6 GHz, 512 MB Linux desktop computer.
+
+
+Output
+------
+BLAST - much more sensitive than NUCmer, but its alignments are small and
+represent little coverage of the two genomes. If a more stringent expect value
+is set (say 1e-40), BLAST would perform more like NUCmer and only report the
+large reliable alignment regions.
+
+NUCmer - more conservative at identifying aligned regions. Thus, more accurately
+reports syntenic regions and probable conserved genes. Thus, excellent for
+mapping multiple input contigs to one another. Since NUCmer requires exact
+matches of the wordsize to cluster together, it misses all regions that BLAST
+found that contained only a single wordsize match. The NUCmer parameters can
+be further lowered to increase its sensitivity, but this would result in
+possible false positives. Because NUCmer does not report expect values, it it
+dangerous to highly increase its sensitivity because it then becomes difficult
+to separate the good matches from the poor matches.
+
+
+Below are a few similarities and differences between the output of BLAST and
+NUCmer. These generally represent all of the major discrepancies between the
+two programs.
+
+NOTE: NUCmer output has the "Sbjct" sequence on the top and the "Query" sequence
+on the bottom, BLAST is reversed. Also, BLAST reverse complements the reference
+sequence while NUCmer reverse complements the query sequence.
+
+
+=========================
+HIT both NUCmer and BLAST
+=========================
+
+
+NUCmer alignment
+-- BEGIN alignment [ 449982 - 450777 | 406930 - 406126 ]
+
+
+449982     aatggtggagatgacgggaatcgaacccgtttccataaaggattggtaa
+406930     aatggtggagatgacgggaatcgaacccgtttccataaaggacacaaca
+                                                     ^^^^^^ 
+
+450031     aacagcttctacagtttagtcttatgttttaatgtctcgcttactttag
+406881     aacagcttctacattttagttttgtggatttttgtcttgtttccaattg
+                        ^      ^  ^  ^^  ^^     ^ ^  ^ ^^ ^ 
+
+450080     atcataagacaaacaagtaaacgataagttc.ataatttaaggattaag
+406832     atcacaaaacaatcatggaaacaacaagttctat.ttttaaaggttaaa
+               ^  ^    ^  ^ ^    ^ ^      ^  ^^     ^ ^    ^
+
+450128     ttgaaccagttaaccccgagccataaactgtgacacgaaccaaactatg
+406784     ttgaacgatttaacctcgagtcataaactatgacagctagcaaactatg
+                 ^ ^      ^    ^        ^     ^^^ ^         
+
+450177     gcgattcaattcgtgtagctttagtatgttc.taagcgaaagcgtagtt
+406735     actattcaccagctgtagctttagtatctacttatgcaaaagcaaagtt
+           ^ ^     ^^^^^              ^ ^ ^  ^  ^     ^^    
+
+450225     gatacttgcttgttggttagcgatcaacattggatctaccaaaacttcg
+406686     aacacttgcttgttggttaatgatcaaatttggttctaccaacacttcg
+           ^ ^                ^^      ^^    ^        ^      
+
+450274     tcgttatttttgtcggttattatacctagagctgtaaggggcatacccc
+406637     ttattttctttgtcggttattgaacctagcgctgtaaggggcatacccc
+            ^^  ^ ^             ^^      ^                   
+
+450323     actgcaactgttttcctttcaacattatgtcaaaacctctacatcccca
+406588     aatgctactgtttgtctatcagcattatgtcaaacccaaaacatcccca
+            ^   ^       ^^  ^   ^            ^  ^^^         
+
+450372     acgctcaaattataattttagccgctgtcggtcagttgctgc..tcaa.
+406539     acac.caaattataatttt.gacgctgtcggttagttgctgctttaaag
+             ^ ^              ^ ^          ^         ^^ ^  ^
+
+450418     .......t.gagtagaggaaagtccatgcttgcacttgctggaacgcaa
+406492     atatatttaaagtagaggaaagtccatgcttgcacttgctggaatgcaa
+           ^^^^^^^ ^^                                  ^    
+
+450459     gtagtgtttgtgtaaattgaacaaataagatttaggacgctaatagacg
+406443     gtagtgtttgtgtaaatcaaagcgataagatttaggatg.tgatagcca
+                            ^^  ^^^             ^ ^ ^    ^ ^
+
+450508     tcacgactggactagtctaaggtctttgactatgatgatgtccgtaaag
+406395     taacgacataactagtctaaggt.taatactatgatgatgttttgaaag
+            ^     ^^^             ^ ^^^             ^^^^    
+
+450557     taccacagagacgagcttagtgaaaactaagtatgaaacgcggtaaact
+406347     tgccacagagacgagcttggtgaaaaccaggtatgaaacgcggtaaact
+            ^                ^        ^ ^                   
+
+450606     ccacaagcaagaaacctaaattttggtaagggaatgttactttaagaa.
+406298     ccacaagcaagaaacctaaattttggtaagggaatgttgctttaagaac
+                                                 ^         ^
+
+450654     aaataattaaagtaatgacag.gattactgtagataaataactgacttt
+406249     aaataattaaagtaatgacagcaattgctgtagataaataactgacttt
+                                ^^   ^                      
+
+450702     aaaacagaacatggcttattggcagcgttctat.ttgaaaaaggatc.t
+406200     aaaacagaacatggcttattgacagcatgctatctaaaaaaaggatcat
+                                ^    ^ ^    ^ ^^          ^ 
+
+450749     gtttggatcctttttttattgctttattt
+406151     g.at.gatcctttttttaat.ttttattt
+            ^^ ^             ^ ^^       
+
+
+--   END alignment [ 449982 - 450777 | 406930 - 406126 ]
+
+
+
+BLAST alignment
+ Score =  366 bits (561), Expect = 2e-99
+ Identities = 282/317 (88%), Gaps = 4/317 (1%)
+ Strand = Plus / Minus
+
+                                                                          
+Qry: 406168 atagcatgctgtcaataagccatgttctgttttaaagtcagttatttatctacagcaatt 406227
+            |||| | |||| ||||||||||||||||||||||||||||||||||||||||||| ||| 
+Sbj: 450734 atagaacgctgccaataagccatgttctgttttaaagtcagttatttatctacagtaatc 450675
+
+                                                                          
+Qry: 406228 gctgtcattactttaattatttgttcttaaagcaacattcccttaccaaaatttaggttt 406287
+             ||||||||||||||||||||| ||||||||| |||||||||||||||||||||||||||
+Sbj: 450674 -ctgtcattactttaattattt-ttcttaaagtaacattcccttaccaaaatttaggttt 450617
+
+                                                                          
+Qry: 406288 cttgcttgtggagtttaccgcgtttcatacctggttttcaccaagctcgtctctgtggca 406347
+            |||||||||||||||||||||||||||||| | |||||||| |||||||||||||||| |
+Sbj: 450616 cttgcttgtggagtttaccgcgtttcatacttagttttcactaagctcgtctctgtggta 450557
+
+                                                                          
+Qry: 406348 ctttcaaaacatcatcatagt-attaaccttagactagttatgtcgttatggctatca-c 406405
+            ||||    ||||||||||||| |   |||||||||||||   ||||| | | |||| | |
+Sbj: 450556 ctttacggacatcatcatagtcaaagaccttagactagtccagtcgtgacgtctattagc 450497
+
+                                                                          
+Qry: 406406 atcctaaatcttatcgctttgatttacacaaacactacttgcattccagcaagtgcaagc 406465
+             |||||||||||||   ||  ||||||||||||||||||||| |||||||||||||||||
+Sbj: 450496 gtcctaaatcttatttgttcaatttacacaaacactacttgcgttccagcaagtgcaagc 450437
+
+                               
+Qry: 406466 atggactttcctctact 406482
+            |||||||||||||||||
+Sbj: 450436 atggactttcctctact 450420
+
+
+
+It is a little difficult to tell because in the BLAST output, the reference
+is reverse complemented and in NUCmer the query is reverse complemented, but
+a close examination reveals that this is the exact same alignment region,
+correctly identified by both programs. Note however, that the NUCmer alignment
+is much longer than the BLAST alignment. This is the advantage of NUCmer, it
+give much more comprehensive results than BLAST.
+
+
+
+
+=======================
+HIT BLAST but no NUCmer
+=======================
+
+BLAST alignment
+ Score =  322 bits (494), Expect = 3e-86
+ Identities = 474/619 (76%)
+ Strand = Plus / Minus
+
+                                                                          
+Qry: 29550  tatggcagaaatgatagaagcaaaaaatcttcgtaatgggcaaaccatcttcggtcctaa 29609
+            ||||||||| ||||| ||||| |||| | | || | ||| ||||| || || ||||| ||
+Sbj: 171823 tatggcagacatgattgaagcgaaaagtttacgcagtggacaaacgatttttggtcccaa 171764
+
+                                                                          
+Qry: 29610  caaagagattttattagtactggaaaatacatttaacaaaaccgcaatgcgccagggaat 29669
+             ||||||||| | || ||  | ||||| || ||||| || ||||||||||||||||||||
+Sbj: 171763 taaagagattctgttggtgttagaaaacacctttaataagaccgcaatgcgccagggaat 171704
+
+                                                                          
+Qry: 29670  tgttaaaactaaagttaaaaacttaagaactggggctattgtttggcttgaatttactgg 29729
+            ||||||||| || || ||||||||| | |||||||| ||||||||| |||| ||||| ||
+Sbj: 171703 tgttaaaaccaaggtcaaaaacttacgcactggggccattgtttggattgagtttaccgg 171644
+
+                                                                          
+Qry: 29730  tgacaaattagaacaagtaattattgataagnnnnnnntgaatttcttatacaaagatgg 29789
+             ||||| ||||||||||| |||||||| |||       |||  ||||| ||||| |||||
+Sbj: 171643 agacaagttagaacaagtcattattgacaagaagaaaatgaccttcttgtacaaggatgg 171584
+
+                                                                          
+Qry: 29790  taataactttgtttttatggatcaaaaagactacagtcagattgagattaatgnnnnnnn 29849
+            |  ||||| |||||||||||| ||| ||||||||||||| ||||||||    |       
+Sbj: 171583 tgctaactatgtttttatggaccaacaagactacagtcaaattgagatccccgaaaagca 171524
+
+
+
+This is a subsection of a much larger BLAST alignment, but it demonstrates why
+this region was not identified by NUCmer. Notice that there is only one exact
+match of size >= 20 (this one is 29). Because the NUCmer minimum cluster size
+was 40, this single match is not large enough to constitute a cluster. Thus,
+it was not identified by NUCmer as an aligning region. Altering the NUCmer
+command line parameters would make it possible to identify this region, but
+increasing the sensitivity of NUCmer should always be done with caution to
+avoid identifying chance matches as alignments.
+
+
+
+
+=======================
+HIT NUCmer but no BLAST
+=======================
+
+NUCmer alignment
+-- BEGIN alignment [ 44283 - 44678 | 245329 - 244934 ]
+
+
+44283      aaaacccgcttaag.ggcgattatcttgcaaaaacacaaaacaattgat
+245329     aaaacccgcttaagaagtg.ttattctccagcaacacaaaacgattgat
+                         ^^ ^ ^    ^^ ^  ^^          ^      
+
+44331      gaaattattgaactgggggtaaagtttatcaacgaaatggtaaacctac
+245281     gaggtgattgaacttggggttaagtttatcaatgagatcattaacctac
+             ^^ ^        ^     ^           ^  ^  ^^ ^       
+
+44380      cagtggtgttaacccactttagtagtgatgaagtcttaaaaaagattga
+245232     cagtagtgttaactaactttagtagtgatgaagttttaaaaaagattga
+               ^        ^^                   ^              
+
+44429      tctcattatgctcgatcagtcctgtgcactgctactgttagtgtcagct
+245183     tctgatcatccttgataagtcatttgccttatttttattggtctccgct
+              ^  ^  ^  ^   ^    ^ ^   ^^ ^^ ^^ ^  ^  ^  ^   
+
+44478      agtggtaacgtctttaagaaaacgattagctatgctaaccaaagacagt
+245134     agtggtaaagtctttaaaaaaaccattagctatgctaaccaaaggcagt
+                   ^        ^     ^                    ^    
+
+44527      ttgaagacatcatggtatgtgtcaggatctttaatgatcgcattatcga
+245085     ttgaagacattgttatttgtgtaaggatctttaatgatcgcatcattga
+                     ^^ ^^ ^     ^                    ^  ^  
+
+44576      tacacgtttctgtgatattgcccaacacttagatgttttaaaggaaatt
+245036     tacccgcttttcagagattaacaaccaactagaagttttaaaagagatc
+              ^  ^  ^ ^^  ^   ^^ ^ ^  ^^    ^        ^  ^  ^
+
+44625      attcgcagcaaggtacacgagtaccagtatgtcattgacgaaatcctgt
+244987     attagaaccaaggttcatgagtatcagtatgtaattgatgagatcttat
+              ^ ^ ^      ^  ^     ^        ^     ^  ^   ^ ^ 
+
+44674      ttaag
+244938     ttaag
+                
+
+
+--   END alignment [ 44283 - 44678 | 245329 - 244934 ]
+
+
+
+I cannot speculate on why BLAST did not identify this alignment region, but
+it is clearly a non-repetitive, high scoring alignment. But this, and a few
+others, were not identified by BLAST when run with the parameters specified at
+the beginning of this file.
+
+
+
+END OF DOC
+
+author: Adam M Phillippy, aphillip@tigr.org

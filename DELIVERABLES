@@ -1,0 +1,52 @@
+MUMmer deliverables listed by location
+--------------------------------------
+
+/usr/local/packages/MUMmer
+annotate       - adds alignment information to the output of 'gaps'
+combineMUMs    - adds alignment information to the output of 'mgaps'
+exact-tandems  - finds exact tandem repeats in a FastA file
+gaps           - clusters the output of 'mummer' based on LIS
+mapview        - converts 'show-coords' output into graphic
+mgaps          - clusters the output of 'mummer' based on nearest-neighbor
+mummer         - finds maximal exact matches
+mummerplot     - dotplots for 'mummer', 'nucmer' and 'promer'
+nucmer         - whole genome (DNA) alignment tool
+nucmer2xfig    - converts 'show-coords' output into graphic
+promer         - whole genome (protein) alignment tool
+repeat-match   - finds exact repeats in a FastA file
+run-mummer1    - whole genome alignment tool using 'gaps'
+run-mummer3    - whole genome alignment tool using 'mgaps'
+show-aligns    - converts 'nuc/promer' output into pairwise alignments
+show-coords    - converts 'nuc/promer' output into a coordinate table
+show-tiling    - converts 'nuc/promer' output into reference-based tiling paths
+
+/usr/local/packages/MUMmer/aux_bin
+postnuc        - behind the scenes nucmer post-processor
+postpro        - behind the scenes promer post-processor
+prenuc         - behind the scenes nucmer pre-processor
+prepro         - behind the scenes promer pre-processor
+
+/usr/local/common (symbolic links to /usr/local/packages/MUMmer)
+annotate
+combineMUMs
+exact-tandems
+gaps
+mapview
+mgaps
+mummer
+mummerplot
+nucmer
+promer
+repeat-match
+run-mummer1
+run-mummer3
+show-aligns
+show-coords
+show-tiling
+
+/usr/local/doc/MUMmer
+all MUMmer documentation
+
+http://www.tigr.org/software/mummer           - MUMmer homepage
+http://www.tigr.org/software/mummer/manual    - MUMmer users manual
+http://www.tigr.org/software/mummer/examples  - MUMmer examples page

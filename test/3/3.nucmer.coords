@@ -1,0 +1,5 @@
+/local/asmg/work/aphillip/CLOSURE/MUMmer/test/3/3.ref.seq /local/asmg/work/aphillip/CLOSURE/MUMmer/test/3/3.qry.seq
+NUCMER
+
+    [S1]     [E1]  |     [S2]     [E2]  |  [LEN 1]  [LEN 2]  |  [% IDY]  | [TAGS]
+=====================================================================================

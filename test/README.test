@@ -1,0 +1,30 @@
+-=- README for MUMmer3.xx testing -=-
+
+Directories 1-3 contain test sets for MUMmer3.xx and the output that
+NUCmer and PROmer produce for this input.
+
+reproduce these results by running in each of the <#> directories
+nucmer <#>.ref.seq <#>.qry.seq -p testnuc
+promer <#>.ref.seq <#>.qry.seq -p testpro
+show-coords -r testnuc.delta > testnuc.coords
+show-coords -r testpro.delta > testpro.coords
+
+<1> A small 5 vs 5 comparison of two artificially generated contig sets.
+    Similar to a assembly mapping use case.
+
+<2> A small 5 vs 23 comparison of two artificially generate contig sets.
+    Similar to an unfinished to finished contig mapping use case.
+
+<3> A small 1 vs 4 comparison of sequences only similar on the protein level.
+    Used to test the sensitivity of promer.
+
+<BLAST> MUMmer to BLAST performance comparisons, note that each program was
+designed for a different purpose, so they are not interchangeable.
+
+For more complete or non-regression testing, uncomment the "#define
+_DEBUG_ASSERT" statement in both 'postnuc.cc' and 'postpro.cc' and recompile
+these two files. This will cause NUCmer and PROmer to perform self-testing
+routines to check for output validity and program correctness. With this
+value turned on, NUCmer and PROmer will return a non-zero value on exit if
+an error or inconsistency was detected. Try running this on various test sets
+with various command line parameters.
