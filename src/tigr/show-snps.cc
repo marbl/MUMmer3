@@ -591,7 +591,7 @@ void FindSNPs (DeltaGraph_t & graph)
         char * Q [FRAMES + 1] =
           {(*ei)->qrynode->seq, NULL, NULL, NULL, NULL, NULL, NULL};
 
-        unsigned long int i;
+        long long int i;
         unsigned long int lenR = (*ei) -> refnode -> len;
         unsigned long int lenQ = (*ei) -> qrynode -> len;
 
@@ -952,8 +952,6 @@ void PrintTabular (const vector<const SNP_t *> & snps,
 {
   vector<const SNP_t *>::const_iterator si, psi;
   long int diff, dist, distR, distQ;
-  int ctxw = 2 * OPT_Context + 1;
-  int ctxc = ctxw < 7 ? 7 : ctxw;
 
   if ( OPT_PrintHeader )
     {
