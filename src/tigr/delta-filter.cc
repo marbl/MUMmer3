@@ -33,6 +33,7 @@ string         OPT_AlignName;                // alignment name parameter
 bool           OPT_QLIS         = false;      // do query based LIS
 bool           OPT_RLIS         = false;      // do reference based LIS
 bool           OPT_GLIS         = false;      // do global LIS
+long int       OPT_MinLength    = 0;          // minimum alignment length
 float          OPT_MinIdentity  = 0.0;        // minimum %identity
 float          OPT_MinUnique    = 0.0;        // minimum %unique
 float          OPT_MaxOverlap   = 75.0;       // maximum olap as % of align len
@@ -49,8 +50,6 @@ const DataType_t PROMER_DATA = 2;
 typedef unsigned char Dir_t;
 const Dir_t FORWARD_DIR = 0;
 const Dir_t REVERSE_DIR = 1;
-
-const string NULL_STRING ("");
 
 
 //-- Data Structure Explanation
@@ -71,8 +70,6 @@ struct DeltaEdgelet_t
   unsigned char isQLIS : 1;   // is part of the query's LIS
   unsigned char isRLIS : 1;   // is part of the reference's LIS
   unsigned char isGLIS : 1;   // is part of the reference/query LIS
-  unsigned char isUNIQ : 1;   // meets the uniqueness requirements
-  unsigned char isIDY  : 1;   // meets the identity requirements
   unsigned char dirR   : 1;   // reference match direction
   unsigned char dirQ   : 1;   // query match direction
 
@@ -85,7 +82,7 @@ struct DeltaEdgelet_t
   DeltaEdgelet_t ( )
   {
     isGOOD = true;
-    isQLIS = isRLIS = isGLIS = isUNIQ = isIDY = false;
+    isQLIS = isRLIS = isGLIS = false;
     dirR = dirQ = FORWARD_DIR;
     idy = sim = stp = 0;
     idyc = simc = stpc = 0;
@@ -237,8 +234,8 @@ void BuildGraph (DeltaGraph_t & graph);
 void FlagGLIS (DeltaGraph_t & graph);
 
 
-//--------------------------------------------------------------- FlagIDY ----//
-void FlagIDY (DeltaGraph_t & graph);
+//------------------------------------------------------------- FlagScore ----//
+void FlagScore (DeltaGraph_t & graph);
 
 
 //-------------------------------------------------------------- FlagQLIS ----//
@@ -285,8 +282,8 @@ int main (int argc, char ** argv)
 
 
   //-- Identity requirements
-  if ( OPT_MinIdentity > 0 )
-    FlagIDY (graph);
+  if ( OPT_MinIdentity > 0  ||  OPT_MinLength > 0 )
+    FlagScore (graph);
 
   //-- Uniqueness requirements
   if ( OPT_MinUnique > 0 )
@@ -348,7 +345,7 @@ void BuildEdge (DeltaEdge_t & edge, const DeltaRecord_t & rec)
         {
           ss << *di << '\n';
           p -> delta . append (ss . str( ));
-          ss . str (NULL_STRING);
+          ss . str ("");
         }
 
       //-- Force loR < hiR && loQ < hiQ
@@ -559,8 +556,8 @@ void FlagGLIS (DeltaGraph_t & graph)
 
 
 
-//--------------------------------------------------------------- FlagIDY ----//
-void FlagIDY (DeltaGraph_t & graph)
+//------------------------------------------------------------- FlagScore ----//
+void FlagScore (DeltaGraph_t & graph)
 {
   map<string, DeltaNode_t>::const_iterator mi;
   vector<DeltaEdge_t *>::const_iterator ei;
@@ -574,10 +571,13 @@ void FlagIDY (DeltaGraph_t & graph)
         if ( (*eli) -> isGOOD )
           {
             //-- Flag low identities
-            if ( (*eli) -> idy * 100.0 < OPT_MinIdentity )
+            if ( (*eli)->idy * 100.0 < OPT_MinIdentity )
               (*eli) -> isGOOD = false;
-            else
-              (*eli) -> isIDY = true;
+
+            //-- Flag small lengths
+            if ( (*eli)->hiR-(*eli)->loR+1 < (unsigned long) OPT_MinLength ||
+                 (*eli)->hiQ-(*eli)->loQ+1 < (unsigned long) OPT_MinLength )
+              (*eli) -> isGOOD = false;
           }
 }
 
@@ -808,8 +808,6 @@ void FlagUNIQ (DeltaGraph_t & graph)
           //-- Flag low reference uniqueness
           if ( (float)uniq / (float)len * 100.0 < OPT_MinUnique )
             (*eli) -> isGOOD = false;
-          else
-            (*eli) -> isUNIQ = true;
         }
     }
   free (ref_cov);
@@ -859,8 +857,6 @@ void FlagUNIQ (DeltaGraph_t & graph)
           //-- Flag low query uniqueness
           if ( (float)uniq / (float)len * 100.0 < OPT_MinUnique )
             (*eli) -> isGOOD = false;
-          else
-            (*eli) -> isUNIQ = true;
         }
     }
   free (qry_cov);
@@ -956,6 +952,10 @@ void ParseArgs (int argc, char ** argv)
         OPT_MinIdentity = atof (optarg);
         break;
 
+      case 'l':
+        OPT_MinLength = atol (optarg);
+        break;
+
       case 'o':
 	OPT_MaxOverlap = atof (optarg);
 	break;
@@ -979,6 +979,12 @@ void ParseArgs (int argc, char ** argv)
   if ( OPT_MinIdentity < 0.0  ||  OPT_MinIdentity > 100.0 )
     {
       cerr << "ERROR: Minimum identity must be within the range [0, 100]\n";
+      errflg ++;
+    }
+
+  if ( OPT_MinLength < 0 )
+    {
+      cerr << "ERROR: Minimum length must be greater than or equal to zero\n";
       errflg ++;
     }
 
@@ -1012,12 +1018,20 @@ void PrintHelp (const char * s)
 {
   PrintUsage (s);
   cerr
-    << "-g            Do global LIS for every reference-query pair\n"
+    << "-g            Global alignment using length*identity weighted LIS.\n"
+    << "              For every reference-query pair, leave only the aligns\n"
+    << "              which form the longest mutually consistent set\n"
     << "-h            Display help information\n"
     << "-i float      Set the minimum alignment identity [0, 100], default "
     << OPT_MinIdentity << endl
-    << "-q            Do query based LIS for every query sequence\n"
-    << "-r            Do reference based LIS for every reference sequence\n"
+    << "-l int        Set the minimum alignment length, default "
+    << OPT_MinLength << endl
+    << "-q            Query alignment using length*identity weighted LIS.\n"
+    << "              For each query, leave only the aligns which form the\n"
+    << "              longest consistent set for the query\n"
+    << "-r            Reference alignment using length*identity weighted LIS.\n"
+    << "              For each reference, leave only the aligns which form\n"
+    << "              the longest consistent set for the reference\n"
     << "-u float      Set the minimum alignment uniqueness, i.e. percent of\n"
     << "              the alignment matching to unique reference AND query\n"
     << "              sequence [0, 100], default "
@@ -1032,8 +1046,15 @@ void PrintHelp (const char * s)
     << "filters the alignments based on the command-line switches, leaving\n"
     << "only the desired alignments which are output to stdout in the same\n"
     << "delta format as the input. For multiple switches, order of operations\n"
-    << "is as follows: -i -u -q -r -g. If an alignment is excluded by a\n"
+    << "is as follows: -i -l -u -q -r -g. If an alignment is excluded by a\n"
     << "preceding operation, it will be ignored by the succeeding operations\n"
+    << "  An important distinction between the -g option and the -r -q\n"
+    << "options is that -g requires the alignments to be mutually consistent\n"
+    << "in their order, while the -r -q options are not required to be\n"
+    << "mutually consistent and therefore tolerate translocations,\n"
+    << "inversions, etc. Thus, -r provides a one-to-many, -q a many-to-one,\n"
+    << "-r -q a one-to-one local mapping, and -g a one-to-one global mapping\n"
+    << "of reference and query bases respectively.\n"
     << endl;
 
   return;
