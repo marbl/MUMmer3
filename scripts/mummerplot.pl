@@ -1,641 +1,909 @@
 #!__PERL_PATH
 
-#-------------------------------------------------------------------------------
+################################################################################
 #   Programmer: Adam M Phillippy, The Institute for Genomic Research
 #         File: mummerplot
 #         Date: 01 / 08 / 03
-#
+#               01 / 06 / 05 rewritten (v3.0)
+#  
 #        Usage:
 #    mummerplot  [options]  <match file>
-#
+# 
 #                Try 'mummerplot -h' for more information.
-#
-#      Purpose: To create a gnuplot script and datafile to generate a dotplot
-#               of the alignments created by mummer, nucmer or promer.
-#
-#-------------------------------------------------------------------------------
+# 
+#      Purpose: To generate a gnuplot plot for the display of mummer, nucmer,
+#               promer, and show-tiling alignments.
+# 
+################################################################################
 
 use lib "__SCRIPT_DIR";
 use Foundation;
 use strict;
 
-my $SCRIPT_DIR = "__SCRIPT_DIR";
 
-my @DEPEND_INFO =
+#================================================================= Globals ====#
+my $OPT_Mfile;                     # match file
+my $OPT_coverage;                  # -c option
+my $OPT_prefix   = "out";          # -p option
+my $OPT_terminal = "x11";          # -t option
+my $OPT_IdR;                       # -r option
+my $OPT_IdQ;                       # -q option
+my $OPT_Rfile;                     # -R option
+my $OPT_Qfile;                     # -Q option
+my $OPT_xrange;                    # -x option
+my $OPT_yrange;                    # -y option
+
+my $OPT_gpstatus;                  # gnuplot status
+
+my $OPT_Dfile;                     # .plot output
+my $OPT_Gfile;                     # .gp output
+my $OPT_Pfile;                     # .ps .png etc. output
+
+
+my $GNUPLOT = "gp";
+my $DATA    = "plot";
+my $PS      = "postscript";
+my $PNG     = "png";
+my $X11     = "x11";
+
+my $FFACE   = "Courier";
+my $FSIZE   = "8";
+
+
+my %SUFFIX =
     (
-     "$SCRIPT_DIR/Foundation.pm"
+     $GNUPLOT => ".gp",
+     $DATA    => ".plot",
+     $PS      => ".ps",
+     $PNG     => ".png",
+     $X11     => ".x11"
      );
 
-my $HELP_INFO = q~
+my %TERMINAL =
+    (
+     $X11 => "set terminal $X11 font \"$FFACE,$FSIZE\"\n",
+     $PS  => "set terminal $PS color solid \"$FFACE\" $FSIZE\n",
+     $PNG => "set terminal $PNG tiny size 1000,1000\n"
+     );
+
+my %OTERMINAL =
+    (
+     $X11 => "set terminal $X11\n",
+     $PS  => "set terminal $PS color solid \"$FFACE\" $FSIZE\n",
+     $PNG => "set terminal $PNG small\n"
+     );
+
+my %DOT =
+     (
+      $X11 => [ "w lp lt 1 lw 2.0 pt 6 ps 0.75",
+                "w lp lt 3 lw 2.0 pt 6 ps 0.75" ],
+      $PS  => [ "w lp lt 1 lw 2.0 pt 6 ps 0.25",
+                "w lp lt 3 lw 2.0 pt 6 ps 0.25" ],
+      $PNG => [ "w lp lt 1 lw 3.0 pt 6 ps 0.75",
+                "w lp lt 3 lw 3.0 pt 6 ps 0.75" ]
+      );
+
+my %COV =
+    (
+      $X11 => [ "w l lt 1 lw 3.0",
+                "w l lt 3 lw 3.0" ],
+      $PS  => [ "w l lt 1 lw 4.0",
+                "w l lt 3 lw 4.0" ],
+      $PNG => [ "w l lt 1 lw 3.0",
+                "w l lt 3 lw 3.0" ]
+     );
+
+my $VERSION = '3.0';
+
+my $USAGE = qq~
+  USAGE: mummerplot  [options]  <match file>
+    ~;
+
+my $HELP = qq~
   USAGE: mummerplot  [options]  <match file>
 
   DESCRIPTION:
-    mummerplot creates a gnuplot script and a datafile to generate a dotplot
-    of the alignment data contained in the output of mummer, nucmer or promer.
-    These files will be output in out.gp, and out.plot. Simply type
-    'gnuplot out.gp' to view the plot, or edit the out.gp file to change
-    output file, line thickness, labels, color, etc. Explore the out.plot
-    file to see the data point collection. *Note all inputs except for a list
-    of MUMs will be scaled by sequence length, a plot of MUMs will be auto-
-    scaled based on the data points.
-
-    mummerplot will automatically identify the format of the <match file> it is
-    given. It accepts a (3 column ONLY) mum list from mummer, a cluster file
-    from nucmer or promer, a delta file from nucmer or promer, or a tiling from
-    show-tiling.
+    mummerplot generates plots of alignment data produced by mummer, nucmer,
+    promer or show-tiling by using the GNU gnuplot utility. After generating
+    the appropriate scripts and datafiles, mummerplot will attempt to run
+    gnuplot to generate the plot. If this attempt fails, a warning will be
+    output and the resulting .gp and .plot files will remain so that the user
+    may run gnuplot independently. If the attempt succeeds, either an x11
+    window will be spawned or an additional output file will be generated
+    (.ps or .png depending on the selected terminal). Feel free to edit the
+    resulting gnuplot files (.gp and .plot) rerun gnuplot to change line
+    thinkness, labels, colors, etc.
 
   MANDATORY:
-    match file      Set the alignment input file to "match file"
-                    Valid types are (.out, .cluster, .delta and .tiling)
+    match file      Set the alignment input to "match file"
+                    Valid inputs are from mummer, nucmer, promer and
+                    show-tiling (.out, .cluster, .delta and .tiling)
 
   OPTIONS:
     -c
-    --coverage      Generate a reference coverage plot (default for tiling)
-    --[no]color     Toggle color option (does not effect X11 plots)
+    --[no]coverage  Generate a reference coverage plot (default for .tiling)
     --depend        Print the dependency information and exit
     -h
     --help          Display help information and exit
-    -p|prefix       Set the prefix of the output files (default 'out')
-    --postscript    Set the plot terminal to postscript
-    -r|IdR          Use reference sequence ID for the X-axis sequence
-                    Useful for selecting one reference sequence for plotting,
-                    has no effect for mummer2 input
-    -q|IdQ          Use query sequence ID for the Y-axis sequence
-                    Useful for selecting one query sequence for plotting
-    -x|xrange       Set the xrange for the plot "[min,max]"
-    -y|yrange       Set the yrange for the plot "[min,max]"
+    -p|prefix       Set the prefix of the output files (default "$OPT_prefix")
+    -t|terminal     Set the output terminal to x11, postscript or png
+                    (default "$OPT_terminal")
+    -r|IdR          Plot a particular reference sequence ID on the X-axis
+    -q|IdQ          Plot a particular query sequence ID on the Y-axis
+    -R|Rfile        Get the set of reference sequences to plot from Rfile
+    -Q|Qfile        Get the set of query sequences to plot from Qfile
+                    Rfile/Qfile Can either be the original DNA multi-FastA
+                    files or lists of sequence IDs, lens and dirs [ /+/-]
+    -x|xrange       Set the xrange for the plot "[min:max]"
+    -y|yrange       Set the yrange for the plot "[min:max]"
     -V
     --version       Display the version information and exit
     ~;
 
+my @DEPEND = ("TIGR::Foundation", "gnuplot");
 
-my $USAGE_INFO = q~
-  USAGE: mummerplot  [options]  <match file>
-    ~;
+#-- Set up foundation
+my $tigr = new TIGR::Foundation
+    or die "ERROR: TIGR::Foundation could not be initialized\n";
 
-
-my $VERSION_INFO = q~
-mummerplot version 2.0
-    ~;
-
-
-my $MUMMER_STRING = "MUMMER";
-my $CLUSTER_STRING = "CLUSTER";
-my $DELTA_STRING = "DELTA";
-my $TILING_STRING = "TILING";
-
-my $X11_TERM = "X11";
-my $POSTSCRIPT_TERM = "postscript";
+$tigr -> setVersionInfo ($VERSION);
+$tigr -> setUsageInfo ($USAGE);
+$tigr -> setHelpInfo ($HELP);
+$tigr -> addDependInfo (@DEPEND);
 
 
-#-- Global for efficiency, not elegance
-my $StartRef;         # Start of match in reference
-my $StartQry;         # Start of match in query
-my $Sim;              # Approx %similarity
-my $LenRef;           # Length of match in reference
-my $LenQry;           # Length of match in query
-my $DirRef;           # Direction of the reference
-my $DirQry;           # Direction of the query
-my $DataWasPlotted;   # Was data plotted?
-my $CoveragePlot;     # Is this a one vs many plot?
-my $xmin;             # Plot ranges
-my $xmax;
-my $ymin;
-my $ymax;
+#=========================================================== Function Decs ====#
+sub GetParseFunc( );
+
+sub ParseIDs($$);
+
+sub ParseDelta($);
+sub ParseCluster($);
+sub ParseMummer($);
+sub ParseTiling($);
+
+sub PlotData($$$);
+sub WriteGP($$);
+sub RunGP( );
+
+sub ParseOptions( );
 
 
-sub main ( )
+#=========================================================== Function Defs ====#
+MAIN:
 {
-    my $tigr;             # TIGR::Foundation object
-    my $err;              # Error variable
+    my @aligns;                # (sR eR sQ eQ sim lenR lenQ idR idQ)
+    my %refs;                  # (id => (off, len, [1/-1]))
+    my %qrys;                  # (id => (off, len, [1/-1]))
 
-    my $matchfilename;    # Input file name
-    my $scriptfilename;   # gnuplot script file
-    my $fwddatafilename;  # gnuplot forward match data file
-    my $revdatafilename;  # gnuplot reverse match data file
-    my $datafilename;     # single data file to replace the above two
+    my $parsefunc;
 
-    my $format;           # Input file format
-    my $prefix = "out";   # Output file prefix
-    my $color = 1;        # color plot?
+    #-- Get the command line options
+    ParseOptions( );
 
-    my $multRef;          # multiple references were plotted
-    my $multQry;          # multiple queries were plotted
+    #-- Check that status of gnuplot
+    $OPT_gpstatus = system ("gnuplot --version");
 
-    my $currlenRefSeq;        # Length of the refernece sequence
-    my $currlenQrySeq;        # Length of the query sequence
-    my $lenRefSeq;
-    my $lenQrySeq;
-
-    my $prevRefID;        # Current reference sequence ID
-    my $prevQryID;        # Current query sequence ID
-    my $currRefID;        # Current reference sequence ID
-    my $currQryID;        # Current query sequence ID
-    my $useRefID;         # Use reference sequence ID
-    my $useQryID;         # Use query sequence ID
-
-    my $foundRefID;       # was the reference ID found?
-    my $foundQryID;       # was the query ID found?
-
-    my $endRef;           # End of match in reference
-    my $endQry;           # End of match in query
-
-    my $xrange;
-    my $yrange;
-
-    my $terminal;
-
-    my $line;
-    my $delta;
-    my $total;
-    my $datatype;
-
-    #-- Initialize TIGR::Foundation
-    $tigr = new TIGR::Foundation;
-    if ( !defined ($tigr) ) {
-        print (STDERR "ERROR: TIGR::Foundation could not be initialized");
-        exit (1);
+    if ( $OPT_gpstatus == -1 ) {
+        print STDERR
+            "WARNING: Could not find gnuplot, plot will not be rendered\n";
     }
-  
-    #-- Set help and usage information
-    $tigr->setHelpInfo ($HELP_INFO);
-    $tigr->setUsageInfo ($USAGE_INFO);
-    $tigr->setVersionInfo ($VERSION_INFO);
-    $tigr->addDependInfo (@DEPEND_INFO);
+    elsif ( $OPT_gpstatus ) {
+        print STDERR
+            "WARNING: Using outdated gnuplot, use v4.0 for best results\n";
+    }
 
-    #-- Get command line parameters
-    $err = $tigr->TIGR_GetOptions
+    #-- Get the alignment type
+    $parsefunc = GetParseFunc( );
+
+    #-- Parse the reference and query IDs
+    if    ( defined $OPT_IdR )   { $refs{$OPT_IdR} = [ 0, 0, 1 ]; }
+    elsif ( defined $OPT_Rfile ) {
+        ParseIDs ($OPT_Rfile, \%refs);
+    }
+
+    if    ( defined $OPT_IdQ )   { $qrys{$OPT_IdQ} = [ 0, 0, 1 ]; }
+    elsif ( defined $OPT_Qfile ) {
+        ParseIDs ($OPT_Qfile, \%qrys);
+    }
+
+    #-- Parse the alignment data
+    $parsefunc->(\@aligns);
+    
+    #-- Plot the alignment data
+    PlotData (\@aligns, \%refs, \%qrys);
+
+    #-- Write the gnuplot script
+    WriteGP (\%refs, \%qrys);
+
+    #-- Run the gnuplot script
+    unless ( $OPT_gpstatus == -1 ) {
+        RunGP( );
+    }
+
+    exit (0);
+}
+
+
+#------------------------------------------------------------ GetParseFunc ----#
+sub GetParseFunc ( )
+{
+    my $fref;
+
+    open (MFILE, "<$OPT_Mfile")
+        or die "ERROR: Could not open $OPT_Mfile, $!\n";
+
+    $_ = <MFILE>;
+    if ( !defined ) { die "ERROR: Could not read $OPT_Mfile, File is empty\n" }
+
+  SWITCH: {
+      #-- tiling
+      if ( /^>\S+ \d+ bases/ ) {
+          $fref = \&ParseTiling;
+          last SWITCH;
+      }
+
+      #-- mummer
+      if ( /^> \S+/ ) {
+          $fref = \&ParseMummer;
+          last SWITCH;
+      }
+
+      #-- nucmer/promer
+      if ( /^\S+ \S+/ ) {
+          $_ = <MFILE>;
+          if ( (defined)  &&  (/^NUCMER$/  ||  /^PROMER$/) ) {
+              $_ = <MFILE>;   # sequence header
+              $_ = <MFILE>;   # alignment header
+              if ( !defined ) {
+                  $fref = \&ParseDelta;
+                  last SWITCH;
+              }
+              elsif ( /^\d+ \d+ \d+ \d+ \d+ \d+ \d+$/ ) {
+                  $fref = \&ParseDelta;
+                  last SWITCH;
+              }
+              elsif ( /^[ \-][1-3] [ \-][1-3]$/ ) {
+                  $fref = \&ParseCluster;
+                  last SWITCH;
+              }
+          }
+      }
+      
+      #-- default
+      die "ERROR: Could not read $OPT_Mfile, Unrecognized file type\n";
+  }
+
+    close (MFILE)
+        or print STDERR "WARNING: Trouble closing $OPT_Mfile, $!\n";
+
+    return $fref;
+}
+
+
+#---------------------------------------------------------------- ParseIDs ----#
+sub ParseIDs ($$)
+{
+    my $file = shift;
+    my $href = shift;
+
+    open (IDFILE, "<$file")
+        or die "ERROR: Could not open $file, $!\n";
+
+    my $dir;
+    my $aref;
+    my $isfasta;
+    my $offset = 0;
+    while ( <IDFILE> ) {
+        #-- FastA header
+        if ( /^>(\S+)/ ) {
+            if ( exists $href->{$1} ) {
+                print STDERR "WARNING: Duplicate sequence '$1' ignored\n";
+                undef $aref;
+                next;
+            }
+
+            if ( !$isfasta ) { $isfasta = 1; }
+            if ( defined $aref ) { $offset += $aref->[1]; }
+
+            $aref = [ $offset, 0, 1 ];
+            $href->{$1} = $aref;
+            next;
+        }
+        
+        #-- FastA sequence
+        if ( $isfasta  &&  /^\S+$/ ) {
+            if ( defined $aref ) { $aref->[1] += (length) - 1; }
+            next;
+        }
+
+        #-- ID len dir
+        if ( !$isfasta  &&  /^(\S+)\s+(\d+)\s+([+-]?)$/ ) {
+            if ( exists $href->{$1} ) {
+                print STDERR "WARNING: Duplicate sequence '$1' ignored\n";
+                undef $aref;
+                next;
+            }
+
+            $dir = (defined $3 && $3 eq "-") ? -1 : 1;
+            $aref = [ $offset, $2, $dir ];
+            $offset += $2;
+            $href->{$1} = $aref;
+            next;
+        }
+
+        #-- default
+        die "ERROR: Could not parse $file\n$_";
+    }
+
+    close (IDFILE)
+        or print STDERR "WARNING: Trouble closing $file, $!\n";
+}
+
+
+#-------------------------------------------------------------- ParseDelta ----#
+sub ParseDelta ($)
+{
+    my $aref = shift;
+
+    open (MFILE, "<$OPT_Mfile")
+        or die "ERROR: Could not open $OPT_Mfile, $!\n";
+
+    print STDERR "Reading delta file $OPT_Mfile\n";
+
+    my @align;
+    my $ispromer;
+    my ($sim, $tot);
+    my ($lenR, $lenQ, $idR, $idQ);
+
+    $_ = <MFILE>;
+    $_ = <MFILE>;
+    $ispromer = /^PROMER/;
+
+    while ( <MFILE> ) {
+        #-- delta int
+        if ( /^([-]?\d+)$/ ) {
+            if ( $1 < 0 ) {
+                $tot ++;
+            }
+            elsif ( $1 == 0 ) {
+                $align[4] = ($tot - $sim) / $tot * 100.0;
+                push @$aref, [ @align ];
+                $tot = 0;
+            }
+            next;
+        }
+
+        #-- alignment header
+        if ( /^(\d+) (\d+) (\d+) (\d+) \d+ (\d+) \d+$/ ) {
+            if ( $tot == 0 ) {
+                @align = ($1, $2, $3, $4, 0, $lenR, $lenQ, $idR, $idQ);
+                $tot = abs($1 - $2) + 1;
+                $sim = $5;
+                if ( $ispromer ) { $tot /= 3.0; }
+                next;
+            }
+            #-- drop to default
+        }
+
+        #-- sequence header
+        if ( /^>(\S+) (\S+) (\d+) (\d+)$/ ) {
+            ($idR, $idQ, $lenR, $lenQ) = ($1, $2, $3, $4);
+            $tot = 0;
+            next;
+        }
+
+        #-- default
+        die "ERROR: Could not parse $OPT_Mfile\n$_";
+    }
+
+    close (MFILE)
+        or print STDERR "WARNING: Trouble closing $OPT_Mfile, $!\n";
+}
+
+
+#------------------------------------------------------------ ParseCluster ----#
+sub ParseCluster ($)
+{
+    my $aref = shift;
+
+    open (MFILE, "<$OPT_Mfile")
+        or die "ERROR: Could not open $OPT_Mfile, $!\n";
+
+    print STDERR "Reading cluster file $OPT_Mfile\n";
+
+    my @align;
+    my ($dR, $dQ, $len);
+    my ($lenR, $lenQ, $idR, $idQ, $len);
+
+    $_ = <MFILE>;
+    $_ = <MFILE>;
+
+    while ( <MFILE> ) {
+        #-- match
+        if ( /^\s+(\d+)\s+(\d+)\s+(\d+)\s+\S+\s+\S+$/ ) {
+            @align = ($1, $1, $2, $2, 100, $lenR, $lenQ, $idR, $idQ);
+            $len = $3 - 1;
+            $align[1] += $dR == 1 ? $len : -$len;
+            $align[3] += $dQ == 1 ? $len : -$len;
+            push @$aref, [ @align ];
+            next;
+        }
+
+        #-- cluster header
+        if ( /^[ \-][1-3] [ \-][1-3]$/ ) {
+            $dR = /^-/ ? -1 : 1;
+            $dQ = /-[1-3]$/ ? -1 : 1;
+            next;
+        }
+
+        #-- sequence header
+        if ( /^>(\S+) (\S+) (\d+) (\d+)$/ ) {
+            ($idR, $idQ, $lenR, $lenQ) = ($1, $2, $3, $4);
+            next;
+        }
+
+        #-- default
+        die "ERROR: Could not parse $OPT_Mfile\n$_";
+    }
+
+    close (MFILE)
+        or print STDERR "WARNING: Trouble closing $OPT_Mfile, $!\n";
+}
+
+
+#------------------------------------------------------------- ParseMummer ----#
+sub ParseMummer ($)
+{
+    my $aref = shift;
+
+    open (MFILE, "<$OPT_Mfile")
+        or die "ERROR: Could not open $OPT_Mfile, $!\n";
+
+    print STDERR "Reading mummer file $OPT_Mfile (use mummer -c)\n";
+
+    my @align;
+    my ($dQ, $len);
+    my ($lenQ, $idQ);
+
+    while ( <MFILE> ) {
+        #-- 3 column match
+        if ( /^\s+(\d+)\s+(\d+)\s+(\d+)$/ ) {
+            @align = ($1, $1, $2, $2, 100, 0, $lenQ, "REF", $idQ);
+            $len = $3 - 1;
+            $align[1] += $len;
+            $align[3] += $dQ == 1 ? $len : -$len;
+            push @$aref, [ @align ];
+            next;
+        }
+
+        #-- 4 column match
+        if ( /^\s+(\S+)\s+(\d+)\s+(\d+)\s+(\d+)$/ ) {
+            @align = ($2, $2, $3, $3, 100, 0, $lenQ, $1, $idQ);
+            $len = $4 - 1;
+            $align[1] += $len;
+            $align[3] += $dQ == 1 ? $len : -$len;
+            push @$aref, [ @align ];
+            next;
+        }
+
+        #-- sequence header
+        if ( /^> (\S+)/ ) {
+            $idQ = $1;
+            $dQ = /^> \S+ Reverse/ ? -1 : 1;
+            $lenQ = /Len = (\d+)/ ? $1 : 0;
+            next;
+        }
+
+        #-- default
+        die "ERROR: Could not parse $OPT_Mfile\n$_";
+    }
+
+    close (MFILE)
+        or print STDERR "WARNING: Trouble closing $OPT_Mfile, $!\n";
+}
+
+
+#------------------------------------------------------------- ParseTiling ----#
+sub ParseTiling ($)
+{
+    my $aref = shift;
+
+    if ( ! defined $OPT_coverage ) { $OPT_coverage = 1; }
+
+    open (MFILE, "<$OPT_Mfile")
+        or die "ERROR: Could not open $OPT_Mfile, $!\n";
+
+    print STDERR "Reading tiling file $OPT_Mfile\n";
+
+    my @align;
+    my ($dR, $dQ, $len);
+    my ($lenR, $lenQ, $idR, $idQ, $len);
+
+    while ( <MFILE> ) {
+        #-- tile
+        if ( /^(\S+)\s+\S+\s+\S+\s+(\d+)\s+\S+\s+(\S+)\s+([+-])\s+(\S+)$/ ) {
+            @align = ($1, $1, 1, 1, $3, $lenR, $2, $idR, $5);
+            $len = $2 - 1;
+            $align[1] += $len;
+            $align[($4 eq "-" ? 2 : 3)] += $len;
+            push @$aref, [ @align ];
+            next;
+        }
+
+        #-- sequence header
+        if ( /^>(\S+) (\d+) bases$/ ) {
+            ($idR, $lenR) = ($1, $2);
+            next;
+        }
+
+        #-- default
+        die "ERROR: Could not parse $OPT_Mfile\n$_";
+    }
+
+    close (MFILE)
+        or print STDERR "WARNING: Trouble closing $OPT_Mfile, $!\n";
+}
+
+
+#---------------------------------------------------------------- PlotData ----#
+sub PlotData ($$$)
+{
+    my $aref = shift;
+    my $rref = shift;
+    my $qref = shift;
+
+    open (DFILE, ">$OPT_Dfile")
+        or die "ERROR: Could not open $OPT_Dfile, $!\n";
+
+    my $align;
+    my $isplotted;
+    my $ismultiref;
+    my $ismultiqry;
+    my ($plenR, $plenQ, $pidR, $pidQ);
+    my $index;
+
+    foreach $index (0,1) {
+        #-- index 0 == forward, index 1 == reverse
+        print DFILE "#-- index $index\n";
+        my $usedindex;
+
+        foreach $align (@$aref) {
+
+            my ($sR, $eR, $sQ, $eQ, $sim, $lenR, $lenQ, $idR, $idQ) = @$align;
+
+            if ( ! defined $pidR ) {
+                ($plenR, $plenQ, $pidR, $pidQ) = ($lenR, $lenQ, $idR, $idQ);
+            }
+
+            #-- set the sequence offset, length, direction, etc...
+            my ($refoff, $reflen, $refdir);
+            my ($qryoff, $qrylen, $qrydir);
+
+            if ( defined (%$rref) ) {
+                #-- skip reference sequence or set atts from hash
+                if ( !exists ($rref->{$idR}) ) { next; }
+                else { ($refoff, $reflen, $refdir) = @{$rref->{$idR}}; }
+            }
+            else {
+                #-- no reference hash, so default atts
+                ($refoff, $reflen, $refdir) = (0, 0, 1);
+            }
+
+            if ( defined (%$qref) ) {
+                #-- skip query sequence or set atts from hash
+                if ( !exists ($qref->{$idQ}) ) { next; }
+                else { ($qryoff, $qrylen, $qrydir) = @{$qref->{$idQ}}; }
+            }
+            else {
+                #-- no query hash, so default atts
+                ($qryoff, $qrylen, $qrydir) = (0, 0, 1);
+            }
+
+            #-- get the coordinates right and plot the data
+            if ( $refdir == -1 ) {
+                $sR = $reflen - $sR + 1;
+                $eR = $reflen - $eR + 1;
+            }
+            if ( $qrydir == -1 ) {
+                $sQ = $qrylen - $sQ + 1;
+                $eQ = $qrylen - $eQ + 1;
+            }
+
+            #-- skip for now if wrong index, 0 == forward, 1 == reverse
+            unless ( $index == (($sR < $eR) != ($sQ < $eQ)) ) {
+                next;
+            }
+
+            if ( $OPT_coverage ) {
+                print DFILE ($sR + $refoff), " 10\n";
+                print DFILE ($eR + $refoff), " 10\n\n";
+                print DFILE ($sR + $refoff), " ", ($sim), "\n";
+                print DFILE ($eR + $refoff), " ", ($sim), "\n\n";
+            }
+            else {
+                print DFILE ($sR + $refoff), " ", ($sQ + $qryoff), "\n";
+                print DFILE ($eR + $refoff), " ", ($eQ + $qryoff), "\n\n";
+            }            
+
+            #-- set some flags
+            if ( !$ismultiref && $idR ne $pidR ) { $ismultiref = 1; }
+            if ( !$ismultiqry && $idQ ne $pidQ ) { $ismultiqry = 1; }
+            if ( !$isplotted ) { $isplotted = 1; }
+            if ( !$usedindex ) { $usedindex = 1; }
+        }
+        #-- new index
+        if ( !$usedindex ) {
+            print DFILE "1 1\n1 1\n\n";
+        }
+        print DFILE "\n";
+    }
+
+    if ( !defined (%$rref) ) {
+        if ( $ismultiref ) {
+            print STDERR "WARNING: Multiple ref sequences overlaid, try -R\n";
+        }
+        elsif ( defined $pidR ) {
+            $rref->{$pidR} = [ 0, $plenR, 1 ];
+        }
+    }
+
+    if ( !defined (%$qref) ) {
+        if ( $ismultiqry && !$OPT_coverage ) {
+            print STDERR "WARNING: Multiple qry sequences overlaid, try -Q\n";
+        }
+        elsif ( defined $pidQ ) {
+            $qref->{$pidQ} = [ 0, $plenQ, 1 ];
+        }
+    }
+
+    if ( !$isplotted ) {
+        print STDERR "WARNING: No alignment data was plotted\n";
+    }
+
+    close (DFILE)
+        or print STDERR "WARNING: Trouble closing $OPT_Dfile, $!\n";
+}
+
+
+#----------------------------------------------------------------- WriteGP ----#
+sub WriteGP ($$)
+{
+    my $rref = shift;
+    my $qref = shift;
+
+    open (GFILE, ">$OPT_Gfile")
+        or die "ERROR: Could not open $OPT_Gfile, $!\n";
+
+    my @refk = keys (%$rref);
+    my @qryk = keys (%$qref);
+    my ($xrange, $yrange);
+    my ($xlabel, $ylabel);
+    my ($tic, $dir);
+    my $border = 0;
+
+    #-- terminal header and output
+    if ( $OPT_gpstatus ) {
+        print GFILE $OTERMINAL{$OPT_terminal};
+    }
+    else {
+        print GFILE  $TERMINAL{$OPT_terminal};
+    }
+
+    if ( defined $OPT_Pfile ) {
+        print GFILE "set output \"$OPT_Pfile\"\n";
+    }
+
+    #-- set tics, determine labels, ranges (ref)
+    if ( scalar (@refk) == 1 ) {
+        $xlabel = $refk[0];
+        $xrange = $rref->{$xlabel}[1];
+    }
+    else {
+        $xrange = 0;
+        print GFILE "set xtics rotate \( \\\n";
+        foreach $xlabel ( sort { $rref->{$a}[0] <=> $rref->{$b}[0] } @refk ) {
+            $xrange += $rref->{$xlabel}[1];
+            $tic = $rref->{$xlabel}[0] + 1;
+            $dir = ($rref->{$xlabel}[2] == 1) ? "" : "*";
+            print GFILE "\"$dir$xlabel\" $tic, \\\n";
+        }
+        print GFILE "\"\" $xrange \\\n\)\n";
+        $xlabel = "REF";
+    }
+    if ( $xrange == 0 ) { $xrange = "*"; }
+
+    #-- set tics, determine labels, ranges (qry)
+    if ( $OPT_coverage ) {
+        $ylabel = "%SIM";
+        $yrange = 110;
+    }
+    elsif ( scalar (@qryk) == 1 ) {
+        $ylabel = $qryk[0];
+        $yrange = $qref->{$ylabel}[1];
+    }
+    else {
+        $yrange = 0;
+        print GFILE "set ytics \( \\\n";
+        foreach $ylabel ( sort { $qref->{$a}[0] <=> $qref->{$b}[0] } @qryk ) {
+            $yrange += $qref->{$ylabel}[1];
+            $tic = $qref->{$ylabel}[0] + 1;
+            $dir = ($qref->{$ylabel}[2] == 1) ? "" : "*";
+            print GFILE "\"$dir$ylabel\" $tic, \\\n";
+        }
+        print GFILE "\"\" $yrange \\\n\)\n";
+        $ylabel = "QRY";
+    }
+    if ( $yrange == 0 ) { $yrange = "*"; }
+
+    #-- determine borders
+    if ( $xrange ne "*" && scalar (@refk) == 1 ) { $border |= 10; }
+    if ( $yrange ne "*" && scalar (@qryk) == 1 ) { $border |= 5; }
+    if ( $OPT_coverage ) { $border |= 5; }
+
+    #-- grid, labels, border
+    print GFILE
+        "set grid\n",
+        "set nokey\n",
+        "set border $border\n",
+        "set ticscale 0 0.5\n",
+        "set format \"%.0f\"\n",
+        "set xlabel \"$xlabel\"\n",
+        "set ylabel \"$ylabel\"\n";
+
+    #-- ranges
+    if ( defined $OPT_xrange ) {
+        print GFILE "set xrange $OPT_xrange\n";
+    }
+    else {
+        print GFILE "set xrange [1:$xrange]\n";
+    }
+
+    if ( defined $OPT_yrange ) {
+        print GFILE "set yrange $OPT_yrange\n";
+    }
+    else {
+        print GFILE "set yrange [1:$yrange]\n";
+    }
+
+    #-- terminal specific sizes
+    if ( $OPT_terminal eq $X11 ) {
+        print GFILE ($OPT_coverage ? "set size 1,1\n" : "set size 1,1\n");    
+    }
+    elsif ( $OPT_terminal eq $PS ) {
+        print GFILE ($OPT_coverage?"set size 1,.5\n":"set size .7727,1\n");
+    }
+    elsif ( $OPT_terminal eq $PNG ) {
+        print GFILE ($OPT_coverage?"set size 1,.375\n":"set size 1,1\n");
+    }
+
+    #-- plot command
+    if ( $OPT_coverage ) {
+        print GFILE "plot \\\n",
+        " \"$OPT_Dfile\" index 0 title \"fwd\" ${COV{$OPT_terminal}[0]}, \\\n",
+        " \"$OPT_Dfile\" index 1 title \"rev\" ${COV{$OPT_terminal}[1]}\n";
+    }
+    else {
+        print GFILE "plot\\\n",
+        " \"$OPT_Dfile\" index 0 title \"fwd\" ${DOT{$OPT_terminal}[0]}, \\\n",
+        " \"$OPT_Dfile\" index 1 title \"rev\" ${DOT{$OPT_terminal}[1]}\n";
+    }
+
+    #-- interactive mode
+    if ( $OPT_terminal eq $X11 ) {
+        print GFILE "print \"-- INTERACTIVE MODE --\"\n";
+        print GFILE "print \"consult gnuplot docs for command list\"\n";
+        print GFILE "print \"press enter to exit\"\n";
+        print GFILE "pause -1\n";
+    }
+
+    close (GFILE)
+        or print STDERR "WARNING: Trouble closing $OPT_Gfile, $!\n";
+}
+
+
+#------------------------------------------------------------------- RunGP ----#
+sub RunGP ( )
+{
+    if ( defined $OPT_Pfile ) {
+        print STDERR "Rendering plot $OPT_Pfile\n";
+    }
+
+    system ("gnuplot $OPT_Gfile")
+        and die "ERROR: Unable to run 'gnuplot $OPT_Gfile', Unknown error\n";
+}
+
+
+#------------------------------------------------------------ ParseOptions ----#
+sub ParseOptions ( )
+{
+    my $dep_color;
+    my $dep_ps;
+    my $dep_x11;
+    my $dep_png;
+
+    #-- Get options
+    my $err = $tigr -> TIGR_GetOptions
         (
-	 "c|coverage" => \$CoveragePlot,
-	 "color!" => \$color,
-	 "p|prefix=s" => \$prefix,
-	 "r|IdR=s" => \$useRefID,
-	 "q|IdQ=s" => \$useQryID,
-	 "postscript" => \$terminal,
-	 "x|xrange=s" => \$xrange,
-	 "y|yrange=s" => \$yrange
+         "c|coverage!"  => \$OPT_coverage,
+         "p|prefix=s"   => \$OPT_prefix,
+         "t|terminal=s" => \$OPT_terminal,
+         "r|IdR=s"      => \$OPT_IdR,
+         "q|IdQ=s"      => \$OPT_IdQ,
+         "R|Rfile=s"    => \$OPT_Rfile,
+         "Q|Qfile=s"    => \$OPT_Qfile,
+         "x|xrange=s"   => \$OPT_xrange,
+         "y|yrange=s"   => \$OPT_yrange,
+
+         "color!"       => \$dep_color,      # deprecated
+         "x11"          => \$dep_x11,        # deprecated
+         "postscript"   => \$dep_ps,         # deprecated
+         "png"          => \$dep_png         # deprecated
          );
 
-    #-- Check if the parsing was successful
-    if ( $err == 0  ||  scalar(@ARGV) != 1 ) {
-        $tigr->printUsageInfo( );
-        print (STDERR "Try '$0 -h' for more information.\n");
-        exit (1);
+    if ( !$err  ||  scalar (@ARGV) != 1 ) {
+        $tigr -> printUsageInfo( );
+        die "Try '$0 -h' for more information.\n";
     }
 
-    if ( defined ($xrange) ) {
-	if ( ! (($xmin,$xmax) = $xrange =~ /\[(\d+),(\d+)\]/) ) {
-	    die "ERROR: invalid xrange\n";
-	}
+    #-- Warn of deprecated options
+    if ( defined $dep_x11 ) {
+        print STDERR
+            "WARNING: --x11 option is deprecated, use -t instead\n";
+        $OPT_terminal = $X11;
+    }
+    if ( defined $dep_ps ) {
+        print STDERR
+            "WARNING: --postscript option is deprecated, use -t instead\n";
+        $OPT_terminal = $PS;
+    }
+    if ( defined $dep_png ) {
+        print STDERR
+            "WARNING: --png option is deprecated, use -t instead\n";
+        $OPT_terminal = $PNG;
+    }
+    if ( defined $dep_color ) {
+        print STDERR "WARNING: --[no]color option is deprecated, no effect\n";
     }
 
-    if ( defined ($yrange) ) {
-	if ( ! (($ymin,$ymax) = $yrange =~ /\[(\d+),(\d+)\]/) ) {
-	    die "ERROR: invalid yrange\n";
-	}
+    #-- Check options
+    $TERMINAL{$OPT_terminal}
+        or die "ERROR: Invalid terminal type, $OPT_terminal\n";
+
+    if ( $OPT_xrange ) {
+        $OPT_xrange =~ tr/,/:/;
+        $OPT_xrange =~ /^\[\d+:\d+\]$/
+            or die "ERROR: Invalid xrange format, $OPT_xrange\n";
     }
 
-    if ( defined ($terminal) ) {
-	$terminal = $POSTSCRIPT_TERM;
-    } else {
-	$terminal = $X11_TERM;
+    if ( $OPT_yrange ) {
+        $OPT_yrange =~ tr/,/:/;
+        $OPT_yrange =~ /^\[\d+:\d+\]$/
+            or die "ERROR: Invalid yrange format, $OPT_yrange\n";
     }
 
-    #-- Open input file
-    $matchfilename = $ARGV[0];
-    open(MATCH_FILE, "<$matchfilename")
-	or die "ERROR: could not open $matchfilename $!\n";
+    #-- Set file names
+    $OPT_Mfile = $ARGV[0];
+    $tigr->isReadableFile ($OPT_Mfile)
+        or die "ERROR: Could not read $OPT_Mfile, $!\n";
 
+    $OPT_Dfile = $OPT_prefix . $SUFFIX{$DATA};
+    $tigr->isWritableFile ($OPT_Dfile) or $tigr->isCreatableFile ($OPT_Dfile)
+        or die "ERROR: Could not write $OPT_Dfile, $!\n";
 
-    #-- Open output files
-    $scriptfilename = $prefix . ".gp";
-    open(SCRIPT_FILE, ">$scriptfilename")
-	or die "ERROR: could not open $scriptfilename $!\n";
-    $fwddatafilename = $prefix . ".fwdplot." . $$;
-    open(FWDDATA_FILE, "+>$fwddatafilename")
-	or die "ERROR: could not open $fwddatafilename $!\n";
-    $revdatafilename = $prefix . ".revplot." . $$;
-    open(REVDATA_FILE, "+>$revdatafilename")
-	or die "ERROR: could not open $revdatafilename $!\n";
-    $datafilename = $prefix . ".plot";
-    open(DATA_FILE, ">$datafilename")
-	or die "ERROR: could not open $datafilename $!\n";
+    $OPT_Gfile = $OPT_prefix . $SUFFIX{$GNUPLOT};
+    $tigr->isWritableFile ($OPT_Gfile) or $tigr->isCreatableFile ($OPT_Gfile)
+        or die "ERROR: Could not write $OPT_Gfile, $!\n";
 
-
-    #-- Determine input file format
-    chomp ( $line = <MATCH_FILE> );
-    if ( $line =~ /^>\S+\s+\d+\s+bases/ ) {
-	#-- It'a a tiling output file
-	
-	$format = $TILING_STRING;
-	$CoveragePlot = 1;
-	$currQryID = "";
-	($currRefID,$currlenRefSeq) = $line =~ /^>(\S+)\s+(\d+)/;
-
-    } elsif ( $line =~ /^>\s+\S+/ ) {
-	#-- It's a mummer output file
-
-	$format = $MUMMER_STRING;
-
-	$useRefID = undef;
-	$currRefID = "";
-	($currQryID) = $line =~ /^>\s*(\S+)/;
-	if ( $line =~ /^>\s*\S+\s+Reverse$/ ) {
-	    $DirRef = 1;
-	    $DirQry = -1;
-	} else {
-	    $DirRef = 1;
-	    $DirQry = 1;
-	}
-    } else {
-	#-- It's a nucmer/promer output file
-
-	chomp ($line = <MATCH_FILE>);
-	if ( !($line =~ /^NUCMER$/)  &&
-	     !($line =~ /^PROMER$/) ) {
-	    die "ERROR: $matchfilename is unrecognized file type\n" .
-		"valid file types are (.out, .cluster, .delta, .tiling)\n" .
-		    "suspicious line: $line\n";
-	}
-	$datatype = $line;
-	chomp ($line = <MATCH_FILE>);
-	if ( $line =~ /^>\S+\s+\S+\s+\d+\s+\d+$/ ) {
-	    $format = undef( );
-	} else {
-	    die "ERROR: $matchfilename is unrecognized file type\n" .
-		"valid file types are (.out, .cluster, .delta, .tiling)\n" .
-		    "suspicious line: $line\n";
-	}
-
-	($currRefID, $currQryID, $currlenRefSeq, $currlenQrySeq) =
-	    $line =~ /^>(\S+)\s+(\S+)\s+(\d+)\s+(\d+)/;
+    if ( $OPT_terminal ne $X11 ) {
+        $OPT_Pfile = $OPT_prefix . $SUFFIX{$OPT_terminal};
+        $tigr->isWritableFile($OPT_Pfile) or $tigr->isCreatableFile($OPT_Pfile)
+            or die "ERROR: Could not write $OPT_Pfile, $!\n";
     }
 
+    !$OPT_Rfile or $tigr->isReadableFile ($OPT_Rfile)
+        or die "ERROR: Could not read $OPT_Rfile, $!\n";
 
-    if ( defined ($format) ) {
-	print STDERR "INFO: assuming $format format\n";
-	if ( $format eq $MUMMER_STRING ) {
-	    print STDERR
-	     "INFO: the '-b' and '-c' options must have been used when\n" .
-	     "      running mummer, or the resulting plot may be incorrect\n";
-	}
-    }
-
-
-    while ( $line = <MATCH_FILE> ) {
-	chomp $line;
-
-	#-- Make sure the sequence names are defined
-	if ( !defined($currRefID)  ||  !defined($currQryID) ) {
-	    die "ERROR: $matchfilename is unrecognized file type\n";
-	}
-
-
-	if ( $line =~ /^>/ ) {
-	    #-- It's a sequence header line
-
-	    $prevRefID = $currRefID;
-	    $prevQryID = $currQryID;
-
-	    #-- Read the new headers
-	    if ( $format eq $TILING_STRING ) {
-		($currRefID,$currlenRefSeq) = $line =~ /^>(\S+)\s+(\d+)/;
-
-	    } elsif ( $format eq $MUMMER_STRING ) {
-		($currQryID) = $line =~ /^>\s*(\S+)/;
-
-		#-- Set the direction of the sequences
-		if ( $line =~ /^>\s*\S+\s+Reverse$/ ) {
-		    $DirRef = 1;
-		    $DirQry = -1;
-		} else {
-		    $DirRef = 1;
-		    $DirQry = 1;
-		}
-	    } else {
-		($currRefID, $currQryID, $currlenRefSeq, $currlenQrySeq) =
-		    $line =~ /^>(\S+)\s+(\S+)\s+(\d+)\s+(\d+)/;
-	    }
-
-
-	    #-- Warn if multiple sequences are used in the same plot
-	    if ( !$multRef  &&  $prevRefID ne $currRefID  &&
-		 !defined ($useRefID) ) {
-		print STDERR
-		  "WARNING: multiple reference sequences in the same plot,\n" .
-		  "         use the '-r ID' option to aviod confusion\n";
-		$multRef = 1;
-	    }
-	    if ( !$multQry  &&  $prevQryID ne $currQryID  &&
-		 !defined ($useQryID) ) {
-		if ( !$CoveragePlot ) {
-		  print STDERR
-		    "WARNING: multiple query sequences in the same plot,\n" .
-		    "         use the '-q ID' option to aviod confusion\n";
-		}
-		$multQry = 1;
-	    }
-
-	} else {
-	    #-- It's a data line
-
-	    #-- If not the selected sequence, continue
-	    if ( defined ($useRefID)  &&  $useRefID ne $currRefID ) {
-		if ( defined ($useQryID)  &&  $useQryID ne $currQryID ) {
-		    next;
-		}
-		$foundQryID = 1;
-		next;
-	    } else {
-		$foundRefID = 1;
-		if ( defined ($useQryID)  &&  $useQryID ne $currQryID ) {
-		    next;
-		}
-		$foundQryID = 1;
-	    }
-
-	    $lenRefSeq = $currlenRefSeq;
-	    $lenQrySeq = $currlenQrySeq;
-
-
-	    #-- If you haven't figured it out yet, check type
-	    if ( !defined ($format) ) {
-		if ( $line =~ /^[\s\-][1-3] [\s\-][1-3]$/ ) {
-		    $format = $CLUSTER_STRING;
-		} elsif ( $line =~
-			  /^\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+$/ ) {
-		    $format = $DELTA_STRING;
-		} else {
-		    die "ERROR: $matchfilename is unrecognized file type\n" .
-		 "valid file types are (.out, .cluster, .delta, .tiling)\n" .
-		 "suspicious line: $line\n";
-		}
-		print STDERR "INFO: assuming $format format\n";
-	    }
-
-
-	    if ( $format eq $TILING_STRING ) {
-		#-- It's a tiling match line
-		($StartRef,$_,$_,$LenRef,$_,$Sim,$DirQry,$currQryID) =
-		    split " ", $line;
-		$DirRef = 1;
-		$StartQry = 0;
-		$LenQry = $LenRef;
-		if ( $DirQry eq "+" ) {
-		    $DirQry = 1;
-		} elsif ( $DirQry eq "-" ) {
-		    $DirQry = -1;
-		} else {
-		    die "ERROR: Invalid tile direction \"$DirQry\"\n";
-		}
-
-		#-- Output the tile to the plot files
-		outputCurrentMatch ( );
-
-	    } elsif ( $format eq $MUMMER_STRING ) {
-		#-- It's a mummer match line
-		
-		if ( ! ($line =~ /^\s*\d+\s*\d+\s*\d+$/) ) {
-		    die "ERROR: $matchfilename is unrecognized file type\n" .
-		 "valid file types are (.out, .cluster, .delta, .tiling)\n" .
-		 "suspicious line: $line\n";
-		}
-		
-		#-- Pull the data
-		($StartRef,$StartQry,$LenRef) = split " ", $line;
-		$LenQry = $LenRef;
-		
-		#-- Output the match to the plot files
-		outputCurrentMatch ( );
-
-	    } elsif ( $format eq $CLUSTER_STRING ) {
-		#-- It's a cluster header or match line
-		
-		if ( $line =~ /^[\s\-][1-3] [\s\-][1-3]$/ ) {
-		    #-- It's a cluster header
-		    
-		    #-- Set the direction of the sequences
-		    if ( $line =~ /^-/ ) {
-			$DirRef = -1;
-		    } else {
-			$DirRef = 1;
-		    }
-		    if ( $line =~ /-[1-3]$/ ) {
-			$DirQry = -1;
-		    } else {
-			$DirQry = 1;
-		    }
-		} elsif ( $line =~
-			  /^\s*\d+\s+\d+\s+\d+\s+[\d\-]+\s+[\d\-]+$/ ) {
-		    #-- It's a cluster data line
-		    
-		    #-- Pull the data
-		    ($StartRef,$StartQry,$LenRef) = split " ", $line;
-		    $LenQry = $LenRef;
-		    
-		    #-- Output the match to the plot files
-		    outputCurrentMatch ( );
-		} else {
-		    die "ERROR: $matchfilename is unrecognized file type\n" .
-	      	 "valid file types are (.out, .cluster, .delta, .tiling)\n" .
-	    	 "suspicious line: $line\n";
-		}
-		
-	    } elsif ( $format eq $DELTA_STRING ) {
-		#-- It's an alignment header or delta-int
-		
-		if ( $line =~ /^[-]?\d+$/ ) {
-		    #-- It's a delta-int
-		    
-		    ($delta) = $line =~ /(\S+)/;
-		    if ( $delta < 0 ) {
-			$total ++;
-		    } elsif ( $delta == 0 ) {
-			$Sim = ($total - $Sim) / $total * 100.0;
-
-			#-- Output the match to the plot files
-			outputCurrentMatch ( );
-		    }
-		    
-		} elsif ( $line =~
-			  /^\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+$/ ) {
-		    #-- It's an alignment header
-		    
-		    #-- Pull the data
-		    ($StartRef,$endRef,$StartQry,$endQry,$_,$Sim) =
-			split " ", $line;
-		    $LenRef = abs($endRef - $StartRef) + 1;
-		    $LenQry = abs($endQry - $StartQry) + 1;
-
-		    $total = $LenRef;
-		    if ( $datatype =~ /^PROMER$/ ) {
-			$total /= 3.0;
-		    }
-
-		    #-- Set the direction of the sequences
-		    if ( $StartRef > $endRef ) {
-			$DirRef = -1;
-		    } else {
-			$DirRef = 1;
-		    }
-		    if ( $StartQry > $endQry ) {
-			$DirQry = -1;
-		    } else {
-			$DirQry = 1;
-		    }
-
-		} else {
-		    die "ERROR: $matchfilename is unrecognized file type\n" .
-		 "valid file types are (.out, .cluster, .delta, .tiling)\n" .
-		 "suspicious line: $line\n";
-		}
-		
-	    } else {
-		die "ERROR: invalid format type '$format'\n";
-	    }
-	}
-    }
-
-
-    close(MATCH_FILE)
-	or die "ERROR: could not close $matchfilename $!\n";
-
-
-    print DATA_FILE "#-- FORWARD MATCHES\n";
-    print DATA_FILE "0 0\n\n";
-    seek FWDDATA_FILE, 0, 0;
-    while ( <FWDDATA_FILE> ) {
-	print DATA_FILE;
-    }
-    print DATA_FILE "\n#-- REVERSE MATCHES\n";
-    print DATA_FILE "0 0\n\n";
-    seek REVDATA_FILE, 0, 0;
-    while ( <REVDATA_FILE> ) {
-	print DATA_FILE;
-    }
-
-    close(FWDDATA_FILE)
-	or die "ERROR: could not close $fwddatafilename $!\n";
-    close(REVDATA_FILE)
-	or die "ERROR: could not close $revdatafilename $!\n";
-    close(DATA_FILE)
-	or die "ERROR: could not close $datafilename $!\n";
-
-
-    $err = unlink $revdatafilename, $fwddatafilename;
-    if ( $err != 2 ) {
-	print STDERR "WARNING: could not delete temporary files,\n" .
-	    "$revdatafilename and $fwddatafilename\n";
-    }
-
-
-    #-- Dynamically generate the gnuplot script
-    printf SCRIPT_FILE "set terminal $terminal %s\n",
-         $terminal eq $POSTSCRIPT_TERM ? $color ? "color solid" : "solid" : "";
-    if ( $terminal eq $POSTSCRIPT_TERM ) {
-	print SCRIPT_FILE "set output \"$prefix.ps\"\n";
-    }
-    if ( $CoveragePlot  &&  $terminal eq $POSTSCRIPT_TERM ) {
-	print SCRIPT_FILE "set size 1,.5\n";
-    }
-    print SCRIPT_FILE "set nokey\n";
-    print SCRIPT_FILE "set nogrid\n";
-    printf SCRIPT_FILE "set xlabel %s\n", defined ($useRefID) ?
-	"\"$useRefID\"" : $multRef ? "\"References\"" : "\"$currRefID\"";
-    printf SCRIPT_FILE "set ylabel %s\n", $CoveragePlot ? "\"%similarity\"" :
-	defined ($useQryID) ? "\"$useQryID\"" : $multQry ?	
-	"\"Queries\"" : "\"$currQryID\"";
-    printf SCRIPT_FILE "set xrange [%s:%s]\n", defined ($xmin) ? $xmin : 0,
-    defined ($xmax) ? $xmax :
-    defined ($lenRefSeq) && !$multRef ? "$lenRefSeq" : "*";
-    printf SCRIPT_FILE "set yrange [%s:%s]\n", defined ($ymin) ? $ymin : 0,
-    defined ($ymax) ? $ymax : $CoveragePlot ? "110" :
-	defined($lenQrySeq)  &&  !$multQry ? "$lenQrySeq" : "*";
-    print SCRIPT_FILE "plot ";
-    if ( $CoveragePlot ) {
-	print SCRIPT_FILE "\"$datafilename\" index 0 title \"Fwd\" w l lt 1 lw 5, ";
-	print SCRIPT_FILE "\"$datafilename\" index 1 title \"Rev\" w l lt 2 lw 5\n";
-    } else {
-	print SCRIPT_FILE "\"$datafilename\" index 0 title \"Fwd\" w lp lt 1 lw 2 pt 1 ps .75, ";
-	print SCRIPT_FILE "\"$datafilename\" index 1 title \"Rev\" w lp lt 2 lw 2 pt 1 ps .75\n";
-    }
-    if ( $terminal eq $X11_TERM ) {
-	print SCRIPT_FILE "pause -1 \"Hit return to continue\"\n";
-    }
-
-
-    close(SCRIPT_FILE)
-	or die "ERROR: could not close $scriptfilename $!\n";
-
-
-    if ( !defined($DataWasPlotted) ) {
-	print STDERR "WARNING: no data was plotted\n";
-    }
-    if ( defined($useRefID)  &&  !defined($foundRefID) ) {
-	print STDERR "WARNING: reference sequence $useRefID was not found\n";
-    }
-    if ( defined($useQryID)  &&  !defined($foundQryID) ) {
-	print STDERR "WARNING: query sequence $useQryID was not found\n";
-    }
+    !$OPT_Qfile or $tigr->isReadableFile ($OPT_Qfile)
+        or die "ERROR: Could not read $OPT_Qfile, $!\n";
 }
-
-
-sub outputCurrentMatch ( ) {
-
-    my $tmp;
-
-    $DataWasPlotted = 1;
-
-    if ( !(defined($StartRef) && defined($StartQry) &&
-	   defined($LenRef) && defined($LenQry) &&
-	   defined($DirRef) && defined($DirQry)) ) {
-	die "ERROR: attempted to output undefined values\n" .
-	    "       please file a bug report\n";
-    }
-
-    if ( $DirRef == $DirQry ) {
-	#-- Forward
-
-	if ( $DirRef == -1 ) {
-	    $StartRef -= $LenRef - 1;
-	    $StartQry -= $LenQry - 1;
-	}
-
-	printf FWDDATA_FILE "%s\n", $CoveragePlot ?
-	    "$StartRef 10" : "$StartRef $StartQry";
-	$tmp = $StartRef;
-	$StartRef += $LenRef - 1;
-	$StartQry += $LenQry - 1;
-	printf FWDDATA_FILE "%s\n\n", $CoveragePlot ?
-	    "$StartRef 10" : "$StartRef $StartQry";
-
-	if ( $CoveragePlot  &&  defined ($Sim) ) {
-	    print FWDDATA_FILE "$tmp $Sim\n";
-	    print FWDDATA_FILE "$StartRef $Sim\n\n";
-	}
-    } else {
-	#-- Reverse complement
-
-	printf REVDATA_FILE "%s\n", $CoveragePlot ?
-	    "$StartRef 10" : "$StartRef $StartQry";
-	$tmp = $StartRef;
-	if ( $DirRef == -1 ) {
-	    $StartRef -= $LenRef - 1;
-	    $StartQry += $LenQry - 1;
-	} else { 
-	    $StartRef += $LenRef - 1;
-	    $StartQry -= $LenQry - 1;
-	}
-	printf REVDATA_FILE "%s\n\n", $CoveragePlot ?
-	    "$StartRef 10" : "$StartRef $StartQry";
-
-	if ( $CoveragePlot  &&  defined ($Sim) ) {
-	    print REVDATA_FILE "$tmp $Sim\n";
-	    print REVDATA_FILE "$StartRef $Sim\n\n";
-	}
-    }
-}
-
-exit ( main ( ) );
-
-#-- END OF SCRIPT
