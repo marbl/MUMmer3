@@ -22,10 +22,47 @@ use strict;
 
 
 #================================================================= Globals ====#
+#-- terminal types
+my $X11    = "x11";
+my $PS     = "postscript";
+my $PNG    = "png";
+
+#-- terminal sizes
+my $SMALL  = "small";
+my $MEDIUM = "medium";
+my $LARGE  = "large";
+
+my %TERMSIZE =
+    (
+     $X11 => { $SMALL => 500, $MEDIUM => 700,  $LARGE => 900  }, # screen pix
+     $PS  => { $SMALL => 1,   $MEDIUM => 2,    $LARGE => 3    }, # pages
+     $PNG => { $SMALL => 800, $MEDIUM => 1024, $LARGE => 1400 }  # image pix
+     );
+
+#-- terminal format
+my $FFACE   = "Courier";
+my $FSIZE   = "8";
+my $FFORMAT = "%.0f";
+
+#-- output suffixes
+my $DATA    = "data";
+my $GNUPLOT = "gnuplot";
+
+my %SUFFIX =
+    (
+     $DATA    => ".plot",
+     $GNUPLOT => ".gp",
+     $PS      => ".ps",
+     $PNG     => ".png"
+     );
+
+
+#================================================================= Options ====#
 my $OPT_Mfile;                     # match file
+
 my $OPT_coverage;                  # -c option
 my $OPT_prefix   = "out";          # -p option
-my $OPT_terminal = "x11";          # -t option
+my $OPT_terminal = $X11;           # -t option
 my $OPT_IdR;                       # -r option
 my $OPT_IdQ;                       # -q option
 my $OPT_Rfile;                     # -R option
@@ -33,67 +70,16 @@ my $OPT_Qfile;                     # -Q option
 my $OPT_xrange;                    # -x option
 my $OPT_yrange;                    # -y option
 
-my $OPT_gpstatus;                  # gnuplot status
+my $OPT_size     = $SMALL;         # -small, -medium, -large
 
 my $OPT_Dfile;                     # .plot output
 my $OPT_Gfile;                     # .gp output
 my $OPT_Pfile;                     # .ps .png etc. output
 
-
-my $GNUPLOT = "gp";
-my $DATA    = "plot";
-my $PS      = "postscript";
-my $PNG     = "png";
-my $X11     = "x11";
-
-my $FFACE   = "Courier";
-my $FSIZE   = "8";
-my $FORMAT  = "%.0f";
+my $OPT_gpstatus;                  # gnuplot status
 
 
-my %SUFFIX =
-    (
-     $GNUPLOT => ".gp",
-     $DATA    => ".plot",
-     $PS      => ".ps",
-     $PNG     => ".png",
-     $X11     => ".x11"
-     );
-
-my %TERMINAL =
-    (
-     $X11 => "set terminal $X11 font \"$FFACE,$FSIZE\"\n",
-     $PS  => "set terminal $PS color solid \"$FFACE\" $FSIZE\n",
-     $PNG => "set terminal $PNG tiny size 1000,1000\n"
-     );
-
-my %OTERMINAL =
-    (
-     $X11 => "set terminal $X11\n",
-     $PS  => "set terminal $PS color solid \"$FFACE\" $FSIZE\n",
-     $PNG => "set terminal $PNG small\n"
-     );
-
-my %DOT =
-     (
-      $X11 => [ "w lp lt 1 lw 2.0 pt 6 ps 0.75",
-                "w lp lt 3 lw 2.0 pt 6 ps 0.75" ],
-      $PS  => [ "w lp lt 1 lw 2.0 pt 6 ps 0.25",
-                "w lp lt 3 lw 2.0 pt 6 ps 0.25" ],
-      $PNG => [ "w lp lt 1 lw 3.0 pt 6 ps 0.75",
-                "w lp lt 3 lw 3.0 pt 6 ps 0.75" ]
-      );
-
-my %COV =
-    (
-      $X11 => [ "w l lt 1 lw 3.0",
-                "w l lt 3 lw 3.0" ],
-      $PS  => [ "w l lt 1 lw 4.0",
-                "w l lt 3 lw 4.0" ],
-      $PNG => [ "w l lt 1 lw 3.0",
-                "w l lt 3 lw 3.0" ]
-     );
-
+#============================================================== Foundation ====#
 my $VERSION = '3.0';
 
 my $USAGE = qq~
@@ -113,7 +99,7 @@ my $HELP = qq~
     window will be spawned or an additional output file will be generated
     (.ps or .png depending on the selected terminal). Feel free to edit the
     resulting gnuplot files (.gp and .plot) and rerun gnuplot to change line
-    thinkness, labels, colors, etc.
+    thinkness, labels, colors, plot size etc.
 
   MANDATORY:
     match file      Set the alignment input to "match file"
@@ -127,14 +113,16 @@ my $HELP = qq~
     -h
     --help          Display help information and exit
     -p|prefix       Set the prefix of the output files (default "$OPT_prefix")
-    -t|terminal     Set the output terminal to x11, postscript or png
-                    (default "$OPT_terminal")
     -r|IdR          Plot a particular reference sequence ID on the X-axis
     -q|IdQ          Plot a particular query sequence ID on the Y-axis
     -R|Rfile        Get the set of reference sequences to plot from Rfile
     -Q|Qfile        Get the set of query sequences to plot from Qfile
                     Rfile/Qfile Can either be the original DNA multi-FastA
                     files or lists of sequence IDs, lens and dirs [ /+/-]
+    -s|size         Set the output terminal size to small, medium or large
+                    (default "$OPT_size")
+    -t|terminal     Set the output terminal to x11, postscript or png
+                    (default "$OPT_terminal")
     -x|xrange       Set the xrange for the plot "[min:max]"
     -y|yrange       Set the yrange for the plot "[min:max]"
     -V
@@ -143,7 +131,6 @@ my $HELP = qq~
 
 my @DEPEND = ("TIGR::Foundation", "gnuplot");
 
-#-- Set up foundation
 my $tigr = new TIGR::Foundation
     or die "ERROR: TIGR::Foundation could not be initialized\n";
 
@@ -177,25 +164,11 @@ MAIN:
     my %refs;                  # (id => (off, len, [1/-1]))
     my %qrys;                  # (id => (off, len, [1/-1]))
 
-    my $parsefunc;
-
-    #-- Get the command line options
+    #-- Get the command line options (sets OPT_ global vars)
     ParseOptions( );
 
-    #-- Check that status of gnuplot
-    $OPT_gpstatus = system ("gnuplot --version");
-
-    if ( $OPT_gpstatus == -1 ) {
-        print STDERR
-            "WARNING: Could not find gnuplot, plot will not be rendered\n";
-    }
-    elsif ( $OPT_gpstatus ) {
-        print STDERR
-            "WARNING: Using outdated gnuplot, use v4.0 for best results\n";
-    }
-
     #-- Get the alignment type
-    $parsefunc = GetParseFunc( );
+    my $parsefunc = GetParseFunc( );
 
     #-- Parse the reference and query IDs
     if    ( defined $OPT_IdR )   { $refs{$OPT_IdR} = [ 0, 0, 1 ]; }
@@ -299,7 +272,7 @@ sub ParseIDs ($$)
         #-- FastA header
         if ( /^>(\S+)/ ) {
             if ( exists $href->{$1} ) {
-                print STDERR "WARNING: Duplicate sequence '$1' ignored\n";
+#                print STDERR "WARNING: Duplicate sequence '$1' ignored\n";
                 undef $aref;
                 next;
             }
@@ -321,7 +294,7 @@ sub ParseIDs ($$)
         #-- ID len dir
         if ( !$isfasta  &&  /^(\S+)\s+(\d+)\s+([+-]?)$/ ) {
             if ( exists $href->{$1} ) {
-                print STDERR "WARNING: Duplicate sequence '$1' ignored\n";
+#                print STDERR "WARNING: Duplicate sequence '$1' ignored\n";
                 undef $aref;
                 next;
             }
@@ -642,7 +615,8 @@ sub PlotData ($$$)
 
     if ( !defined (%$rref) ) {
         if ( $ismultiref ) {
-            print STDERR "WARNING: Multiple ref sequences overlaid, try -R\n";
+            print STDERR
+                "WARNING: Multiple ref sequences overlaid, try -R or -r\n";
         }
         elsif ( defined $pidR ) {
             $rref->{$pidR} = [ 0, $plenR, 1 ];
@@ -651,7 +625,8 @@ sub PlotData ($$$)
 
     if ( !defined (%$qref) ) {
         if ( $ismultiqry && !$OPT_coverage ) {
-            print STDERR "WARNING: Multiple qry sequences overlaid, try -Q\n";
+            print STDERR
+                "WARNING: Multiple qry sequences overlaid, try -Q, -q or -c\n";
         }
         elsif ( defined $pidQ ) {
             $qref->{$pidQ} = [ 0, $plenQ, 1 ];
@@ -673,6 +648,34 @@ sub WriteGP ($$)
     my $rref = shift;
     my $qref = shift;
 
+    my $SIZE = $TERMSIZE{$OPT_terminal}{$OPT_size};
+
+    my %TERMINAL = $OPT_gpstatus ?
+        (
+         $X11 => "set terminal $X11\n",
+         $PS  => "set terminal $PS color solid \"$FFACE\" $FSIZE\n",
+         $PNG => "set terminal $PNG small\n"
+         )
+        :
+        (
+         $X11 => "set terminal $X11 font \"$FFACE,$FSIZE\"\n",
+         $PS  => "set terminal $PS color solid \"$FFACE\" $FSIZE\n",
+         $PNG => "set terminal $PNG tiny size $SIZE,$SIZE\n"
+         );
+    
+    my %PLOT = $OPT_coverage ?
+        (
+         $X11 => [ "w l lt 1 lw 3", "w l lt 3 lw 3" ],
+         $PS  => [ "w l lt 1 lw 4", "w l lt 3 lw 4" ],
+         $PNG => [ "w l lt 1 lw 3", "w l lt 3 lw 3" ]
+         )
+        :
+        (
+         $X11 => [ "w lp lt 1 lw 2 pt 6 ps 1.0", "w lp lt 3 lw 2 pt 6 ps 1.0" ],
+         $PS  => [ "w lp lt 1 lw 2 pt 6 ps 0.5", "w lp lt 3 lw 2 pt 6 ps 0.5" ],
+         $PNG => [ "w lp lt 1 lw 3 pt 6 ps 1.0", "w lp lt 3 lw 3 pt 6 ps 1.0" ]
+         );
+
     open (GFILE, ">$OPT_Gfile")
         or die "ERROR: Could not open $OPT_Gfile, $!\n";
 
@@ -684,13 +687,7 @@ sub WriteGP ($$)
     my $border = 0;
 
     #-- terminal header and output
-    if ( $OPT_gpstatus ) {
-        print GFILE $OTERMINAL{$OPT_terminal};
-    }
-    else {
-        print GFILE  $TERMINAL{$OPT_terminal};
-        print GFILE "set mouse format \"$FORMAT\"\n";
-    }
+    print GFILE $TERMINAL{$OPT_terminal};
 
     if ( defined $OPT_Pfile ) {
         print GFILE "set output \"$OPT_Pfile\"\n";
@@ -706,7 +703,7 @@ sub WriteGP ($$)
         print GFILE "set xtics rotate \( \\\n";
         foreach $xlabel ( sort { $rref->{$a}[0] <=> $rref->{$b}[0] } @refk ) {
             $xrange += $rref->{$xlabel}[1];
-            $tic = $rref->{$xlabel}[0] + 1;
+            $tic = $rref->{$xlabel}[0];
             $dir = ($rref->{$xlabel}[2] == 1) ? "" : "*";
             print GFILE "\"$dir$xlabel\" $tic, \\\n";
         }
@@ -729,7 +726,7 @@ sub WriteGP ($$)
         print GFILE "set ytics \( \\\n";
         foreach $ylabel ( sort { $qref->{$a}[0] <=> $qref->{$b}[0] } @qryk ) {
             $yrange += $qref->{$ylabel}[1];
-            $tic = $qref->{$ylabel}[0] + 1;
+            $tic = $qref->{$ylabel}[0];
             $dir = ($qref->{$ylabel}[2] == 1) ? "" : "*";
             print GFILE "\"$dir$ylabel\" $tic, \\\n";
         }
@@ -749,7 +746,6 @@ sub WriteGP ($$)
         "set nokey\n",
         "set border $border\n",
         "set ticscale 0 0.5\n",
-        "set format \"$FORMAT\"\n",
         "set xlabel \"$xlabel\"\n",
         "set ylabel \"$ylabel\"\n";
 
@@ -768,28 +764,32 @@ sub WriteGP ($$)
         print GFILE "set yrange [1:$yrange]\n";
     }
 
+    #-- coords format
+    print GFILE "set format \"$FFORMAT\"\n";
+    if ( $OPT_gpstatus == 0 ) {
+        print GFILE "set mouse format \"$FFORMAT\"\n";
+    }
+
     #-- terminal specific sizes
     if ( $OPT_terminal eq $X11 ) {
         print GFILE ($OPT_coverage ? "set size 1,1\n" : "set size 1,1\n");    
     }
     elsif ( $OPT_terminal eq $PS ) {
-        print GFILE ($OPT_coverage?"set size 1,.5\n":"set size .7727,1\n");
+        if ( $OPT_coverage ) {
+            print GFILE "set size ", 1 * $SIZE, ",", .5 * $SIZE, "\n";
+        }
+        else {
+            print GFILE "set size ", .7727 * $SIZE, ",", 1 * $SIZE, "\n"
+        }
     }
     elsif ( $OPT_terminal eq $PNG ) {
-        print GFILE ($OPT_coverage?"set size 1,.375\n":"set size 1,1\n");
+        print GFILE ($OPT_coverage ? "set size 1,.375\n" : "set size 1,1\n");
     }
 
     #-- plot command
-    if ( $OPT_coverage ) {
-        print GFILE "plot \\\n",
-        " \"$OPT_Dfile\" index 0 title \"fwd\" ${COV{$OPT_terminal}[0]}, \\\n",
-        " \"$OPT_Dfile\" index 1 title \"rev\" ${COV{$OPT_terminal}[1]}\n";
-    }
-    else {
-        print GFILE "plot\\\n",
-        " \"$OPT_Dfile\" index 0 title \"fwd\" ${DOT{$OPT_terminal}[0]}, \\\n",
-        " \"$OPT_Dfile\" index 1 title \"rev\" ${DOT{$OPT_terminal}[1]}\n";
-    }
+    print GFILE "plot \\\n",
+    " \"$OPT_Dfile\" index 0 title \"fwd\" ${PLOT{$OPT_terminal}[0]}, \\\n",
+    " \"$OPT_Dfile\" index 1 title \"rev\" ${PLOT{$OPT_terminal}[1]}\n";
 
     #-- interactive mode
     if ( $OPT_terminal eq $X11 ) {
@@ -811,37 +811,52 @@ sub RunGP ( )
     if ( defined $OPT_Pfile ) {
         print STDERR "Rendering plot $OPT_Pfile\n";
     }
+    else {
+        print STDERR "Rendering plot to screen\n";
+    }
 
-    system ("gnuplot $OPT_Gfile")
-        and die "ERROR: Unable to run 'gnuplot $OPT_Gfile', Unknown error\n";
+    my $cmd = "gnuplot";
+    if ( $OPT_terminal eq $X11 ) {
+        my $size = $TERMSIZE{$OPT_terminal}{$OPT_size};
+        $cmd .= " -geometry ${size}x";
+        if ( $OPT_coverage ) { $size = sprintf ("%.0f", $size * .375); }
+        $cmd .= "${size}+0+0 -title mummerplot";
+    }
+    $cmd .= " $OPT_Gfile";
+
+    system ($cmd) and die "ERROR: Unable to run '$cmd', Unknown error\n";
 }
 
 
 #------------------------------------------------------------ ParseOptions ----#
 sub ParseOptions ( )
 {
-    my $dep_color;
-    my $dep_ps;
-    my $dep_x11;
-    my $dep_png;
+    my ($opt_small, $opt_medium, $opt_large);
+    my ($opt_ps, $opt_x11, $opt_png);
+    my $opt_color;
 
     #-- Get options
     my $err = $tigr -> TIGR_GetOptions
         (
          "c|coverage!"  => \$OPT_coverage,
          "p|prefix=s"   => \$OPT_prefix,
-         "t|terminal=s" => \$OPT_terminal,
          "r|IdR=s"      => \$OPT_IdR,
          "q|IdQ=s"      => \$OPT_IdQ,
          "R|Rfile=s"    => \$OPT_Rfile,
          "Q|Qfile=s"    => \$OPT_Qfile,
+         "s|size=s"     => \$OPT_size,
+         "t|terminal=s" => \$OPT_terminal,
          "x|xrange=s"   => \$OPT_xrange,
          "y|yrange=s"   => \$OPT_yrange,
 
-         "color!"       => \$dep_color,      # deprecated
-         "x11"          => \$dep_x11,        # deprecated
-         "postscript"   => \$dep_ps,         # deprecated
-         "png"          => \$dep_png         # deprecated
+         #-- hidden options
+         "x11"          => \$opt_x11,
+         "postscript"   => \$opt_ps,
+         "png"          => \$opt_png,
+         "small"        => \$opt_small,
+         "medium"       => \$opt_medium,
+         "large"        => \$opt_large,
+         "color!"       => \$opt_color     # unsupported
          );
 
     if ( !$err  ||  scalar (@ARGV) != 1 ) {
@@ -849,30 +864,28 @@ sub ParseOptions ( )
         die "Try '$0 -h' for more information.\n";
     }
 
-    #-- Warn of deprecated options
-    if ( defined $dep_x11 ) {
-        print STDERR
-            "WARNING: --x11 option is deprecated, use -t instead\n";
-        $OPT_terminal = $X11;
+    #-- Hidden options
+    if ( defined $opt_color ) {
+        print STDERR "WARNING: --[no]color option is no longer supported\n";
     }
-    if ( defined $dep_ps ) {
-        print STDERR
-            "WARNING: --postscript option is deprecated, use -t instead\n";
-        $OPT_terminal = $PS;
-    }
-    if ( defined $dep_png ) {
-        print STDERR
-            "WARNING: --png option is deprecated, use -t instead\n";
-        $OPT_terminal = $PNG;
-    }
-    if ( defined $dep_color ) {
-        print STDERR "WARNING: --[no]color option is deprecated, no effect\n";
-    }
+
+    if    ( $opt_x11 ) { $OPT_terminal = $X11; }
+    elsif ( $opt_ps  ) { $OPT_terminal = $PS;  }
+    elsif ( $opt_png ) { $OPT_terminal = $PNG; }
+
+    if    ( $opt_large  ) { $OPT_size = $LARGE;  }
+    elsif ( $opt_medium ) { $OPT_size = $MEDIUM; }
+    elsif ( $opt_small  ) { $OPT_size = $SMALL; }
 
     #-- Check options
-    $TERMINAL{$OPT_terminal}
-        or die "ERROR: Invalid terminal type, $OPT_terminal\n";
+    if ( !exists $TERMSIZE{$OPT_terminal} ) {
+        die "ERROR: Invalid terminal type, $OPT_terminal\n";
+    }
 
+    if ( !exists $TERMSIZE{$OPT_terminal}{$OPT_size} ) {
+        die "ERROR: Invalid terminal size, $OPT_size\n";
+    }
+    
     if ( $OPT_xrange ) {
         $OPT_xrange =~ tr/,/:/;
         $OPT_xrange =~ /^\[\d+:\d+\]$/
@@ -898,7 +911,7 @@ sub ParseOptions ( )
     $tigr->isWritableFile ($OPT_Gfile) or $tigr->isCreatableFile ($OPT_Gfile)
         or die "ERROR: Could not write $OPT_Gfile, $!\n";
 
-    if ( $OPT_terminal ne $X11 ) {
+    if ( exists $SUFFIX{$OPT_terminal} ) {
         $OPT_Pfile = $OPT_prefix . $SUFFIX{$OPT_terminal};
         $tigr->isWritableFile($OPT_Pfile) or $tigr->isCreatableFile($OPT_Pfile)
             or die "ERROR: Could not write $OPT_Pfile, $!\n";
@@ -909,4 +922,16 @@ sub ParseOptions ( )
 
     !$OPT_Qfile or $tigr->isReadableFile ($OPT_Qfile)
         or die "ERROR: Could not read $OPT_Qfile, $!\n";
+
+    #-- Check that status of gnuplot
+    $OPT_gpstatus = system ("gnuplot --version");
+
+    if ( $OPT_gpstatus == -1 ) {
+        print STDERR
+            "WARNING: Could not find gnuplot, plot will not be rendered\n";
+    }
+    elsif ( $OPT_gpstatus ) {
+        print STDERR
+            "WARNING: Using outdated gnuplot, use v4.0 for best results\n";
+    }
 }
