@@ -19,6 +19,7 @@
 use lib "__SCRIPT_DIR";
 use Foundation;
 use strict;
+use IO::Socket;
 
 my $BIN_DIR = "__BIN_DIR";
 my $SCRIPT_DIR = "__SCRIPT_DIR";
@@ -43,9 +44,10 @@ my %TERMSIZE =
      );
 
 #-- terminal format
-my $FFACE   = "Courier";
-my $FSIZE   = "8";
-my $FFORMAT = "%.0f";
+my $FFACE    = "Courier";
+my $FSIZE    = "8";
+my $TFORMAT  = "%.0f";
+my $MFORMAT  = "[%.0f, %.0f]";
 
 #-- output suffixes
 my $FILTER  = "filter";
@@ -79,6 +81,8 @@ my $OPT_IdR;                       # -r option
 my $OPT_IdQ;                       # -q option
 my $OPT_IDRfile;                   # -R option
 my $OPT_IDQfile;                   # -Q option
+my $OPT_rport;                     # -rport option
+my $OPT_qport;                     # -qport option
 my $OPT_size      = $SMALL;        # -small, -medium, -large
 my $OPT_SNP;                       # -S option
 my $OPT_xrange;                    # -x option
@@ -96,7 +100,7 @@ my $OPT_gpstatus;                  # gnuplot status
 
 
 #============================================================== Foundation ====#
-my $VERSION = '3.2';
+my $VERSION = '3.5';
 
 my $USAGE = qq~
   USAGE: mummerplot  [options]  <match file>
@@ -149,6 +153,10 @@ my $HELP = qq~
     -Q|Qfile        Plot an ordered set of query sequences from Qfile
                     Rfile/Qfile Can either be the original DNA multi-FastA
                     files or lists of sequence IDs, lens and dirs [ /+/-]
+    -r|rport        Specify the port to send reference ID and position on
+                    mouse double click in X11 plot window
+    -q|qport        Specify the port to send query IDs and position on mouse
+                    double click in X11 plot window
     -s|size         Set the output size to small, medium or large
                     --small --medium --large (default '$OPT_size')
     -S
@@ -195,6 +203,7 @@ sub SpanXwY ($$$$$);
 sub PlotData($$$);
 sub WriteGP($$);
 sub RunGP( );
+sub ListenGP($$);
 
 sub ParseOptions( );
 
@@ -266,9 +275,26 @@ MAIN:
     WriteGP (\%refs, \%qrys);
 
 
-    #-- Run the gnuplot script
+    #-- Run gnuplot script and fork a clipboard listener
     unless ( $OPT_gpstatus == -1 ) {
-        RunGP( );
+
+        my $child = 1;
+        if ( $OPT_gpstatus == 0 && $OPT_terminal eq $X11 ) {
+            print STDERR "Forking mouse listener\n";
+            $child = fork;
+        }
+
+        #-- parent runs gnuplot
+        if ( $child ) {
+            RunGP( );
+        }
+        #-- child listens to clipboard
+        elsif ( defined $child ) {
+            ListenGP(\%refs, \%qrys);
+        }
+        else {
+            print STDERR "WARNING: Could not fork mouse listener\n";
+        }
     }
 
     exit (0);
@@ -1079,11 +1105,13 @@ sub WriteGP ($$)
 
     $P_WITH = $OPT_coverage || $OPT_color ? "w l" : "w lp";
 
-    $P_FORMAT = "set format \"$FFORMAT\"";
+    $P_FORMAT = "set format \"$TFORMAT\"";
     if ( $OPT_gpstatus == 0 ) {
         $P_LS = "set style line";
         $P_KEY = "unset key";
-        $P_FORMAT .= "\nset mouse format \"$FFORMAT\"";
+        $P_FORMAT .= "\nset mouse format \"$TFORMAT\"";
+        $P_FORMAT .= "\nset mouse mouseformat \"$MFORMAT\"";
+        $P_FORMAT .= "\nset mouse clipboardformat \"$MFORMAT\"";
     }
     else {
         $P_LS = "set linestyle";
@@ -1267,6 +1295,95 @@ sub RunGP ( )
 }
 
 
+#---------------------------------------------------------------- ListenGP ----#
+sub ListenGP($$)
+{
+    my $rref = shift;
+    my $qref = shift;
+
+    my ($refc, $qryc);
+    my ($refid, $qryid);
+    my ($rsock, $qsock);
+    my $oldclip = "";
+
+    #-- get IDs sorted by offset
+    my @refo = sort { $rref->{$a}[0] <=> $rref->{$b}[0] } keys %$rref;
+    my @qryo = sort { $qref->{$a}[0] <=> $qref->{$b}[0] } keys %$qref;
+
+    #-- attempt to connect sockets
+    if ( $OPT_rport ) {
+        $rsock = IO::Socket::INET->new("localhost:$OPT_rport")
+            or print STDERR "WARNING: Could not connect to rport $OPT_rport\n";
+    }
+
+    if ( $OPT_qport ) {
+        $qsock = IO::Socket::INET->new("localhost:$OPT_qport")
+            or print STDERR "WARNING: Could not connect to qport $OPT_qport\n";
+    }
+
+    #-- while parent still exists
+    while ( getppid != 1 ) {
+
+        #-- query the clipboard
+        $_ = `xclip -o -silent -selection primary`;
+        if ( $? >> 8 ) {
+            die "WARNING: Unable to query clipboard with xclip\n";
+        }
+
+        #-- if cliboard has changed and contains a coordinate
+        if ( $_ ne $oldclip && (($refc, $qryc) = /^\[(\d+), (\d+)\]/) ) {
+
+            $oldclip = $_;
+
+            #-- translate the reference position
+            $refid = "NULL";
+            for ( my $i = 0; $i < (scalar @refo); ++ $i ) {
+                my $aref = $rref->{$refo[$i]};
+                if ( $i == $#refo || $aref->[0] + $aref->[1] > $refc ) {
+                    $refid = $refo[$i];
+                    $refc -= $aref->[0];
+                    if ( $aref->[2] == -1 ) {
+                        $refc = $aref->[1] - $refc + 1;
+                    }
+                    last;
+                }
+            }
+
+            #-- translate the query position
+            $qryid = "NULL";
+            for ( my $i = 0; $i < (scalar @qryo); ++ $i ) {
+                my $aref = $qref->{$qryo[$i]};
+                if ( $i == $#qryo || $aref->[0] + $aref->[1] > $qryc ) {
+                    $qryid = $qryo[$i];
+                    $qryc -= $aref->[0];
+                    if ( $aref->[2] == -1 ) {
+                        $qryc = $aref->[1] - $qryc + 1;
+                    }
+                    last;
+                }
+            }
+
+            #-- print the info to stdout and socket
+            print "$refid\t$qryid\t$refc\t$qryc\n";
+
+            if ( $rsock ) {
+                print $rsock "contig E$refid $refc\n";
+                print "sent \"contig E$refid $refc\" to $OPT_rport\n";
+            }
+            if ( $qsock ) {
+                print $qsock "contig E$qryid $qryc\n";
+                print "sent \"contig E$qryid $qryc\" to $OPT_qport\n";
+            }
+        }
+
+        #-- sleep for half second
+        select undef, undef, undef, .5;
+    }
+
+    exit (0);
+}
+
+
 #------------------------------------------------------------ ParseOptions ----#
 sub ParseOptions ( )
 {
@@ -1288,6 +1405,8 @@ sub ParseOptions ( )
          "q|IdQ=s"      => \$OPT_IdQ,
          "R|Rfile=s"    => \$OPT_IDRfile,
          "Q|Qfile=s"    => \$OPT_IDQfile,
+         "rport=i"      => \$OPT_rport,
+         "qport=i"      => \$OPT_qport,
          "s|size=s"     => \$OPT_size,
          "S|SNP"        => \$OPT_SNP,
          "t|terminal=s" => \$OPT_terminal,
@@ -1412,6 +1531,14 @@ sub ParseOptions ( )
     if ( defined $OPT_IDQfile ) {
         $tigr->isReadableFile ($OPT_IDQfile)
             or die "ERROR: Could not read $OPT_IDQfile, $!\n";
+    }
+
+    if ( (defined $OPT_rport || defined $OPT_qport) &&
+         ($OPT_terminal ne $X11 || $OPT_gpstatus ) ) {
+        print STDERR
+            "WARNING: Port options available only for v4.0 X11 plots\n";
+        undef $OPT_rport;
+        undef $OPT_qport;
     }
 
 
