@@ -30,13 +30,14 @@ using namespace std;
 //=============================================================== Options ====//
 string         OPT_AlignName;                // alignment name parameter
 
-bool           OPT_QLIS         = false;      // do query based LIS
-bool           OPT_RLIS         = false;      // do reference based LIS
-bool           OPT_GLIS         = false;      // do global LIS
-long int       OPT_MinLength    = 0;          // minimum alignment length
-float          OPT_MinIdentity  = 0.0;        // minimum %identity
-float          OPT_MinUnique    = 0.0;        // minimum %unique
-float          OPT_MaxOverlap   = 100.0;      // maximum olap as % of align len
+bool           OPT_QLIS         = false;     // do query based LIS
+bool           OPT_RLIS         = false;     // do reference based LIS
+bool           OPT_GLIS         = false;     // do global LIS
+long int       OPT_MinLength    = 0;         // minimum alignment length
+float          OPT_MinIdentity  = 0.0;       // minimum %identity
+float          OPT_MinUnique    = 0.0;       // minimum %unique
+float          OPT_MaxOverlap   = 100.0;     // maximum olap as % of align len
+float          OPT_Epsilon      = -1.0;      // negligible alignment score
 
 
 
@@ -64,7 +65,7 @@ const Dir_t REVERSE_DIR = 1;
 //
 struct DeltaNode_t;
 struct DeltaEdgelet_t
-     //!< A piece of a delta graph edge, a single alignment
+//!< A piece of a delta graph edge, a single alignment
 {
   unsigned char isGOOD : 1;   // meets the requirements
   unsigned char isQLIS : 1;   // is part of the query's LIS
@@ -92,7 +93,7 @@ struct DeltaEdgelet_t
 
 
 struct DeltaEdge_t
-     //!< A delta graph edge, alignments between a single reference and query
+//!< A delta graph edge, alignments between a single reference and query
 {
   DeltaNode_t * refnode;      // the adjacent reference node
   DeltaNode_t * qrynode;      // the adjacent query node
@@ -113,7 +114,7 @@ struct DeltaEdge_t
 
 
 struct DeltaNode_t
-     //!< A delta graph node, contains the sequence information
+//!< A delta graph node, contains the sequence information
 {
   const string * id;               // the id of the sequence
   unsigned long int len;           // the length of the sequence
@@ -130,7 +131,7 @@ struct DeltaNode_t
 
 
 struct DeltaGraph_t
-    //!< A delta graph of sequences and their alignments
+//!< A delta graph of sequences and their alignments
 {
   //-- The reference and query delta graph nodes (1 node per sequence)
   map<string, DeltaNode_t> refnodes;
@@ -159,7 +160,7 @@ struct DeltaGraph_t
 
 
 struct EdgeletQCmp_t
-    //!< Compares query lo coord
+//!< Compares query lo coord
 {
   bool operator( ) (const DeltaEdgelet_t * i, const DeltaEdgelet_t * j) const
   { return ( i -> loQ < j -> loQ ); }
@@ -167,7 +168,7 @@ struct EdgeletQCmp_t
 
 
 struct EdgeletRCmp_t
-    //!< Compares reference lo coord
+//!< Compares reference lo coord
 {
   bool operator( ) (const DeltaEdgelet_t * i, const DeltaEdgelet_t * j) const
   { return ( i -> loR < j -> loR ); }
@@ -175,17 +176,46 @@ struct EdgeletRCmp_t
 
 
 struct LIS_t
-    //!< LIS score
+//!< LIS score
 {
   DeltaEdgelet_t * a;
   long int score;
+  long int diff;
   long int from;
+  bool used;
 };
 
 
 
 
 //========================================================== Fuction Decs ====//
+//------------------------------------------------------------ DiffAligns ----//
+inline long int DiffAligns
+(const DeltaEdgelet_t * i, const DeltaEdgelet_t * j)
+{
+  return
+    ( ( j->loR < i->loR ) ? labs (j->hiR - i->loR) : labs (i->hiR - j->loR) ) +
+    ( ( j->loQ < i->loQ ) ? labs (j->hiQ - i->loQ) : labs (i->hiQ - j->loQ) );
+}
+
+
+//------------------------------------------------------------ PickBest ------//
+long int PickBest (const LIS_t * lis, const vector<long int> & allbest)
+{
+  long int size = allbest . size( );
+  if ( OPT_Epsilon < 0 && size != 0 )
+    {
+      long int eqc = 0;
+      for ( ; eqc < size; ++ eqc )
+        if ( lis[allbest[eqc]] . diff != lis[allbest . front( )] . diff )
+          break;
+      
+      return (int)((double)eqc*rand() / (RAND_MAX + 1.0));
+    }
+  return size;
+}
+
+
 //------------------------------------------------------------------ RevC ----//
 inline unsigned long int RevC (const unsigned long int & coord,
                                const unsigned long int & len)
@@ -219,6 +249,47 @@ inline long int ScoreGlobal
 inline void Swap (unsigned long int & a, unsigned long int & b)
 {
   unsigned long int t = a; a = b; b = t;
+}
+
+
+//------------------------------------------------------------ UpdateBest ----//
+bool UpdateBest (LIS_t * lis, long int size, vector<long int> & allbest)
+{
+  long int best, i;
+
+  //-- Find the best
+  for ( best = 0; best < size; ++ best )
+    if ( ! lis[best] . used )
+      break;
+  for ( i = best + 1; i < size; ++ i )
+    if ( ! lis[i] . used
+         &&
+         ( lis[i] . score > lis[best] . score
+           ||
+           (lis[i] . score == lis[best] . score &&
+            lis[i] . diff  <  lis[best] . diff) ) )
+      best = i;
+
+  //-- Nonequivalent
+  if ( ! allbest . empty( )
+       &&
+       (best == size
+        ||
+        (OPT_Epsilon < 0 &&
+         lis[best].score < lis[allbest.front( )].score)
+        ||
+        (OPT_Epsilon >= 0 &&
+         (float)(lis[allbest . front( )].score - lis[best].score) /
+         (float)(lis[allbest . front( )].score) * 100.0 > OPT_Epsilon)) )
+    return false;
+  
+  //-- Equivalent
+  allbest . push_back (best);
+
+  for ( i = best; i >= 0  &&  i < size; i = lis[i] . from )
+    lis[i] . used = true;
+
+  return true;
 }
 
 
@@ -272,7 +343,7 @@ void PrintUsage (const char * s);
 int main (int argc, char ** argv)
 {
   DeltaGraph_t graph;
-
+  srand (1);
 
   //-- Command line parsing
   ParseArgs (argc, argv);
@@ -432,8 +503,8 @@ void FlagGLIS (DeltaGraph_t & graph)
 {
   LIS_t * lis = NULL;
   long int lis_size = 0;
-  long int i, j, n, best;
-  long int olap, olapQ, olapR, len, lenQ, lenR, score;
+  long int i, j, n;
+  long int olap, olapQ, olapR, len, lenQ, lenR, score, diff;
 
   vector<DeltaEdgelet_t *> edgelets;
 
@@ -472,66 +543,83 @@ void FlagGLIS (DeltaGraph_t & graph)
                   }
               }
 
-          //-- Resize
+          //-- Resize and initialize
           n = edgelets . size( );
           if ( n > lis_size )
             {
               lis = (LIS_t *) Safe_realloc (lis, sizeof (LIS_t) * n);
               lis_size = n;
             }
+          for ( i = 0; i < n; ++ i )
+            lis[i] . used = false;
 
           //-- Sort by lo query coord
           sort (edgelets . begin( ), edgelets . end( ), EdgeletQCmp_t( ));
 
-          //-- Dynamic
-          for ( i = 0; i < n; ++ i )
+          //-- Continue until all equivalent repeats are extracted
+          vector<long int> allbest;
+          do
             {
-              lis[i] . a = edgelets[i];
-              lis[i] . score = lis[i] . a -> hiQ - lis[i] . a -> loQ + 1;
-              lis[i] . from = -1;
-
-              for ( j = 0; j < i; ++ j )
+              //-- Dynamic
+              for ( i = 0; i < n; ++ i )
                 {
-                  if ( lis[i] . a -> dirQ != lis[j] . a -> dirQ )
-                    continue;
-                  
-                  lenR = lis[i] . a -> hiR - lis[i] . a -> loR + 1;
-                  lenQ = lis[i] . a -> hiQ - lis[i] . a -> loQ + 1;
-                  len = lenR > lenQ ? lenQ : lenR;
-                  
-                  olapR = lis[j] . a -> hiR - lis[i] . a -> loR + 1;
-                  olapQ = lis[j] . a -> hiQ - lis[i] . a -> loQ + 1;
-                  olap = olapR > olapQ ? olapR : olapQ;
-                  if ( olap < 0 )
-                    olap = 0;
+                  if ( lis[i] . used ) continue;
 
-                  score =
-                    ScoreGlobal
-                    (lis[j] . score, len, olap, lis[i] . a -> idy);
-                  if ( score > lis[i] . score )
+                  lis[i] . a = edgelets[i];
+                  lis[i] . score = lis[i] . a -> hiQ - lis[i] . a -> loQ + 1;
+                  lis[i] . from = -1;
+                  lis[i] . diff = 0;
+                  
+                  for ( j = 0; j < i; ++ j )
                     {
-                      lis[i] . from = j;
-                      lis[i] . score = score;
+                      if ( lis[j] . used ) continue;
+
+                      if ( lis[i] . a -> dirQ != lis[j] . a -> dirQ )
+                        continue;
+                  
+                      lenR = lis[i] . a -> hiR - lis[i] . a -> loR + 1;
+                      lenQ = lis[i] . a -> hiQ - lis[i] . a -> loQ + 1;
+                      len = lenR > lenQ ? lenQ : lenR;
+                  
+                      olapR = lis[j] . a -> hiR - lis[i] . a -> loR + 1;
+                      olapQ = lis[j] . a -> hiQ - lis[i] . a -> loQ + 1;
+                      olap = olapR > olapQ ? olapR : olapQ;
+                      if ( olap < 0 )
+                        olap = 0;
+
+                      diff = lis[j] . diff + DiffAligns (lis[i].a, lis[j].a);
+
+                      score = ScoreGlobal
+                        (lis[j] . score, len, olap, lis[i] . a -> idy);
+
+                      if ( score > lis[i] . score
+                           ||
+                           (score == lis[i] . score && diff < lis[i] . diff) )
+                        {
+                          lis[i] . from = j;
+                          lis[i] . score = score;
+                          lis[i] . diff = diff;
+                        }
                     }
                 }
-            }
+            } while ( UpdateBest (lis, n, allbest) );
 
-          //-- Backtrack and flag the GLIS edgelets
-          best = 0;
-          for ( i = 1; i < n; ++ i )
-            if ( lis[i] . score > lis[best] . score )
-              best = i;
+          long int beg = PickBest (lis, allbest);
+          long int end = allbest . size( );
+          if ( beg == end ) beg = 0;
+          else end = beg + 1;
 
-          for ( i = best; i >= 0  &&  i < n; i = lis[i] . from )
-            lis[i] . a -> isGLIS = true;
+          //-- Flag the edgelets
+          for ( ; beg < end; ++ beg )
+            for ( i = allbest[beg]; i >= 0  &&  i < n; i = lis[i] . from )
+              lis[i] . a -> isGLIS = true;
 
-          //-- Flag the edgelets not in the GLIS
+          //-- Repair the coordinates
           for ( eli = edgelets . begin( ); eli != edgelets . end( ); ++ eli )
             {
               if ( ! (*eli) -> isGLIS )
                 (*eli) -> isGOOD = false;
 
-              //-- Bring the coordinates back to normal
               if ( (*eli) -> dirQ == FORWARD_DIR )
                 {
                   (*eli) -> dirQ = (*eli) -> dirR;
@@ -589,8 +677,8 @@ void FlagQLIS (DeltaGraph_t & graph)
 {
   LIS_t * lis = NULL;
   long int lis_size = 0;
-  long int i, j, n, best;
-  long int olap, leni, lenj, score;
+  long int i, j, n;
+  long int olap, leni, lenj, score, diff;
 
   vector<DeltaEdgelet_t *> edgelets;
 
@@ -611,52 +699,70 @@ void FlagQLIS (DeltaGraph_t & graph)
           if ( (*eli) -> isGOOD )
             edgelets . push_back (*eli);
 
-      //-- Resize
+      //-- Resize and initialize
       n = edgelets . size( );
       if ( n > lis_size )
         {
           lis = (LIS_t *) Safe_realloc (lis, sizeof (LIS_t) * n);
           lis_size = n;
         }
+      for ( i = 0; i < n; ++ i )
+        lis[i] . used = false;
 
       //-- Sort by lo query coord
       sort (edgelets . begin( ), edgelets . end( ), EdgeletQCmp_t( ));
 
-      //-- Dynamic
-      for ( i = 0; i < n; ++ i )
+      //-- Continue until all equivalent repeats are extracted
+      vector<long int> allbest;
+      do
         {
-          lis[i] . a = edgelets[i];
-          lis[i] . score = lis[i] . a -> hiQ - lis[i] . a -> loQ + 1;
-          lis[i] . from = -1;
-
-          for ( j = 0; j < i; ++ j )
+          //-- Dynamic
+          for ( i = 0; i < n; ++ i )
             {
-              leni = lis[i] . a -> hiQ - lis[i] . a -> loQ + 1;
-              lenj = lis[j] . a -> hiQ - lis[j] . a -> loQ + 1;
-              olap = lis[j] . a -> hiQ - lis[i] . a -> loQ + 1;
-              if ( olap < 0 )
-                olap = 0;
-              
-              score = ScoreLocal
-                (lis[j] . score, leni, lenj, olap, lis[i] . a -> idy);
-              if ( score > lis[i] . score )
+              if ( lis[i] . used ) continue;
+
+              lis[i] . a = edgelets[i];
+              lis[i] . score = lis[i] . a -> hiQ - lis[i] . a -> loQ + 1;
+              lis[i] . from = -1;
+              lis[i] . diff = 0;
+
+              for ( j = 0; j < i; ++ j )
                 {
-                  lis[i] . from = j;
-                  lis[i] . score = score;
+                  if ( lis[j] . used ) continue;
+
+                  leni = lis[i] . a -> hiQ - lis[i] . a -> loQ + 1;
+                  lenj = lis[j] . a -> hiQ - lis[j] . a -> loQ + 1;
+                  olap = lis[j] . a -> hiQ - lis[i] . a -> loQ + 1;
+                  if ( olap < 0 )
+                    olap = 0;
+
+                  diff = lis[j] . diff + DiffAligns (lis[i].a, lis[j].a);
+
+                  score = ScoreLocal
+                    (lis[j] . score, leni, lenj, olap, lis[i] . a -> idy);
+
+                  if ( score > lis[i] . score
+                       ||
+                       (score == lis[i] . score && diff < lis[i] . diff) )
+                    {
+                      lis[i] . from = j;
+                      lis[i] . score = score;
+                      lis[i] . diff = diff;
+                    }
                 }
             }
-        }
+        } while ( UpdateBest (lis, n, allbest) );
 
-      //-- Backtrack and flag the QLIS edgelets
-      best = 0;
-      for ( i = 1; i < n; ++ i )
-        if ( lis[i] . score > lis[best] . score )
-          best = i;
+      long int beg = PickBest (lis, allbest);
+      long int end = allbest . size( );
+      if ( beg == end ) beg = 0;
+      else end = beg + 1;
 
-      for ( i = best; i >= 0  &&  i < n; i = lis[i] . from )
-        lis[i] . a -> isQLIS = true;
+      //-- Flag the edgelets
+      for ( ; beg < end; ++ beg )
+        for ( i = allbest[beg]; i >= 0  &&  i < n; i = lis[i] . from )
+          lis[i] . a -> isQLIS = true;
 
-      //-- Flag the edgelets not in the QLIS
       for ( eli = edgelets . begin( ); eli != edgelets . end( ); ++ eli )
         if ( ! (*eli) -> isQLIS )
           (*eli) -> isGOOD = false;
@@ -673,8 +779,8 @@ void FlagRLIS (DeltaGraph_t & graph)
 {
   LIS_t * lis = NULL;
   long int lis_size = 0;
-  long int i, j, n, best;
-  long int olap, leni, lenj, score;
+  long int i, j, n;
+  long int olap, leni, lenj, score, diff;
 
   vector<DeltaEdgelet_t *> edgelets;
 
@@ -702,45 +808,63 @@ void FlagRLIS (DeltaGraph_t & graph)
           lis = (LIS_t *) Safe_realloc (lis, sizeof (LIS_t) * n);
           lis_size = n;
         }
+      for ( i = 0; i < n; ++ i )
+        lis[i] . used = false;
 
       //-- Sort by lo reference coord
       sort (edgelets . begin( ), edgelets . end( ), EdgeletRCmp_t( ));
 
-      //-- Dynamic
-      for ( i = 0; i < n; ++ i )
+      //-- Continue until all equivalent repeats are extracted
+      vector<long int> allbest;
+      do
         {
-          lis[i] . a = edgelets[i];
-          lis[i] . score = lis[i] . a -> hiR - lis[i] . a -> loR + 1;
-          lis[i] . from = -1;
-
-          for ( j = 0; j < i; ++ j )
+          //-- Dynamic
+          for ( i = 0; i < n; ++ i )
             {
-              leni = lis[i] . a -> hiR - lis[i] . a -> loR + 1;
-              lenj = lis[j] . a -> hiR - lis[j] . a -> loR + 1;
-              olap = lis[j] . a -> hiR - lis[i] . a -> loR + 1;
-              if ( olap < 0 )
-                olap = 0;
+              if ( lis[i] . used ) continue;
 
-              score = ScoreLocal
-                (lis[j] . score, leni, lenj, olap, lis[i] . a -> idy);
-              if ( score > lis[i] . score )
+              lis[i] . a = edgelets[i];
+              lis[i] . score = lis[i] . a -> hiR - lis[i] . a -> loR + 1;
+              lis[i] . from = -1;
+              lis[i] . diff = 0;
+
+              for ( j = 0; j < i; ++ j )
                 {
-                  lis[i] . from = j;
-                  lis[i] . score = score;
+                  if ( lis[j] . used ) continue;
+
+                  leni = lis[i] . a -> hiR - lis[i] . a -> loR + 1;
+                  lenj = lis[j] . a -> hiR - lis[j] . a -> loR + 1;
+                  olap = lis[j] . a -> hiR - lis[i] . a -> loR + 1;
+                  if ( olap < 0 )
+                    olap = 0;
+
+                  diff = lis[j] . diff + DiffAligns (lis[i].a, lis[j].a);
+
+                  score = ScoreLocal
+                    (lis[j] . score, leni, lenj, olap, lis[i] . a -> idy);
+
+                  if ( score > lis[i] . score
+                       ||
+                       (score == lis[i] . score && diff < lis[i] . diff) )
+                    {
+                      lis[i] . from = j;
+                      lis[i] . score = score;
+                      lis[i] . diff = diff;
+                    }
                 }
             }
-        }
+        } while ( UpdateBest (lis, n, allbest) );
 
-      //-- Backtrack and flag the RLIS edgelets
-      best = 0;
-      for ( i = 1; i < n; ++ i )
-        if ( lis[i] . score > lis[best] . score )
-          best = i;
+      long int beg = PickBest (lis, allbest);
+      long int end = allbest . size( );
+      if ( beg == end ) beg = 0;
+      else end = beg + 1;
+      
+      //-- Flag the edgelets
+      for ( ; beg < end; ++ beg )
+        for ( i = allbest[beg]; i >= 0  &&  i < n; i = lis[i] . from )
+          lis[i] . a -> isRLIS = true;
 
-      for ( i = best; i >= 0  &&  i < n; i = lis[i] . from )
-        lis[i] . a -> isRLIS = true;
-
-      //-- Flag the edgelets not in the RLIS
       for ( eli = edgelets . begin( ); eli != edgelets . end( ); ++ eli )
         if ( ! (*eli) -> isRLIS )
           (*eli) -> isGOOD = false;
@@ -936,9 +1060,13 @@ void ParseArgs (int argc, char ** argv)
   optarg = NULL;
   
   while ( !errflg  &&
-          ((ch = getopt (argc, argv, "ghi:l:o:qru:")) != EOF) )
+          ((ch = getopt (argc, argv, "e:ghi:l:o:qru:")) != EOF) )
     switch (ch)
       {
+      case 'e':
+        OPT_Epsilon = atof (optarg);
+        break;
+
       case 'g':
         OPT_GLIS = true;
         break;
@@ -1018,6 +1146,8 @@ void PrintHelp (const char * s)
 {
   PrintUsage (s);
   cerr
+    << "-e float      For switches -g -r -q, keep repeats within e percent\n"
+    << "              of the best LIS score [0, 100], no repeats by default\n"
     << "-g            Global alignment using length*identity weighted LIS.\n"
     << "              For every reference-query pair, leave only the aligns\n"
     << "              which form the longest mutually consistent set\n"
