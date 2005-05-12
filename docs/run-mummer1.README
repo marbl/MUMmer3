@@ -1,5 +1,14 @@
 -=- run-mummer1 (MUMmer1.0) README -=-
 
+** NOTE **
+This manual is outdated, please refer to the HTML documentation included in
+this distribution or at:
+
+   http://www.tigr.org/software/mummer
+   http://www.tigr.org/software/mummer/manual
+   http://www.tigr.org/software/mummer/examples
+
+
 This is the README for the original MUMmer 1.0 system, which is
 included in the MUMmer 3 package.  It is slower and uses more memory,
 but it does have some slightly different functions and output so we

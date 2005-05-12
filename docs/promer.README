@@ -18,6 +18,14 @@ A.L. Delcher. A. Phillippy, J. Carlton, and S.L. Salzberg.  Nucleic
 Acids Research 30:11 (2002), 2478-2483.
 --------------------------------------------------------------------------------
 
+** NOTE **
+This manual is outdated, please refer to the HTML documentation included in
+this distribution or at:
+
+   http://www.tigr.org/software/mummer
+   http://www.tigr.org/software/mummer/manual
+   http://www.tigr.org/software/mummer/examples
+
 
 -- DESCRIPTION --
    PROmer3.0 (PROtein MUMmer) is a suite of programs to modify and refine

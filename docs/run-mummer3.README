@@ -1,5 +1,14 @@
 -=- run-mummer3 (MUMmer3.0) README -=-
 
+** NOTE **
+This manual is outdated, please refer to the HTML documentation included in
+this distribution or at:
+
+   http://www.tigr.org/software/mummer
+   http://www.tigr.org/software/mummer/manual
+   http://www.tigr.org/software/mummer/examples
+
+
 If any of this code is used in any publication, please cite the following:
 
   Fast algorithms for large-scale genome alignment and comparison.

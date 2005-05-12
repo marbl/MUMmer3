@@ -1,8 +1,8 @@
 -=- MUMmer3.x README -=-
 
-** NEW **
+** NOTE **
 A comprehensive HTML user manual is available in the docs/htmlmanual
-subdirectory or at http://www.tigr.org/software/mummer/manual.
+subdirectory or at http://www.tigr.org/software/mummer/manual
 
 MUMmer is now an open source package!  Please contact us if you would like
 to contribute to the MUMmer project.  For more information or the latest
@@ -350,10 +350,12 @@ and usage definitions for these utilities.
         or promer, leaving only the desired alignments which are output to
         stdout in the same delta format as the input. Its primary function is
         the LIS clustering algorithm which calculates the longest increasing
-        subset of alignments. It can also exclude alignments based on uniqueness
-        and identity constraints. This allows the user to exclude chance and
-        repeat induced alignments, leaving only the "correct" alignments between
-        the two data sets.
+        subset of alignments. This allows for the calculation of a global set
+        of alignments (i.e. one-to-one and mutually consistent order) with the
+        -g option or locally consistent with -r and -q. It can also exclude
+        alignments based on uniqueness and identity constraints. This allows
+        the user to exclude chance and repeat induced alignments, leaving only
+        the "best" alignments between the two data sets.
 
         USAGE:
         delta-filter  [options]  <deltafile>
@@ -366,10 +368,8 @@ and usage definitions for these utilities.
 
         NOTES:
         Use the -g option for sequences with no rearrangements.
-        Use the -q -r option for sequences with rearrangements.
-        Add the -u option with a value like 25 to insure uniqueness.
-        Thus, for SNP calling, 'delta-filter -r -q -u 25' would be a good
-        pre-filter.
+        Use the -q -r options for sequences with rearrangements.
+        These options make good pre-filters for SNP identification.
 
 
    ** exact-tandems **
@@ -475,7 +475,7 @@ and usage definitions for these utilities.
                      reference, start in query, and length of the match.
 
         OUTPUT:
-        stdout  an ordered set of the input matches, separated by headers.
+        stdout  An ordered set of the input matches, separated by headers.
                 Individual clusters are separated by a '#' character and
                 sets of clusters from different sequences are separated by
                 the FastA header tag for the query sequence.
@@ -525,31 +525,38 @@ and usage definitions for these utilities.
    ** mummerplot **
 
         DESCRIPTION:
-        mummerplot is the only graphical package included with the MUMmer3.0
-        release.  It is a perl script that generates gnuplot scripts and data
+        mummerplot is a perl script that generates gnuplot scripts and data
         collections for plotting with the gnuplot utility.  It can generate
-        2-d dotplots and 1-d coverage plots for the output of mummer, nucmer
-        or promer.
+        2-d dotplots and 1-d coverage plots for the output of mummer, nucmer,
+        promer or show-tiling. It can also color dotplots with an identity
+        color gradient.
 
         USAGE:
         mummerplot  [options]  <matchfile>
 
         [options]    type 'mummerplot -h' for a list of options.
-        <matchfile>  the output of 'mummer' run on a 1-vs-1 or 1-vs-many
-                     dataset, or 'nucmer', or 'promer' or 'show-tiling'.
-                     'mummerplot' will automatically determine the format of
-                     data it was given and produce the plot accordingly.
+        <matchfile>  the output of 'mummer', 'nucmer', 'promer', or
+                     'show-tiling'. 'mummerplot' will automatically determine
+                     the format of the data it was given and produce the plot
+                     accordingly.
 
         OUTPUT:
-        out.gp    the necessary gnuplot script, type 'gnuplot out.gp' to view
-                  the plot.
+        out.gp     The gnuplot script, type 'gnuplot out.gp' to evaluate the
+                   the gnuplot script.
+        out.fplot
+        out.rplot
+        out.hplot  The forward, reverse and highlighted match information for
+                   plotting with gnuplot.
 
-        out.plot  the gnuplot data collection.
+        out.ps
+        out.png    The plotted image file, postscript or png depending on the
+                   selected terminal type.
 
         NOTES:
-        For better looking plots use the --postscript switch to generate
-        postscript output.  When 'gnuplot out.gp' is run, a "out.ps" file will
-        be generated with the postscript version of the plot.
+        For alignments with multiple reference or query sequences, be sure to
+        use the -r -q or -R -Q options to avoid overlaying multiple plots in
+        the same space. For better looking color gradient plots, try the
+        postscript terminal and avoid the png terminal.
 
 
    ** nucmer2xfig **
@@ -694,6 +701,68 @@ and usage definitions for these utilities.
         orientation, so should not be used if this information is needed.
 
 
+   ** show-snps **
+
+        DESCRIPTION:
+        This program reports polymorphism contained in a delta encoded
+        alignment file output by either NUCmer or PROmer. It catalogs
+        all of the single nucleotide polymorphisms (SNPs) and
+        insertions/deletions within the delta file
+        alignments. Polymorphisms are reported one per line, in a
+        delimited fashion similar to show-coords. Pairing this program
+        with the appropriate MUMmer tools can create an easy to use
+        SNP pipeline for the rapid identification of putative SNPs
+        between any two sequence sets.
+
+        USAGE:
+        show-snps  [options]  <deltafile>
+
+        [options]    type 'show-snps -h' for a list of options.
+        <deltafile>  the .delta output file from either NUCmer or PROmer.
+
+        OUTPUT:
+        stdout  Standard output has column headers with the following
+                meanings. Not all columns will be output by default,
+                see 'show-snps -h' for switch to control the output.
+
+        [P1]    SNP position in the reference.
+
+        [SUB]   Character in the reference.
+
+        [SUB]   Character in the query.
+
+        [P2]    SNP position in the query.
+
+        [BUFF]  Distance from this SNP to the nearest mismatch (end of
+        alignment, indel, SNP, etc) in the same alignment.
+
+        [DIST]  Distance from this SNP to the nearest sequence end.
+
+        [R]     Number of repeat alignments which cover this reference
+        position, >0 means repetitive sequence.
+
+        [Q]     Number of repeat alignments which cover this query
+        position, >0 means repetitive sequence.
+
+        [LEN R] Length of the reference sequence.
+
+        [LEN Q] Length of the query sequence.
+
+        [CTX R] Surrounding context sequence in the reference.
+
+        [CTX Q] Surrounding context sequence in the query.
+
+        [FRM]   Reading frame for the reference sequence and the
+        reading frame for the query sequence respectively. Simply
+        'forward' 1, or 'reverse' -1 for NUCmer data.
+
+        [TAGS]  The reference FastA ID and the query FastA ID.
+
+        NOTES:
+        It is often helpful to run this with the -C option to assure
+        reported SNPs are only reported from uniquely aligned regions.
+
+
    ** show-tiling **
 
         DESCRIPTION:
@@ -734,4 +803,4 @@ and usage definitions for these utilities.
 
 Please address questions and bug reports to: <mummer@tigr.org>
 
-Last Revised September 28, 2004
+Last Revised February 22, 2005
