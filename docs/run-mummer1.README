@@ -4,10 +4,9 @@
 This manual is outdated, please refer to the HTML documentation included in
 this distribution or at:
 
-   http://www.tigr.org/software/mummer
-   http://www.tigr.org/software/mummer/manual
-   http://www.tigr.org/software/mummer/examples
-
+   http://mummer.sourceforge.net
+   http://mummer.sourceforge.net/manual
+   http://mummer.sourceforge.net/examples
 
 This is the README for the original MUMmer 1.0 system, which is
 included in the MUMmer 3 package.  It is slower and uses more memory,
@@ -30,12 +29,12 @@ please cite the following:
 MUMmer works on Unix only.  This README file is the only documentation
 besides the code itself.  Since it is free, we cannot provide any
 other support.  The system is very easy to use, but you need to invest
-a few minutes up front reading this file and figuring out how to 
+a few minutes up front reading this file and figuring out how to
 interpret the output.  If you discover bugs, we would be interested in
 hearing about them so we can correct them.  Address bug reports to
-mummer@tigr.org.  The system uses a LOT of RAM - if it crashes
-for that reason, that's not a bug.  We recommend at least 512Mb to
-align most pairs of bacterial genomes, and 1Gb or more may be
+<mummer-help@lists.sourceforge.net>. The system uses a LOT of RAM - if
+it crashes for that reason, that's not a bug.  We recommend at least
+512Mb to align most pairs of bacterial genomes, and 1Gb or more may be
 required.
 
 To use this system, first compile it by typing 'make' at the
@@ -96,5 +95,5 @@ Files in this directory:
      <tag> will be used to make output files:  <tag>.out , <tag>.gaps
      and  <tag>.align .  -r  will reverse complement <genome2>
 
-Email questions, comments or bug reports to: <mummer@tigr.org>
+Email questions, comments or bug reports to: <mummer-help@lists.sourceforge.net>
 

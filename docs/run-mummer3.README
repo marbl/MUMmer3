@@ -4,11 +4,10 @@
 This manual is outdated, please refer to the HTML documentation included in
 this distribution or at:
 
-   http://www.tigr.org/software/mummer
-   http://www.tigr.org/software/mummer/manual
-   http://www.tigr.org/software/mummer/examples
-
-
+   http://mummer.sourceforge.net
+   http://mummer.sourceforge.net/manual
+   http://mummer.sourceforge.net/examples
+ 
 If any of this code is used in any publication, please cite the following:
 
   Fast algorithms for large-scale genome alignment and comparison.
@@ -97,4 +96,4 @@ OUTPUT FILES:
         previous alignment region, a error ratio, and an error percentage.
 
 
-Email questions, comments or bug reports to: <mummer@tigr.org>
+Email questions, comments or bug reports to: <mummer-help@lists.sourceforge.net>

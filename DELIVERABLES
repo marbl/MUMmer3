@@ -19,6 +19,7 @@ run-mummer1    - whole genome alignment tool using 'gaps'
 run-mummer3    - whole genome alignment tool using 'mgaps'
 show-aligns    - converts 'nuc/promer' output into pairwise alignments
 show-coords    - converts 'nuc/promer' output into a coordinate table
+show-snps      - converts 'nuc/promer' output into a catalog of SNPs
 show-tiling    - converts 'nuc/promer' output into reference-based tiling paths
 
 /usr/local/packages/MUMmer/aux_bin
@@ -44,11 +45,12 @@ run-mummer1
 run-mummer3
 show-aligns
 show-coords
+show-snps
 show-tiling
 
 /usr/local/doc/MUMmer
 all MUMmer documentation
 
-http://www.tigr.org/software/mummer           - MUMmer homepage
-http://www.tigr.org/software/mummer/manual    - MUMmer users manual
-http://www.tigr.org/software/mummer/examples  - MUMmer examples page
+http://mummer.sourceforge.net                 - MUMmer homepage
+http://mummer.sourceforge.net/manual          - MUMmer users manual
+http://mummer.sourceforge.net/examples        - MUMmer examples page

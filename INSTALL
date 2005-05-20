@@ -77,7 +77,7 @@ via the system path:
 to download and install the following utilities:
 
     - fig2dev (fig2dev 3.2.3)
-    - gnuplot (gnuplot 3.7)
+    - gnuplot (gnuplot 4.0)
     - xfig    (xfig    3.2)
 
 
@@ -91,6 +91,6 @@ to download and install the following utilities:
 base and aux_bin directories. The original source files will remain unchanged,
 thus reverting the package to its post-untar, pre-install state.
 
-Please address questions and bug reports to: <mummer@tigr.org>
+Please address questions and bug reports to: <mummer-help@lists.sourceforge.net>
 
-Last update: October 30, 2003
+Last update: May 12, 2005

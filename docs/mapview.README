@@ -2,8 +2,8 @@
  -----------------------------------------------------------------------
                    MapView Utility software
                                          Version 1.0
-  Contact: mummer@tigr.org
-  Web: www.tigr.org/software
+  Contact: <mummer-help@lists.sourceforge.net>
+  Web: http://mummer.sourceforge.net
  -----------------------------------------------------------------------
  LICENCE: open source, included with MUMmer 3.0 and above
  USAGE: see section 4, below.
@@ -14,7 +14,7 @@
  MapView is an utility program for displaying sequence alignments
  as provided by NUCmer or PROmer. For further information regarding these
  programs, please see the documentation and code at
- http://www.tigr.org/software/mummer.  MapView takes the output from
+ http://mummer.sourceforge.net .  MapView takes the output from
  these programs and converts it to a FIG, PDF or PS file.  It can 
  break the output into multiple files for easier viewing and printing.
  Note that for very large reference genomes, FIG files viewed in the
@@ -71,7 +71,7 @@
  ....
 
  For more information and an explanation of this format, please see
- the MUMmer manual <http://www.tigr.org/software/mummer/manual/>.
+ the MUMmer manual http://mummer.sourceforge.net/manual
 
 
  4. USAGE

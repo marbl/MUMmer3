@@ -296,4 +296,3 @@ the beginning of this file.
 
 END OF DOC
 
-author: Adam M Phillippy, aphillip@tigr.org

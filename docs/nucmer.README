@@ -19,10 +19,9 @@ Acids Research 30:11 (2002), 2478-2483.
 This manual is outdated, please refer to the HTML documentation included in
 this distribution or at:
 
-   http://www.tigr.org/software/mummer
-   http://www.tigr.org/software/mummer/manual
-   http://www.tigr.org/software/mummer/examples
-
+   http://mummer.sourceforge.net
+   http://mummer.sourceforge.net/manual
+   http://mummer.sourceforge.net/examples
 
 -- DESCRIPTION --
    NUCmer3.0 (NUCleotide MUMmer) is a suite of programs to modify and refine

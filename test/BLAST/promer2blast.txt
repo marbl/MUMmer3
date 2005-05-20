@@ -218,5 +218,3 @@ BLAST did not recognize it (or score it high enough) to be a hit.
 
 
 END OF DOC
-
-author: Adam M Phillippy, aphillip@tigr.org

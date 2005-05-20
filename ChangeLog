@@ -35,3 +35,5 @@
 3.14 - Fixed gcc3 compilation bug
 3.15 - Fixed --nooptimize in nuc/promer.
 3.16 - Added 'delta-filter' utility
+3.17 - Too many changes to list. Added/improved delta-filter, show-snps,
+       mummerplot, and mgaps. Multiplot capability added to mummerplot.

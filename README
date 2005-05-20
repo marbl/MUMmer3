@@ -1,13 +1,12 @@
 -=- MUMmer3.x README -=-
 
 ** NOTE **
-A comprehensive HTML user manual is available in the docs/htmlmanual
-subdirectory or at http://www.tigr.org/software/mummer/manual
+A comprehensive HTML user manual is available in the docs/web/manual
+subdirectory or at http://mummer.sourceforge.net/manual
 
 MUMmer is now an open source package!  Please contact us if you would like
 to contribute to the MUMmer project.  For more information or the latest
-release please visit the MUMmer homepage:
-http://www.tigr.org/software/mummer/
+release please visit the MUMmer homepage at http://mummer.sourceforge.net
 
 Please refer to the INSTALL file for installation instructions.  This file
 contains brief descriptions of all executables in the base directory and
@@ -88,17 +87,11 @@ explanation.
 the perl script 'mummerplot' on the output files. This script can be run
 on mummer output (.out), or nucmer/promer output (.cluster .delta). Edit the
 <prefix>.gp file that is created to change colors, line thicknesses, etc. or
-explore the <prefix>.plot file to see the data collection.
+explore the <prefix>.[fr]plot file to see the data collection.
 
    'mummerplot  -p <prefix>  <prefix>.out'
-   'gnuplot <prefix>.gp'
 
-   To see a more elaborate output, run the DisplayMUMs package, which has
-its own documentation.  DisplayMUMs is available for free from the webpage
-or by anonymous ftp at ftp.tigr.org in pub/software/DisplayMUMs/.  Please note
-that DisplayMUMs is still in its development stage and requires large amounts
-of memory and time to initialize the Java heap.  Or you can use the viewer
-the web for completed microbial genomes only:
+   Or you can use the web viewer for completed microbial genomes:
 http://www.tigr.org/CMR
 
 
@@ -801,6 +794,6 @@ and usage definitions for these utilities.
 
 -- CONTACT INFORMATION --
 
-Please address questions and bug reports to: <mummer@tigr.org>
+Please address questions and bug reports to: <mummer-help@lists.sourceforge.net>
 
-Last Revised February 22, 2005
+Last Revised May 12, 2005
