@@ -103,6 +103,7 @@ dist:
 	cp -r scripts $(DISTDIR)
 	cp -r src $(DISTDIR)
 	cp $(FLATS) $(DISTDIR)
+	rm -rf `find $(DISTDIR) -name CVS`
 	tar -cvf $(DISTDIR).tar $(DISTDIR)
 	gzip $(DISTDIR).tar
 	rm -rf $(DISTDIR)
