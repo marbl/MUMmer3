@@ -326,7 +326,14 @@ sub GetParseFunc ( )
       }
 
       #-- nucmer/promer
-      if ( /^\S+ \S+/ ) {
+      if ( /^(\S+) (\S+)/ ) {
+          if ( ! defined $OPT_IDRfile ) {
+              $OPT_IDRfile = $1;
+          }
+          if ( ! defined $OPT_IDQfile ) {
+              $OPT_IDQfile = $2;
+          }
+
           $_ = <MFILE>;
           if ( (defined)  &&  (/^NUCMER$/  ||  /^PROMER$/) ) {
               $_ = <MFILE>;   # sequence header
@@ -364,7 +371,7 @@ sub ParseIDs ($$)
     my $href = shift;
 
     open (IDFILE, "<$file")
-        or die "ERROR: Could not open $file, $!\n";
+        or print STDERR "WARNING: Could not open $file, $!\n";
 
     my $dir;
     my $aref;
@@ -409,7 +416,9 @@ sub ParseIDs ($$)
         }
 
         #-- default
-        die "ERROR: Could not parse $file\n$_";
+        print STDERR "WARNING: Could not parse $file\n$_";
+        undef %$href;
+        last;
     }
 
     close (IDFILE)
