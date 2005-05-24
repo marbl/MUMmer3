@@ -459,10 +459,13 @@ int main
     }
 
   //-- Process the left-over syntenys
-  if ( !CurrSp->clusters.empty( ) )
-    if ( CurrSp->clusters.rbegin( )->matches.empty( ) )
-      CurrSp->clusters.pop_back( );
-  processSyntenys (Syntenys, Af, As, QryFile, ClusterFile, DeltaFile);
+  if ( !Syntenys.empty( ) )
+    {
+      if ( !CurrSp->clusters.empty( ) )
+        if ( CurrSp->clusters.rbegin( )->matches.empty( ) )
+          CurrSp->clusters.pop_back( );
+      processSyntenys (Syntenys, Af, As, QryFile, ClusterFile, DeltaFile);
+    }
   fclose (QryFile);
 
   //-- Free the reference sequences
