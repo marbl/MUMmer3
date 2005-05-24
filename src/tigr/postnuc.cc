@@ -427,7 +427,7 @@ int main
 		}
 
 	      //-- Add a new cluster to the current synteny
-	      if ( !CurrSp->clusters.empty( ) )
+              if ( !Syntenys.empty( ) && !CurrSp->clusters.empty( ) )
 		if ( CurrSp->clusters.rbegin( )->matches.empty( ) )
 		  CurrSp->clusters.pop_back( ); // hack to remove empties
 	      Aclu.wasFused = false;
@@ -437,7 +437,7 @@ int main
 	  else if ( PrevLine == HEADER_LINE )
 	    {
 	      //-- Add a new cluster to the current synteny
-	      if ( !CurrSp->clusters.empty( ) )
+              if ( !Syntenys.empty( ) && !CurrSp->clusters.empty( ) )
 		if ( CurrSp->clusters.rbegin( )->matches.empty( ) )
 		  CurrSp->clusters.pop_back( );
 	      Aclu.wasFused = false;
@@ -459,13 +459,11 @@ int main
     }
 
   //-- Process the left-over syntenys
-  if ( !Syntenys.empty( ) )
-    {
-      if ( !CurrSp->clusters.empty( ) )
-        if ( CurrSp->clusters.rbegin( )->matches.empty( ) )
-          CurrSp->clusters.pop_back( );
-      processSyntenys (Syntenys, Af, As, QryFile, ClusterFile, DeltaFile);
-    }
+  if ( !Syntenys.empty( ) && !CurrSp->clusters.empty( ) )
+    if ( CurrSp->clusters.rbegin( )->matches.empty( ) )
+      CurrSp->clusters.pop_back( );
+  
+  processSyntenys (Syntenys, Af, As, QryFile, ClusterFile, DeltaFile);
   fclose (QryFile);
 
   //-- Free the reference sequences
