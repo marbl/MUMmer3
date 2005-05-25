@@ -255,6 +255,9 @@ inline void Swap (unsigned long int & a, unsigned long int & b)
 //------------------------------------------------------------ UpdateBest ----//
 bool UpdateBest (LIS_t * lis, long int size, vector<long int> & allbest)
 {
+  if ( size == 0 )
+    return false;
+
   long int best, i;
 
   //-- Find the best
