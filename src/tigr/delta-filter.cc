@@ -569,7 +569,12 @@ void FlagGLIS (DeltaGraph_t & graph)
                   if ( lis[i] . used ) continue;
 
                   lis[i] . a = edgelets[i];
-                  lis[i] . score = lis[i] . a -> hiQ - lis[i] . a -> loQ + 1;
+                  
+                  lenR = lis[i] . a -> hiR - lis[i] . a -> loR + 1;
+                  lenQ = lis[i] . a -> hiQ - lis[i] . a -> loQ + 1;
+                  len = lenR > lenQ ? lenQ : lenR;
+                  lis[i] . score = ScoreGlobal (0, len, 0, lis[i] . a -> idy);
+
                   lis[i] . from = -1;
                   lis[i] . diff = 0;
                   
@@ -725,7 +730,10 @@ void FlagQLIS (DeltaGraph_t & graph)
               if ( lis[i] . used ) continue;
 
               lis[i] . a = edgelets[i];
-              lis[i] . score = lis[i] . a -> hiQ - lis[i] . a -> loQ + 1;
+
+              leni = lis[i] . a -> hiQ - lis[i] . a -> loQ + 1;
+              lis[i] . score = ScoreLocal (0, leni, 0, 0, lis[i] . a -> idy);
+
               lis[i] . from = -1;
               lis[i] . diff = 0;
 
@@ -827,7 +835,10 @@ void FlagRLIS (DeltaGraph_t & graph)
               if ( lis[i] . used ) continue;
 
               lis[i] . a = edgelets[i];
-              lis[i] . score = lis[i] . a -> hiR - lis[i] . a -> loR + 1;
+
+              leni = lis[i] . a -> hiR - lis[i] . a -> loR + 1;
+              lis[i] . score = ScoreLocal (0, leni, 0, 0, lis[i] . a -> idy);
+
               lis[i] . from = -1;
               lis[i] . diff = 0;
 
