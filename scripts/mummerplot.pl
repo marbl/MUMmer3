@@ -1253,6 +1253,7 @@ sub WriteGP ($$)
         "print \"mouse 1: coords to clipboard\"\n",
         "print \"mouse 2: mark on plot\"\n",
         "print \"mouse 3: zoom box\"\n",
+        "print \"'h' for help in plot window\"\n",
         "print \"enter to exit\"\n",
         "pause -1\n";
     }
