@@ -53,153 +53,9 @@ set<string> OPT_Aligns;                 // -S option
 
 
 //============================================================= Constants ====//
-typedef unsigned char DataType_t;
-const DataType_t   NULL_DATA = 0;
-const DataType_t NUCMER_DATA = 1;
-const DataType_t PROMER_DATA = 2;
-
-typedef unsigned char Dir_t;
-const Dir_t FORWARD_DIR = 0;
-const Dir_t REVERSE_DIR = 1;
-
 const char  INDEL_CHAR = '.';
 const char SEQEND_CHAR = '-';
 
-
-
-struct DeltaEdgelet_t;
-struct DeltaEdge_t;
-struct DeltaNode_t;
-
-struct SNP_t
-     //!< A single nuc/aa poly
-{
-  long int buff;
-  char cQ, cR;
-  long int pQ, pR;
-  int conQ, conR;
-  string ctxQ, ctxR;
-  DeltaEdgelet_t * lp;
-  DeltaEdge_t * ep;
-
-  SNP_t ( )
-  {
-    cQ = cR = 0;
-    buff = pQ = pR = 0;
-    conQ = conR = 0;
-  };
-};
-
-
-//-- Data Structure Explanation
-//
-//   A bipartite graph with two partite sets, R and Q, where R is the set of
-//   reference sequences and Q is the set of query sequences. These nodes are
-//   named "DeltaNode_t". We connect a node in R to a node in Q if an alignment
-//   is present between the two sequences. The group of all alignments between
-//   the two is named "DeltaEdge_t" and a single alignment between the two is
-//   named a "DeltaEdgelet_t". Alignment coordinates reference the forward
-//   strand and are stored lo before hi.
-//
-struct DeltaEdgelet_t
-     //!< A piece of a delta graph edge, a single alignment
-{
-  unsigned char dirR   : 1;      // reference match direction
-  unsigned char dirQ   : 1;      // query match direction
-
-  long int loQ, hiQ, loR, hiR;   // alignment bounds
-  int frmQ, frmR;
-
-  vector<long int> delta;        // delta information
-  vector<SNP_t *> snps;          // snps for this edgelet
-
-  DeltaEdgelet_t ( )
-  {
-    dirR = dirQ = FORWARD_DIR;
-    loQ = hiQ = loR = hiR = 0;
-    frmQ = frmR = 1;
-  }
-
-  ~DeltaEdgelet_t ( )
-  {
-    vector<SNP_t *>::iterator i;
-    for ( i = snps . begin( ); i != snps . end( ); ++ i )
-      delete (*i);
-  }
-};
-
-
-struct DeltaEdge_t
-     //!< A delta graph edge, alignments between a single reference and query
-{
-  DeltaNode_t * refnode;      // the adjacent reference node
-  DeltaNode_t * qrynode;      // the adjacent query node
-  vector<DeltaEdgelet_t *> edgelets;     // the set of individual alignments
-
-  DeltaEdge_t ( )
-  {
-    refnode = qrynode = NULL;
-  }
-
-  ~DeltaEdge_t ( )
-  {
-    vector<DeltaEdgelet_t *>::iterator i;
-    for ( i = edgelets . begin( ); i != edgelets . end( ); ++ i )
-      delete (*i);
-  }
-};
-
-
-struct DeltaNode_t
-     //!< A delta graph node, contains the sequence information
-{
-  const string * id;               // the id of the sequence
-  char * seq;                      // the DNA sequence
-  long int len;                    // the length of the sequence
-  vector<DeltaEdge_t *> edges;     // the set of related edges
-
-  DeltaNode_t ( )
-  {
-    id = NULL;
-    seq = NULL;
-    len = 0;
-  }
-
-  ~DeltaNode_t ( )
-  {
-    free (seq);
-    // DeltaGraph_t will take care of destructing the edges
-  }
-};
-
-
-struct DeltaGraph_t
-    //!< A delta graph of sequences and their alignments
-{
-  //-- The reference and query delta graph nodes (1 node per sequence)
-  map<string, DeltaNode_t> refnodes;
-  map<string, DeltaNode_t> qrynodes;
-
-  string refpath;
-  string qrypath;
-  DataType_t datatype;
-
-  DeltaGraph_t ( )
-  {
-    datatype = NULL_DATA;
-  }
-
-  ~DeltaGraph_t ( )
-  {
-    //-- Make sure the edges only get destructed once
-    map<string, DeltaNode_t>::iterator i;
-    vector<DeltaEdge_t *>::iterator j;
-    for ( i = refnodes . begin( ); i != refnodes . end( ); ++ i )
-      for ( j  = i -> second . edges . begin( );
-            j != i -> second . edges . end( ); ++ j )
-        delete (*j);
-  }
-};
 
 
 struct SNP_R_Sort
@@ -287,7 +143,7 @@ inline long int RevC (long int coord, long int len)
 
 
 //------------------------------------------------------------------ Norm ----//
-inline long int Norm (long int c, long int l, int f, DataType_t d)
+inline long int Norm (long int c, long int l, int f, AlignmentType_t d)
 {
   long int retval = (d == PROMER_DATA ? c * 3 - (3 - abs(f)) : c);
   if ( f < 0 ) retval = RevC (retval, l);
@@ -300,14 +156,6 @@ inline void Swap (long int & a, long int & b)
 {
   long int t = a; a = b; b = t;
 }
-
-
-//------------------------------------------------------------- BuildEdge ----//
-void BuildEdge (DeltaEdge_t & edge, const DeltaRecord_t & rec);
-
-
-//------------------------------------------------------------ BuildGraph ----//
-void BuildGraph (DeltaGraph_t & graph);
 
 
 //------------------------------------------------------------- CheckSNPs ----//
@@ -326,10 +174,6 @@ void PrintHuman (const vector<const SNP_t *> & snps,
 //---------------------------------------------------------- PrintTabular ----//
 void PrintTabular (const vector<const SNP_t *> & snps,
                    const DeltaGraph_t & graph);
-
-
-//--------------------------------------------------------- ReadSequences ----//
-void ReadSequences (DeltaGraph_t & graph);
 
 
 //---------------------------------------------------------- SelectAligns ----//
@@ -365,10 +209,10 @@ int main (int argc, char ** argv)
     SelectAligns ( );
 
   //-- Build the alignment graph from the delta file
-  BuildGraph (graph);
+  graph . build (OPT_AlignName, true);
 
   //-- Read sequences
-  ReadSequences (graph);
+  graph . loadSequences ( );
 
   //-- Locate the SNPs
   FindSNPs (graph);
@@ -411,116 +255,6 @@ int main (int argc, char ** argv)
 
 
 
-
-//------------------------------------------------------------- BuildEdge ----//
-void BuildEdge (DeltaEdge_t & edge, const DeltaRecord_t & rec)
-{
-  DeltaEdgelet_t * p;
-
-  vector<DeltaAlignment_t>::const_iterator i;
-  for ( i = rec . aligns . begin( ); i != rec . aligns . end( ); ++ i )
-    {
-      //-- Set the edgelet
-      p = new DeltaEdgelet_t( );
-
-      p -> loR = i -> sR;
-      p -> hiR = i -> eR;
-      p -> loQ = i -> sQ;
-      p -> hiQ = i -> eQ;
-
-      p -> dirR = p -> hiR < p -> loR ? REVERSE_DIR : FORWARD_DIR;
-      p -> dirQ = p -> hiQ < p -> loQ ? REVERSE_DIR : FORWARD_DIR;
-
-      //-- Store the delta information
-      p -> delta = i -> deltas;
-
-      //-- Force loR < hiR && loQ < hiQ
-      if ( p -> dirR == REVERSE_DIR )
-        Swap (p -> loR, p -> hiR);
-      if ( p -> dirQ == REVERSE_DIR )
-        Swap (p -> loQ, p -> hiQ);
-
-      edge . edgelets . push_back (p);
-    }
-}
-
-
-
-
-//------------------------------------------------------------ BuildGraph ----//
-void BuildGraph (DeltaGraph_t & graph)
-{
-  DeltaReader_t dr;
-  DeltaEdge_t * dep;
-  pair<map<string, DeltaNode_t>::iterator, bool> insret;
-
-
-  //-- Open the delta file and read in the alignment information
-  dr . open (OPT_AlignName);
-
-  graph . refpath = dr . getReferencePath( );
-  graph . qrypath = dr . getQueryPath( );
-
-  if ( dr . getDataType( ) == NUCMER_STRING )
-    graph . datatype = NUCMER_DATA;
-  else if ( dr . getDataType( ) == PROMER_STRING )
-    graph . datatype = PROMER_DATA;
-  else
-    graph . datatype = NULL_DATA;
-
-  //-- Read in the next graph edge, i.e. a new delta record
-  while ( dr . readNext( ) )
-    {
-      dep = new DeltaEdge_t( );
-
-      //-- Build the edge
-      BuildEdge (*dep, dr . getRecord( ));
-
-      if ( dep -> edgelets . empty( ) )
-        {
-          delete dep;
-          continue;
-        }
-
-
-      //-- Find the reference node in the graph, add a new one if necessary
-      insret = graph . refnodes . insert
-        (map<string, DeltaNode_t>::value_type
-         (dr . getRecord( ) . idR, DeltaNode_t( )));
-      dep -> refnode = &((insret . first) -> second);
-
-      //-- If a new reference node
-      if ( insret . second )
-        {
-          dep -> refnode -> id  = &((insret . first) -> first);
-          dep -> refnode -> len = dr . getRecord( ) . lenR;
-        }
-
-
-      //-- Find the query node in the graph, add a new one if necessary
-      insret = graph . qrynodes . insert
-        (map<string, DeltaNode_t>::value_type
-         (dr . getRecord( ) . idQ, DeltaNode_t( )));
-      dep -> qrynode = &((insret . first) -> second);
-
-      //-- If a new query node
-      if ( insret . second )
-        {
-          dep -> qrynode -> id  = &((insret . first) -> first);
-          dep -> qrynode -> len = dr . getRecord( ) . lenQ;
-        }
-
-
-      //-- Link the nodes
-      dep -> refnode -> edges . push_back (dep);
-      dep -> qrynode -> edges . push_back (dep);
-    }
-  dr . close ( );
-}
-
-
-
-
 //------------------------------------------------------------- CheckSNPs ----//
 void CheckSNPs (DeltaGraph_t & graph)
 {
@@ -528,11 +262,11 @@ void CheckSNPs (DeltaGraph_t & graph)
   vector<DeltaEdge_t *>::const_iterator ei;
   vector<DeltaEdgelet_t *>::iterator eli;
   vector<SNP_t *>::iterator si;
-  long int i;
+  unsigned long int i;
 
   //-- For each reference sequence
-  long int ref_size = 0;
-  long int ref_len = 0;
+  unsigned long int ref_size = 0;
+  unsigned long int ref_len = 0;
   unsigned char * ref_cov = NULL;
   for ( mi = graph.refnodes.begin( ); mi != graph.refnodes.end( ); ++ mi )
     {
@@ -567,8 +301,8 @@ void CheckSNPs (DeltaGraph_t & graph)
 
 
   //-- For each query sequence
-  long int qry_size = 0;
-  long int qry_len = 0;
+  unsigned long int qry_size = 0;
+  unsigned long int qry_len = 0;
   unsigned char * qry_cov = NULL;
   for ( mi = graph.qrynodes.begin( ); mi != graph.qrynodes.end( ); ++ mi )
     {
@@ -633,7 +367,6 @@ void FindSNPs (DeltaGraph_t & graph)
             long int sR, eR, sQ, eQ;
             long int rpos, qpos, remain;
             long int rctx, qctx;
-            vector<long int>::iterator dp;
             long int alenR = lenR;
             long int alenQ = lenQ;
 
@@ -757,10 +490,11 @@ void FindSNPs (DeltaGraph_t & graph)
             (*li) -> frmR = frameR;
             (*li) -> frmQ = frameQ;
 
-            for ( dp  = (*li) -> delta . begin( );
-                  dp != (*li) -> delta . end( )  &&  *dp != 0; ++ dp )
+            istringstream ss;
+            ss . str ((*li)->delta);
+
+            while ( ss >> delta && delta != 0 )
               {
-                delta = *dp;
                 sign = delta > 0 ? 1 : -1;
                 delta = labs (delta);
 
@@ -1013,9 +747,9 @@ void PrintHuman (const vector<const SNP_t *> & snps,
 
   for ( si = snps . begin( ); si != snps . end( ); ++ si )
     {
-      distR = (*si)->pR < (*si)->ep->refnode->len - (*si)->pR + 1 ?
+      distR = (*si)->pR < (signed long)(*si)->ep->refnode->len - (*si)->pR + 1 ?
         (*si)->pR : (*si)->ep->refnode->len - (*si)->pR + 1;
-      distQ = (*si)->pQ < (*si)->ep->qrynode->len - (*si)->pQ + 1 ?
+      distQ = (*si)->pQ < (signed long)(*si)->ep->qrynode->len - (*si)->pQ + 1 ?
         (*si)->pQ : (*si)->ep->qrynode->len - (*si)->pQ + 1;
       dist = distR < distQ ? distR : distQ;
 
@@ -1073,9 +807,9 @@ void PrintTabular (const vector<const SNP_t *> & snps,
 
   for ( si = snps . begin( ); si != snps . end( ); ++ si )
     {
-      distR = (*si)->pR < (*si)->ep->refnode->len - (*si)->pR + 1 ?
+      distR = (*si)->pR < (signed long)(*si)->ep->refnode->len - (*si)->pR + 1 ?
         (*si)->pR : (*si)->ep->refnode->len - (*si)->pR + 1;
-      distQ = (*si)->pQ < (*si)->ep->qrynode->len - (*si)->pQ + 1 ?
+      distQ = (*si)->pQ < (signed long)(*si)->ep->qrynode->len - (*si)->pQ + 1 ?
         (*si)->pQ : (*si)->ep->qrynode->len - (*si)->pQ + 1;
       dist = distR < distQ ? distR : distQ;
 
@@ -1095,78 +829,6 @@ void PrintTabular (const vector<const SNP_t *> & snps,
               (*si)->ep->qrynode->id->c_str( ));
       printf ("\n");
     }
-}
-
-
-
-
-//--------------------------------------------------------- ReadSequences ----//
-void ReadSequences (DeltaGraph_t & graph)
-{
-  map<string, DeltaNode_t>::iterator mi;
-
-  FILE * qryfile, * reffile;
-  char * R = NULL;
-  char * Q = NULL;
-  char id [MAX_LINE];
-  long int initsize;
-  long int len;
-
-  //-- Read in the reference sequences
-  reffile = File_Open (graph . refpath . c_str( ), "r");
-  initsize = INIT_SIZE;
-  R = (char *) Safe_malloc (initsize);
-  while ( Read_String (reffile, R, initsize, id, FALSE) )
-    if ( (mi = graph . refnodes . find (id)) != graph . refnodes . end( ) )
-      {
-        len = strlen (R + 1);
-        mi -> second . seq = (char *) Safe_malloc (len + 2);
-        mi -> second . seq[0] = '\0';
-        strcpy (mi -> second . seq + 1, R + 1);
-        if ( len != mi -> second . len )
-          {
-            cerr << "ERROR: Reference input does not match delta file\n";
-            exit (EXIT_FAILURE);
-          }
-      }
-  fclose (reffile);
-  free (R);
-
-  //-- Read in the query sequences
-  qryfile = File_Open (graph . qrypath . c_str( ), "r");
-  initsize = INIT_SIZE;
-  Q = (char *) Safe_malloc (initsize);
-  while ( Read_String (qryfile, Q, initsize, id, FALSE) )
-    if ( (mi = graph . qrynodes . find (id)) != graph . qrynodes . end( ) )
-      {
-        len = strlen (Q + 1);
-        mi -> second . seq = (char *) Safe_malloc (len + 2);
-        mi -> second . seq[0] = '\0';
-        strcpy (mi -> second . seq + 1, Q + 1);
-        if ( len != mi -> second . len )
-          {
-            cerr << "ERROR: Query input does not match delta file\n";
-            exit (EXIT_FAILURE);
-          }
-      }
-  fclose (qryfile);
-  free (Q);
-
-
-  //-- Check that we found all the sequences
-  for ( mi = graph.refnodes.begin( ); mi != graph.refnodes.end( ); ++ mi )
-    if ( mi -> second . seq == NULL )
-      {
-        cerr << "ERROR: '" << mi -> first << "' not found in reference file\n";
-        exit (EXIT_FAILURE);
-      }
-
-  for ( mi = graph.qrynodes.begin( ); mi != graph.qrynodes.end( ); ++ mi )
-    if ( mi -> second . seq == NULL )
-      {
-        cerr << "ERROR: '" << mi -> first << "' not found in query file\n";
-        exit (EXIT_FAILURE);
-      }
 }
 
 

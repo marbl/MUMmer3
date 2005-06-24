@@ -46,9 +46,6 @@ const int IGNORE_TILE_LEVEL    =  -1;
 const int UNUSED_TILE_LEVEL    =   0;
 const int USED_TILE_LEVEL      =   1;
 
-const int NUCMER_DATA = 0;
-const int PROMER_DATA = 1;
-
 char NULL_STRING[1] = "";
 
 

@@ -21,8 +21,6 @@
 using namespace std;
 
 //------------------------------------------------------------- Constants ----//
-const int NUCMER_DATA = 0;
-const int PROMER_DATA = 1;
 
 //-- for the -k option, used in comparing two overlapping alignments
 const float MIN_OVERLAP_P = 0.5; // min percent overlap to spawn knockout

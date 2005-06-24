@@ -23,8 +23,6 @@
 using namespace std;
 
 //------------------------------------------------------------- Constants ----//
-const int NUCMER_DATA = 0;
-const int PROMER_DATA = 1;
 
 const char NUCMER_MISMATCH_CHAR = '^';
 const char NUCMER_MATCH_CHAR = ' ';
