@@ -87,6 +87,7 @@ my $OPT_size      = $SMALL;        # -small, -medium, -large
 my $OPT_SNP;                       # -S option
 my $OPT_xrange;                    # -x option
 my $OPT_yrange;                    # -y option
+my $OPT_title;                     # -title option
 
 my $OPT_Mfile;                     # match file
 my $OPT_Dfile;                     # delta filter file
@@ -163,6 +164,7 @@ my $HELP = qq~
     --SNP           Highlight SNP locations in each alignment
     -t|terminal     Set the output terminal to x11, postscript or png
                     --x11 --postscript --png (default '$OPT_terminal')
+    -t|title        Specify the gnuplot plot title (default none)
     -x|xrange       Set the xrange for the plot '[min:max]'
     -y|yrange       Set the yrange for the plot '[min:max]'
     -V
@@ -1142,6 +1144,10 @@ sub WriteGP ($$)
         print GFILE "set output \"$OPT_Pfile\"\n";
     }
 
+    if ( defined $OPT_title ) {
+        print GFILE "set title \"$OPT_title\"\n";
+    }
+
     #-- set tics, determine labels, ranges (ref)
     if ( scalar (@refk) == 1 ) {
         $xlabel = $refk[0];
@@ -1420,6 +1426,7 @@ sub ParseOptions ( )
          "s|size=s"     => \$OPT_size,
          "S|SNP"        => \$OPT_SNP,
          "t|terminal=s" => \$OPT_terminal,
+         "title=s"      => \$OPT_title,
          "x|xrange=s"   => \$OPT_xrange,
          "y|yrange=s"   => \$OPT_yrange,
          "x11"          => \$opt_x11,
