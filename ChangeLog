@@ -37,4 +37,4 @@
 3.16 - Added 'delta-filter' utility
 3.17 - Too many changes to list. Added/improved delta-filter, show-snps,
        mummerplot, and mgaps. Multiplot capability added to mummerplot.
-3.18 - Fixed bug in delta-filter -r and -q option.
+3.18 - Fixed bugs in delta-filter, began migrating to delta library.
