@@ -13,6 +13,7 @@
 #include <vector>
 #include <cmath>
 #include <sstream>
+#include <algorithm>
 using namespace std;
 
 
@@ -432,8 +433,8 @@ void DeltaGraph_t::clean( )
 {
   map<string, DeltaNode_t>::iterator i;
   map<string, DeltaNode_t>::iterator ii;
-  std::vector<DeltaEdge_t *>::iterator j;
-  std::vector<DeltaEdgelet_t *>::iterator k;
+  vector<DeltaEdge_t *>::iterator j;
+  vector<DeltaEdgelet_t *>::iterator k;
 
   //-- For all ref nodes
   for ( i = refnodes . begin( ); i != refnodes . end( ); )
@@ -533,7 +534,7 @@ long int DeltaGraph_t::getEdgeletCount( )
   long int sum = 0;
 
   map<string, DeltaNode_t>::iterator i;
-  std::vector<DeltaEdge_t *>::iterator j;
+  vector<DeltaEdge_t *>::iterator j;
   for ( i = refnodes . begin( ); i != refnodes . end( ); ++ i )
     for ( j  = i -> second . edges . begin( );
           j != i -> second . edges . end( ); ++ j )
