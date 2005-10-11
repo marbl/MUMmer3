@@ -61,7 +61,7 @@ Simple use case:
 FASTA format and another file containing multiple sequences in FastA
 format (qry.seq) type the following at the command line:
 
-   'run-mummer3.csh  ref.seq  qry.seq  <prefix>'
+   './run-mummer3.csh  ref.seq  qry.seq  <prefix>'
 
    To produce the following files:
         <prefix>.out
@@ -71,7 +71,7 @@ format (qry.seq) type the following at the command line:
 
 or
 
-   'nucmer  -p <prefix>  ref.seq  qry.seq'
+   './nucmer  -p <prefix>  ref.seq  qry.seq'
 
    To produce the following files:
         <prefix>.cluster
@@ -89,7 +89,7 @@ on mummer output (.out), or nucmer/promer output (.cluster .delta). Edit the
 <prefix>.gp file that is created to change colors, line thicknesses, etc. or
 explore the <prefix>.[fr]plot file to see the data collection.
 
-   'mummerplot  -p <prefix>  <prefix>.out'
+   './mummerplot  -p <prefix>  <prefix>.out'
 
    Or you can use the web viewer for completed microbial genomes:
 http://www.tigr.org/CMR
