@@ -17,8 +17,6 @@
 using namespace std;
 
 
-namespace {
-
 inline long int ScoreLocal
 (long int scorej,
  long int leni, long int lenj,
@@ -1168,4 +1166,3 @@ ostream & DeltaGraph_t::outputDelta (ostream & out)
   return out;
 }
 
-} // namespace
