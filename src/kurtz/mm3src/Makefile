@@ -40,15 +40,15 @@ SPLINTALL=maxmat3.splint maxmatopt.splint maxmatinp.splint\
 all: $(ALL)
 
 mummer: $(MUM3OBJECTS) $(LIBSTREE)
-	$(LD) $(LDFLAGS) $(MUM3OBJECTS) $(LIBSTREE) $(LIBBASE)\
+	$(LD) $(LDFLAGS) $(MUM3OBJECTS) $(LIBSTREE) $(LIBBASE) \
 	-o $(BIN_DIR)/$@; chmod 755 $(BIN_DIR)/$@
 
 maxmat3.x: $(MUM3OBJECTS) $(LIBSTREE)
-	$(LD) $(LDFLAGS) $(MUM3OBJECTS) $(LIBSTREE) $(LIBBASE)\
+	$(LD) $(LDFLAGS) $(MUM3OBJECTS) $(LIBSTREE) $(LIBBASE) \
 	-o $(BIN_DIR)/$@; chmod 755 $(BIN_DIR)/$@
 
 maxmat3.dbg.x: ${MUM3DBGOBJECTS} $(LIBSTREEDBG)
-	$(LD) $(LDFLAGS) $(MUM3DBGOBJECTS) $(LIBSTREEDBG) $(LIBBASEDBG)\
+	$(LD) $(LDFLAGS) $(MUM3DBGOBJECTS) $(LIBSTREEDBG) $(LIBBASEDBG) \
 	-lm -o $(BIN_DIR)/$@; chmod 755 $(BIN_DIR)/$@
 
 include Filegoals.mf
