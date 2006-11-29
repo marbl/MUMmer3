@@ -18,7 +18,7 @@ PERL := $(filter /%,$(shell /bin/sh -c 'type perl'))
 VPATH := $(BIN_DIR)
 
 ALL := exact-tandems mapview mummerplot nucmer promer \
-       run-mummer1 run-mummer3 nucmer2xfig
+       run-mummer1 run-mummer3 nucmer2xfig dnadiff
 
 #-- PHONY rules --#
 .PHONY: all clean
@@ -54,6 +54,13 @@ mummerplot: mummerplot.pl Foundation.pm
                 -e 's?__BIN_DIR?$(BIN_DIR)?g' \
                 mummerplot.pl > $(BIN_DIR)/mummerplot
 	chmod 755 $(BIN_DIR)/mummerplot
+
+dnadiff: dnadiff.pl Foundation.pm
+	$(SED) -e 's?__PERL_PATH?$(PERL)?g' \
+               -e 's?__SCRIPT_DIR?$(SCRIPT_DIR)?g' \
+               -e 's?__BIN_DIR?$(BIN_DIR)?g' \
+                 dnadiff.pl > $(BIN_DIR)/dnadiff
+	chmod 755 $(BIN_DIR)/dnadiff
 
 nucmer: nucmer.pl Foundation.pm
 	$(SED)  -e 's?__PERL_PATH?$(PERL)?g' \
