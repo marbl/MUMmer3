@@ -30,7 +30,7 @@ my $HELP_INFO = q~
   USAGE: dnadiff  [options]  <Reference>  <Query>
 
   DESCRIPTION:
-    Run comparative analysis of Reference vs. Query using nucmer.
+    Run comparative analysis of two genomes using nucmer.
 
   MANDATORY:
     Reference       Set the input reference multi-FASTA filename

@@ -525,6 +525,16 @@ public:
   long int getEdgeletCount ( );
 
 
+  //--------------------------------------------------- flagGOOD ---------------
+  //! \brief Sets isGOOD = 1 for all edgelets
+  void flagGOOD();
+
+
+  //---------------------------------------------------- flagWGA ---------------
+  //! \brief Union of flagQLIS and flagRLIS
+  void flagWGA(float epsilon = -1, float maxolap = 100.0);
+
+
   //--------------------------------------------------- flagGLIS ---------------
   //! \brief Flag edgelets in the global LIS and unflag those who are not
   //!
@@ -551,9 +561,12 @@ public:
   //!
   //! \param epsilon Keep repeat alignments within epsilon % of the best align
   //! \param maxolap Only allow alignments to overlap by maxolap percent [0-100]
+  //! \param flagBad Flag non QLIS edgelets as !isGOOD
   //! \return void
   //!
-  void flagQLIS (float epsilon = -1, float maxolap = 100.0);
+  void flagQLIS (float epsilon = -1,
+                 float maxolap = 100.0,
+                 bool flagBad = true);
 
 
   //--------------------------------------------------- flagRLIS ---------------
@@ -567,9 +580,12 @@ public:
   //!
   //! \param epsilon Keep repeat alignments within epsilon % of the best align
   //! \param maxolap Only allow alignments to overlap by maxolap percent [0-100]
+  //! \param flagBad Flag non RLIS edgelets as !isGOOD
   //! \return void
   //!
-  void flagRLIS (float epsilon = -1, float maxolap = 100.0);
+  void flagRLIS (float epsilon = -1,
+                 float maxolap = 100.0,
+                 bool flagbad = true);
 
 
   //--------------------------------------------------- flagScore --------------

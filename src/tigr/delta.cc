@@ -542,6 +542,60 @@ long int DeltaGraph_t::getEdgeletCount( )
 }
 
 
+//---------------------------------------------------------------- flagGOOD ----
+void DeltaGraph_t::flagGOOD()
+{
+  map<string, DeltaNode_t>::const_iterator mi;
+  vector<DeltaEdge_t *>::const_iterator ei;
+  vector<DeltaEdgelet_t *>::iterator eli;
+
+  //-- All references
+  for ( mi = refnodes . begin( ); mi != refnodes.end( ); ++ mi )
+    {
+      //-- All queries matching this reference
+      for ( ei  = (mi -> second) . edges . begin( );
+            ei != (mi -> second) . edges . end( ); ++ ei )
+        {
+          //-- All alignments between reference and query
+          for ( eli  = (*ei) -> edgelets . begin( );
+                eli != (*ei) -> edgelets . end( ); ++ eli )
+            {
+              (*eli)->isGOOD = true;
+            }
+        }
+    }
+}
+
+
+//----------------------------------------------------------------- flagWGA ----
+void DeltaGraph_t::flagWGA(float epsilon, float maxolap)
+{
+  flagRLIS(epsilon, maxolap, false);
+  flagQLIS(epsilon, maxolap, false);
+
+  map<string, DeltaNode_t>::const_iterator mi;
+  vector<DeltaEdge_t *>::const_iterator ei;
+  vector<DeltaEdgelet_t *>::iterator eli;
+
+  //-- All references
+  for ( mi = refnodes . begin( ); mi != refnodes.end( ); ++ mi )
+    {
+      //-- All queries matching this reference
+      for ( ei  = (mi -> second) . edges . begin( );
+            ei != (mi -> second) . edges . end( ); ++ ei )
+        {
+          //-- All alignments between reference and query
+          for ( eli  = (*ei) -> edgelets . begin( );
+                eli != (*ei) -> edgelets . end( ); ++ eli )
+            {
+              if ( !(*eli)->isRLIS && !(*eli)->isQLIS )
+                (*eli)->isGOOD = false;
+            }
+        }
+    }
+}
+
+
 //-------------------------------------------------------------- flagGLIS ------
 void DeltaGraph_t::flagGLIS (float epsilon)
 {
@@ -717,7 +771,7 @@ void DeltaGraph_t::flagScore (long int minlen, float minidy)
 
 
 //-------------------------------------------------------------- flagQLIS ------
-void DeltaGraph_t::flagQLIS (float epsilon, float maxolap)
+void DeltaGraph_t::flagQLIS (float epsilon, float maxolap, bool flagbad)
 {
   LIS_t * lis = NULL;
   long int lis_size = 0;
@@ -811,9 +865,10 @@ void DeltaGraph_t::flagQLIS (float epsilon, float maxolap)
         for ( i = allbest[beg]; i >= 0  &&  i < n; i = lis[i] . from )
           lis[i] . a -> isQLIS = true;
 
-      for ( eli = edgelets . begin( ); eli != edgelets . end( ); ++ eli )
-        if ( ! (*eli) -> isQLIS )
-          (*eli) -> isGOOD = false;
+      if ( flagbad )
+        for ( eli = edgelets . begin( ); eli != edgelets . end( ); ++ eli )
+          if ( ! (*eli) -> isQLIS )
+            (*eli) -> isGOOD = false;
     }
 
   free (lis);
@@ -821,7 +876,7 @@ void DeltaGraph_t::flagQLIS (float epsilon, float maxolap)
 
 
 //-------------------------------------------------------------- flagRLIS ------
-void DeltaGraph_t::flagRLIS (float epsilon, float maxolap)
+void DeltaGraph_t::flagRLIS (float epsilon, float maxolap, bool flagbad)
 {
   LIS_t * lis = NULL;
   long int lis_size = 0;
@@ -915,9 +970,10 @@ void DeltaGraph_t::flagRLIS (float epsilon, float maxolap)
         for ( i = allbest[beg]; i >= 0  &&  i < n; i = lis[i] . from )
           lis[i] . a -> isRLIS = true;
 
-      for ( eli = edgelets . begin( ); eli != edgelets . end( ); ++ eli )
-        if ( ! (*eli) -> isRLIS )
-          (*eli) -> isGOOD = false;
+      if ( flagbad )
+        for ( eli = edgelets . begin( ); eli != edgelets . end( ); ++ eli )
+          if ( ! (*eli) -> isRLIS )
+            (*eli) -> isGOOD = false;
     }
 
   free (lis);

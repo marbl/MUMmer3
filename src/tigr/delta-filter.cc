@@ -33,6 +33,7 @@ string         OPT_AlignName;                // alignment name parameter
 bool           OPT_QLIS         = false;     // do query based LIS
 bool           OPT_RLIS         = false;     // do reference based LIS
 bool           OPT_GLIS         = false;     // do global LIS
+bool           OPT_WGA          = false;     // do whole genome alignment
 long int       OPT_MinLength    = 0;         // minimum alignment length
 float          OPT_MinIdentity  = 0.0;       // minimum %identity
 float          OPT_MinUnique    = 0.0;       // minimum %unique
@@ -70,7 +71,6 @@ int main (int argc, char ** argv)
   //-- Build the alignment graph from the delta file
   graph . build (OPT_AlignName, true);
 
-
   //-- Identity requirements
   if ( OPT_MinIdentity > 0  ||  OPT_MinLength > 0 )
     graph . flagScore (OPT_MinLength, OPT_MinIdentity);
@@ -91,6 +91,9 @@ int main (int argc, char ** argv)
   if ( OPT_GLIS )
     graph . flagGLIS (OPT_Epsilon);
 
+  //-- WGA
+  if ( OPT_WGA )
+    graph . flagWGA (OPT_Epsilon, OPT_MaxOverlap);
 
   //-- Output the filtered delta file
   graph . outputDelta (cout);
@@ -108,7 +111,7 @@ void ParseArgs (int argc, char ** argv)
   optarg = NULL;
   
   while ( !errflg  &&
-          ((ch = getopt (argc, argv, "e:ghi:l:o:qru:")) != EOF) )
+          ((ch = getopt (argc, argv, "e:ghi:l:o:qru:w")) != EOF) )
     switch (ch)
       {
       case 'e':
@@ -146,6 +149,10 @@ void ParseArgs (int argc, char ** argv)
 
       case 'u':
         OPT_MinUnique = atof (optarg);
+        break;
+
+      case 'w':
+        OPT_WGA = true;
         break;
 
       default:
@@ -194,8 +201,9 @@ void PrintHelp (const char * s)
 {
   PrintUsage (s);
   cerr
-    << "-e float      For switches -g -r -q, keep repeats within e percent\n"
-    << "              of the best LIS score [0, 100], no repeats by default\n"
+    << "-e float      Broken option, do not use! For switches -g -r -q, keep\n"
+    << "              repeats within e percent of the best LIS score [0,100],\n"
+    << "              no repeats by default\n"
     << "-g            Global alignment using length*identity weighted LIS.\n"
     << "              For every reference-query pair, leave only the aligns\n"
     << "              which form the longest mutually consistent set\n"
@@ -217,6 +225,7 @@ void PrintHelp (const char * s)
     << "-o float      Set the maximum alignment overlap for -r and -q options\n"
     << "              as a percent of the alignment length [0, 100], default "
     << OPT_MaxOverlap << endl
+    << "-w            Union of -r -q.\n"
     << endl;
 
   cerr
