@@ -136,25 +136,25 @@ struct SNP_Q_Sort
 
 //========================================================== Fuction Decs ====//
 //------------------------------------------------------------------ RevC ----//
-inline long int RevC (long int coord, long int len)
+inline long RevC (long coord, long len)
 {
   return len - coord + 1;
 }
 
 
 //------------------------------------------------------------------ Norm ----//
-inline long int Norm (long int c, long int l, int f, AlignmentType_t d)
+inline long Norm (long c, long l, int f, AlignmentType_t d)
 {
-  long int retval = (d == PROMER_DATA ? c * 3 - (3 - abs(f)) : c);
+  long retval = (d == PROMER_DATA ? c * 3 - (3 - abs(f)) : c);
   if ( f < 0 ) retval = RevC (retval, l);
   return retval;
 }
 
 
 //------------------------------------------------------------------ Swap ----//
-inline void Swap (long int & a, long int & b)
+inline void Swap (long & a, long & b)
 {
-  long int t = a; a = b; b = t;
+  long t = a; a = b; b = t;
 }
 
 
@@ -262,11 +262,11 @@ void CheckSNPs (DeltaGraph_t & graph)
   vector<DeltaEdge_t *>::const_iterator ei;
   vector<DeltaEdgelet_t *>::iterator eli;
   vector<SNP_t *>::iterator si;
-  unsigned long int i;
+  long i;
 
   //-- For each reference sequence
-  unsigned long int ref_size = 0;
-  unsigned long int ref_len = 0;
+  long ref_size = 0;
+  long ref_len = 0;
   unsigned char * ref_cov = NULL;
   for ( mi = graph.refnodes.begin( ); mi != graph.refnodes.end( ); ++ mi )
     {
@@ -301,8 +301,8 @@ void CheckSNPs (DeltaGraph_t & graph)
 
 
   //-- For each query sequence
-  unsigned long int qry_size = 0;
-  unsigned long int qry_len = 0;
+  long qry_size = 0;
+  long qry_len = 0;
   unsigned char * qry_cov = NULL;
   for ( mi = graph.qrynodes.begin( ); mi != graph.qrynodes.end( ); ++ mi )
     {
@@ -356,19 +356,19 @@ void FindSNPs (DeltaGraph_t & graph)
         char * R[] = {(*ei)->refnode->seq, NULL, NULL, NULL, NULL, NULL, NULL};
         char * Q[] = {(*ei)->qrynode->seq, NULL, NULL, NULL, NULL, NULL, NULL};
 
-        long int i;
-        long int lenR = (*ei) -> refnode -> len;
-        long int lenQ = (*ei) -> qrynode -> len;
+        long i;
+        long lenR = (*ei) -> refnode -> len;
+        long lenQ = (*ei) -> qrynode -> len;
 
         for (li = (*ei)->edgelets.begin( ); li != (*ei)->edgelets.end( ); ++ li)
           {
-            long int delta;
+            long delta;
             int frameR, frameQ, sign;
-            long int sR, eR, sQ, eQ;
-            long int rpos, qpos, remain;
-            long int rctx, qctx;
-            long int alenR = lenR;
-            long int alenQ = lenQ;
+            long sR, eR, sQ, eQ;
+            long rpos, qpos, remain;
+            long rctx, qctx;
+            long alenR = lenR;
+            long alenQ = lenQ;
 
             //-- Only do the ones requested by user
             if ( OPT_SelectAligns )
@@ -706,7 +706,7 @@ void PrintHuman (const vector<const SNP_t *> & snps,
                  const DeltaGraph_t & graph)
 {
   vector<const SNP_t *>::const_iterator si;
-  long int dist, distR, distQ;
+  long dist, distR, distQ;
   int ctxw = 2 * OPT_Context + 1;
   int ctxc = ctxw < 7 ? 7 : ctxw;
 
@@ -786,7 +786,7 @@ void PrintTabular (const vector<const SNP_t *> & snps,
                    const DeltaGraph_t & graph)
 {
   vector<const SNP_t *>::const_iterator si;
-  long int dist, distR, distQ;
+  long dist, distR, distQ;
 
   if ( OPT_PrintHeader )
     {

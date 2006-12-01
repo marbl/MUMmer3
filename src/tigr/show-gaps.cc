@@ -18,6 +18,7 @@
 #include "tigrinc.hh"
 #include <string>
 #include <cstdlib>
+#include <cassert>
 using namespace std;
 
 
@@ -42,7 +43,7 @@ struct EdgeletRCmp_t
 };
 
 
-void PrintShuffle(DeltaGraph_t & graph);
+void PrintGaps(DeltaGraph_t & graph);
 void ParseArgs(int argc, char ** argv);
 void PrintHelp(const char * s);
 void PrintUsage(const char * s);
@@ -63,24 +64,29 @@ int main(int argc, char **argv)
   graph.flagWGA();
   graph.clean();
 
-  PrintShuffle(graph);
+  PrintGaps(graph);
 
   return EXIT_SUCCESS;
 }
 
 
-//----------------------------------------------------------- PrintShuffle ----
-void PrintShuffle(DeltaGraph_t & graph)
+//--------------------------------------------------------------- PrintGaps ----
+void PrintGaps(DeltaGraph_t & graph)
 {
-  long int nAligns, i;
+  long nAligns, i;
 
   DeltaEdgelet_t *A, *PA;
   vector<DeltaEdgelet_t *> aligns;
-  vector<long int> qindex;
+  vector<long> qindex;
 
   map<string, DeltaNode_t>::const_iterator mi;
   vector<DeltaEdge_t *>::const_iterator ei;
   vector<DeltaEdgelet_t *>::iterator eli;
+
+  DeltaEdgelet_t lpad, rpad;
+  lpad.isRLIS = rpad.isRLIS = true;
+  lpad.isQLIS = rpad.isQLIS = true;
+  lpad.loR = lpad.hiR = lpad.loQ = lpad.hiQ = 0;
 
   //-- For each reference sequence
   for ( mi = graph.refnodes.begin( ); mi != graph.refnodes.end( ); ++ mi )
@@ -93,15 +99,13 @@ void PrintShuffle(DeltaGraph_t & graph)
             ei != (mi->second).edges.end(); ++ei )
         for ( eli  = (*ei)->edgelets.begin();
               eli != (*ei)->edgelets.end(); ++eli )
-          aligns.push_back (*eli);
+          aligns.push_back(*eli);
+
+      rpad.loR = rpad.hiR = rpad.loQ = rpad.hiQ = mi->second.len + 1;
+      aligns.push_back(&lpad);
+      aligns.push_back(&rpad);
 
       nAligns = aligns.size();
-      if ( !nAligns )
-        {
-          // do something clever
-          printf("EMPTY!\n");
-          continue;
-        }
 
       //-- Override *stpc* with query ordering
       sort(aligns.begin(), aligns.end(), EdgeletQCmp_t());
@@ -110,12 +114,11 @@ void PrintShuffle(DeltaGraph_t & graph)
 
       //-- Sort by reference order
       sort(aligns.begin(), aligns.end(), EdgeletRCmp_t());
-
+      assert ( aligns[0] == &lpad && aligns[nAligns-1] == &rpad );
 
       //-- Walk alignments, low to high in reference
-      PA = NULL;
-      long int size = aligns.size();
-      for ( long int i = 0; i != size; ++i )
+      PA = aligns[0];
+      for ( long i = 1; i != nAligns; ++i )
         {
           //-- Only looking at alignments in R's LIS
           if ( !aligns[i]->isRLIS )
@@ -123,33 +126,20 @@ void PrintShuffle(DeltaGraph_t & graph)
 
           A = aligns[i];
 
-          //-- For beginning of sequence to first alignment
-          if ( !PA )
+          //-- Gap
+          if ( A->loR - PA->hiR - 1 > 0 )
             {
-              PA = A;
-              continue;
+              printf("GAP %ld - %ld\n", PA->hiR+1, A->loR-1);
             }
 
-          //-- Jump if query coords out of expected order
-          if ( (PA->dirR == PA->dirQ && A->stpc - 1 != PA->stpc) ||
-               (PA->dirR != PA->dirQ && A->stpc + 1 != PA->stpc) )
+          //-- Duplication
+          if ( !A->isQLIS )
             {
-              if ( PA->dirR == PA->dirQ )
-                printf("JUMP %ld,%ld", PA->hiR, PA->hiQ);
-              else
-                printf("JUMP %ld,%ld", PA->hiR, PA->loQ);
-
-              if ( A->dirR == A->dirQ )
-                printf(" to %ld,%ld\n", A->loR, A->loQ);
-              else
-                printf(" to %ld,%ld\n", A->loR, A->hiQ);
+              printf("DUP %ld - %ld\n", A->loR, A->hiR);
             }
 
           PA = A;
         }
-
-      //-- For last alignment to end of sequence
-
     }
 }
 

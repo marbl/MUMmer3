@@ -39,19 +39,19 @@ const Dir_t REVERSE_DIR = 1;                //!< reverse direction
 struct DeltaAlignment_t
 //!< A single delta encoded alignment region
 {
-  unsigned long int sR;    //!< start coordinate in the reference
-  unsigned long int eR;    //!< end coordinate in the reference
-  unsigned long int sQ;    //!< start coordinate in the reference
-  unsigned long int eQ;    //!< end coordinate in the reference
-  unsigned long int idyc;  //!< number of mismatches in the alignment
-  unsigned long int simc;  //!< number of similarity scores < 1 in the alignment
-  unsigned long int stpc;  //!< number of stop codons in the alignment
+  long sR;    //!< start coordinate in the reference
+  long eR;    //!< end coordinate in the reference
+  long sQ;    //!< start coordinate in the reference
+  long eQ;    //!< end coordinate in the reference
+  long idyc;  //!< number of mismatches in the alignment
+  long simc;  //!< number of similarity scores < 1 in the alignment
+  long stpc;  //!< number of stop codons in the alignment
 
   float idy;               //!< percent identity [0 - 100]
   float sim;               //!< percent similarity [0 - 100]
   float stp;               //!< percent stop codon [0 - 100]
 
-  std::vector<long int> deltas;  //!< delta encoded alignment informaiton
+  std::vector<long> deltas;  //!< delta encoded alignment informaiton
 
   DeltaAlignment_t ( )
   {
@@ -74,8 +74,8 @@ struct DeltaRecord_t
 {
   std::string idR;         //!< reference contig ID
   std::string idQ;         //!< query contig ID
-  unsigned long int lenR;  //!< length of the reference contig
-  unsigned long int lenQ;  //!< length of the query contig
+  long lenR;  //!< length of the reference contig
+  long lenQ;  //!< length of the query contig
 
   std::vector<DeltaAlignment_t> aligns; //!< alignments between the two seqs
 
@@ -308,9 +308,9 @@ struct DeltaNode_t;
 struct SNP_t
      //!< A single nuc/aa poly
 {
-  long int buff;
+  long buff;
   char cQ, cR;
-  long int pQ, pR;
+  long pQ, pR;
   int conQ, conR;
   std::string ctxQ, ctxR;
   DeltaEdgelet_t * lp;
@@ -339,8 +339,8 @@ struct DeltaEdgelet_t
 
   DeltaEdge_t * edge;
   float idy, sim, stp;                    //!< percent identity [0 - 1]
-  unsigned long int idyc, simc, stpc;     //!< idy, sim, stp counts
-  unsigned long int loQ, hiQ, loR, hiR;   //!< alignment bounds
+  long idyc, simc, stpc;     //!< idy, sim, stp counts
+  long loQ, hiQ, loR, hiR;   //!< alignment bounds
   int frmQ, frmR;                         //!< reading frame
 
   std::string delta;                      //!< delta information
@@ -363,6 +363,27 @@ struct DeltaEdgelet_t
     for ( i = snps . begin( ); i != snps . end( ); ++ i )
       delete (*i);
   }
+
+  bool isNegative() const
+  { return ( dirR != dirQ ); }
+
+  bool isPositive() const
+  { return ( dirR == dirQ ); }
+
+  int slope() const
+  { return ( dirR == dirQ ? +1 : -1 ); }
+
+  long sQ() const
+  { return ( dirQ == FORWARD_DIR ? loQ : hiQ ); }
+
+  long eQ() const
+  { return ( dirQ == FORWARD_DIR ? hiQ : loQ ); }
+
+  long sR() const
+  { return ( dirR == FORWARD_DIR ? loR : hiR ); }
+
+  long eR() const
+  { return ( dirR == FORWARD_DIR ? hiR : loR ); }
 };
 
 
@@ -397,7 +418,7 @@ struct DeltaNode_t
 {
   const std::string * id;             //!< the id of the sequence
   char * seq;                         //!< the DNA sequence
-  unsigned long int len;              //!< the length of the sequence
+  long len;              //!< the length of the sequence
   std::vector<DeltaEdge_t *> edges;   //!< the set of related edges
 
   DeltaNode_t ( )
@@ -506,7 +527,7 @@ public:
   //!
   //! \return The number of graph nodes
   //!
-  long int getNodeCount ( );
+  long getNodeCount ( );
 
 
   //--------------------------------------------------- getEdgeCount -----------
@@ -514,7 +535,7 @@ public:
   //!
   //! \return void
   //!
-  long int getEdgeCount ( );
+  long getEdgeCount ( );
 
 
   //--------------------------------------------------- getEdgeletCount --------
@@ -522,7 +543,7 @@ public:
   //!
   //! \return void
   //!
-  long int getEdgeletCount ( );
+  long getEdgeletCount ( );
 
 
   //--------------------------------------------------- flagGOOD ---------------
@@ -597,7 +618,7 @@ public:
   //! \param minidy Flag edgelets if less than minidy identity [0-100]
   //! \return void
   //!
-  void flagScore (long int minlen, float minidy);
+  void flagScore (long minlen, float minidy);
 
 
   //--------------------------------------------------- flagUNIQ ---------------
