@@ -18,7 +18,7 @@ VPATH := $(AUX_BIN_DIR):$(BIN_DIR)
 ALL := annotate combineMUMs delta-filter gaps mgaps \
      postnuc postpro prenuc prepro repeat-match \
      show-aligns show-coords show-tiling show-snps \
-     show-gaps
+     show-breaks
 
 
 #-- PHONY rules --#
@@ -92,5 +92,5 @@ show-tiling: show-tiling.cc tigrinc.o delta.o
 show-snps: show-snps.cc tigrinc.o translate.o delta.o
 	$(BIN_RULE)
 
-show-gaps: show-gaps.cc tigrinc.o delta.o
+show-breaks: show-breaks.cc tigrinc.o delta.o
 	$(BIN_RULE)

@@ -1,16 +1,12 @@
 //-----------------------------------------------------------------------------
-//   Programmer: Adam M Phillippy, The Institute for Genomic Research
-//         File: show-snps.cc
-//         Date: 12 / 08 / 2004
+//   Programmer: Adam M Phillippy, University of Maryland
+//         File: show-breaks.cc
+//         Date: 12 / 01 / 2006
 //
-//        Usage: show-snps [options] <deltafile>
-//               Try 'show-snps -h' for more information
+//        Usage: show-breaks [options] <deltafile>
+//               Try 'show-breaks -h' for more information
 //
-//  Description: For use in conjunction with the MUMmer package. "show-snps"
-//              displays human readable (and machine parse-able) single
-//             base-pair polymorphisms, including indels from the .delta output
-//            of the "nucmer" program. Outputs SNP positions and relative
-//          information to stdout.
+//  Description:
 //
 //-----------------------------------------------------------------------------
 
@@ -19,31 +15,31 @@
 #include <string>
 #include <cstdlib>
 #include <cassert>
+#include <climits>
 using namespace std;
 
 
 //================================================================ Options ====
-string  OPT_AlignName;                  // delta file name
+string  OPT_AlignName;              // delta file name
 
 
 //=========================================================== Declarations ====
-struct EdgeletQCmp_t
-//!< Compares query low coord
+struct EdgeletLoQCmp_t
+//!< Sorts query low coord, lo to hi
 {
   bool operator( ) (const DeltaEdgelet_t * i, const DeltaEdgelet_t * j) const
   { return ( i->loQ < j->loQ ); }
 };
 
-
-struct EdgeletRCmp_t
-//!< Compares reference low coord
+struct EdgeletLoRCmp_t
+//!< Sorts reference lo coord, lo to hi
 {
   bool operator( ) (const DeltaEdgelet_t * i, const DeltaEdgelet_t * j) const
   { return ( i->loR < j->loR ); }
 };
 
 
-void PrintGaps(DeltaGraph_t & graph);
+void PrintBreaks(DeltaGraph_t & graph);
 void ParseArgs(int argc, char ** argv);
 void PrintHelp(const char * s);
 void PrintUsage(const char * s);
@@ -64,29 +60,28 @@ int main(int argc, char **argv)
   graph.flagWGA();
   graph.clean();
 
-  PrintGaps(graph);
+  PrintBreaks(graph);
 
   return EXIT_SUCCESS;
 }
 
 
-//--------------------------------------------------------------- PrintGaps ----
-void PrintGaps(DeltaGraph_t & graph)
+//------------------------------------------------------------- PrintBreaks ----
+void PrintBreaks(DeltaGraph_t & graph)
 {
-  long nAligns, i;
-
-  DeltaEdgelet_t *A, *PA;
-  vector<DeltaEdgelet_t *> aligns;
-  vector<long> qindex;
-
-  map<string, DeltaNode_t>::const_iterator mi;
-  vector<DeltaEdge_t *>::const_iterator ei;
-  vector<DeltaEdgelet_t *>::iterator eli;
-
+  long i,j;
+  long nAligns, gapR, gapQ, diff;
   DeltaEdgelet_t lpad, rpad;
   lpad.isRLIS = rpad.isRLIS = true;
   lpad.isQLIS = rpad.isQLIS = true;
   lpad.loR = lpad.hiR = lpad.loQ = lpad.hiQ = 0;
+
+  DeltaEdgelet_t *A, *PA, *PGA;
+  vector<DeltaEdgelet_t *> aligns;
+
+  map<string, DeltaNode_t>::const_iterator mi;
+  vector<DeltaEdge_t *>::const_iterator ei;
+  vector<DeltaEdgelet_t *>::iterator eli;
 
   //-- For each reference sequence
   for ( mi = graph.refnodes.begin( ); mi != graph.refnodes.end( ); ++ mi )
@@ -101,44 +96,67 @@ void PrintGaps(DeltaGraph_t & graph)
               eli != (*ei)->edgelets.end(); ++eli )
           aligns.push_back(*eli);
 
-      rpad.loR = rpad.hiR = rpad.loQ = rpad.hiQ = mi->second.len + 1;
+      rpad.loR = rpad.hiR = mi->second.len + 1;
+      rpad.loQ = rpad.hiQ = LONG_MAX;
       aligns.push_back(&lpad);
       aligns.push_back(&rpad);
 
       nAligns = aligns.size();
 
-      //-- Override *stpc* with query ordering
-      sort(aligns.begin(), aligns.end(), EdgeletQCmp_t());
-      for ( i = 0; i != nAligns; ++i )
-        aligns[i]->stpc = i;
+      //-- OVERRIDE *stpc* with loQ QLIS ordering
+      sort(aligns.begin(), aligns.end(), EdgeletLoQCmp_t());
+      for ( i = 0, j = 0; i != nAligns; ++i )
+        aligns[i]->stpc = aligns[i]->isQLIS ? j++ : -1;
 
       //-- Sort by reference order
-      sort(aligns.begin(), aligns.end(), EdgeletRCmp_t());
+      sort(aligns.begin(), aligns.end(), EdgeletLoRCmp_t());
       assert ( aligns[0] == &lpad && aligns[nAligns-1] == &rpad );
 
-      //-- Walk alignments, low to high in reference
-      PA = aligns[0];
-      for ( long i = 1; i != nAligns; ++i )
+      //-- Walk reference coverr alignments, low to high
+      PA = PGA = aligns[0];
+      for ( i = 1; i != nAligns; ++i )
         {
-          //-- Only looking at alignments in R's LIS
-          if ( !aligns[i]->isRLIS )
-            continue;
+          if ( !aligns[i]->isRLIS ) continue;
 
           A = aligns[i];
 
-          //-- Gap
-          if ( A->loR - PA->hiR - 1 > 0 )
+          gapR = A->loR - PA->hiR - 1;
+          if ( gapR > 0 )
+            printf("INS %ld\t%ld\t%ld\n", PA->hiR + 1, A->loR - 1, gapR);
+     
+          if ( A->isQLIS )
             {
-              printf("GAP %ld - %ld\n", PA->hiR+1, A->loR-1);
-            }
+              gapR = A->loR - PGA->hiR - 1;
 
-          //-- Duplication
-          if ( !A->isQLIS )
+              if ( A->stpc != PGA->stpc + PGA->slope() ||
+                   A->slope() != PGA->slope() )
+                {
+                  if ( A->slope() == PGA->slope() )
+                    {
+                      //-- Relocation            
+                      printf("BRK %ld\t%ld\t%ld\n", PGA->hiR, A->loR, gapR);
+                    }
+                  else
+                    {
+                      //-- Inversion
+                      printf("IBR %ld\t%ld\t%ld\n", PGA->hiR, A->loR, gapR);
+                    }
+                }
+              else
+                {
+                  //-- Unknown
+                  printf("???? %ld\t%ld\t%ld\n", PGA->hiR, A->loR, gapR);
+                }
+            }
+          else
             {
-              printf("DUP %ld - %ld\n", A->loR, A->hiR);
+              //-- Duplication
+              printf("DUP %ld\t%ld\t%ld\n",
+                     A->loR, A->hiR, A->hiR - A->loR + 1);
             }
 
           PA = A;
+          if ( A->isQLIS ) PGA = A;
         }
     }
 }
