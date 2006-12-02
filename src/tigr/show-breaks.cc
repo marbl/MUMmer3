@@ -70,7 +70,7 @@ int main(int argc, char **argv)
 void PrintBreaks(DeltaGraph_t & graph)
 {
   long i,j;
-  long nAligns, gapR, gapQ, diff;
+  long nAligns, gapR, gapQ, diff, lenR;
   DeltaEdgelet_t lpad, rpad;
   lpad.isRLIS = rpad.isRLIS = true;
   lpad.isQLIS = rpad.isQLIS = true;
@@ -112,7 +112,7 @@ void PrintBreaks(DeltaGraph_t & graph)
       sort(aligns.begin(), aligns.end(), EdgeletLoRCmp_t());
       assert ( aligns[0] == &lpad && aligns[nAligns-1] == &rpad );
 
-      //-- Walk reference coverr alignments, low to high
+      //-- Walk reference cover alignments, low to high
       PA = PGA = aligns[0];
       for ( i = 1; i != nAligns; ++i )
         {
@@ -121,42 +121,51 @@ void PrintBreaks(DeltaGraph_t & graph)
           A = aligns[i];
 
           gapR = A->loR - PA->hiR - 1;
-          if ( gapR > 0 )
-            printf("INS %ld\t%ld\t%ld\n", PA->hiR + 1, A->loR - 1, gapR);
-     
-          if ( A->isQLIS )
-            {
-              gapR = A->loR - PGA->hiR - 1;
+          lenR = A->hiR - A->loR + 1;
 
-              if ( A->stpc != PGA->stpc + PGA->slope() ||
-                   A->slope() != PGA->slope() )
+          if ( gapR > 0 )
+            printf("GAP %ld\t%ld\t%ld\n", PA->hiR + 1, A->loR - 1, gapR);
+
+          //-- Jump to different query sequence
+          if ( A->edge != PA->edge )
+            {
+              printf("SEQ %s\n", A->edge->qrynode->id->c_str());
+            }
+          //-- 1-to-1 alignment
+          else if ( A->isQLIS && A->edge == PGA->edge )
+            {
+              //-- Jump within Q
+              if ( A->slope() != PGA->slope() ||
+                   A->stpc != PGA->stpc + PGA->slope() )
                 {
                   if ( A->slope() == PGA->slope() )
-                    {
-                      //-- Relocation            
-                      printf("BRK %ld\t%ld\t%ld\n", PGA->hiR, A->loR, gapR);
-                    }
+                    printf("JMP %ld\t%ld\t%ld\n", PA->hiR, A->loR, gapR);
                   else
+                    printf("INV %ld\t%ld\t%ld\n", PA->hiR, A->loR, gapR);
+                }
+              //-- All lined up, nothing between
+              else if ( PA == PGA )
+                {
+                  gapQ = A->isPositive() ?
+                    A->loQ - PGA->hiQ - 1 :
+                    PGA->loQ - A->hiQ - 1;
+
+                  if ( gapQ < 0 || gapR < 0 )
                     {
-                      //-- Inversion
-                      printf("IBR %ld\t%ld\t%ld\n", PGA->hiR, A->loR, gapR);
+                      diff = gapR - gapQ;
+                      printf("TND %ld\t%ld\t%ld\t%ld\t%ld\n",
+                             PA->hiR, A->loR, diff, gapR, gapQ);
                     }
                 }
-              else
-                {
-                  //-- Unknown
-                  printf("???? %ld\t%ld\t%ld\n", PGA->hiR, A->loR, gapR);
-                }
-            }
-          else
-            {
-              //-- Duplication
-              printf("DUP %ld\t%ld\t%ld\n",
-                     A->loR, A->hiR, A->hiR - A->loR + 1);
             }
 
+          //-- Duplication
+          if ( A->isQLIS )
+            PGA = A;
+          else
+            printf("DUP %ld\t%ld\t%ld\n",  A->loR, A->hiR, lenR);
+
           PA = A;
-          if ( A->isQLIS ) PGA = A;
         }
     }
 }

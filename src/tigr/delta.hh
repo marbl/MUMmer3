@@ -338,13 +338,13 @@ struct DeltaEdgelet_t
   unsigned char dirQ   : 1;   //!< query match direction
 
   DeltaEdge_t * edge;
-  float idy, sim, stp;                    //!< percent identity [0 - 1]
-  long idyc, simc, stpc;     //!< idy, sim, stp counts
-  long loQ, hiQ, loR, hiR;   //!< alignment bounds
-  int frmQ, frmR;                         //!< reading frame
+  float idy, sim, stp;        //!< percent identity [0 - 1]
+  long idyc, simc, stpc;      //!< idy, sim, stp counts
+  long loQ, hiQ, loR, hiR;    //!< alignment bounds
+  int frmQ, frmR;             //!< reading frame
 
-  std::string delta;                      //!< delta information
-  std::vector<SNP_t *> snps;              //!< snps for this edgelet
+  std::string delta;          //!< delta information
+  std::vector<SNP_t *> snps;  //!< snps for this edgelet
 
   DeltaEdgelet_t ( )
   {
@@ -373,17 +373,11 @@ struct DeltaEdgelet_t
   int slope() const
   { return ( dirR == dirQ ? +1 : -1 ); }
 
-  long sQ() const
-  { return ( dirQ == FORWARD_DIR ? loQ : hiQ ); }
+  long loR2Q() const
+  { return ( isPositive() ? loQ : hiQ ); }
 
-  long eQ() const
-  { return ( dirQ == FORWARD_DIR ? hiQ : loQ ); }
-
-  long sR() const
-  { return ( dirR == FORWARD_DIR ? loR : hiR ); }
-
-  long eR() const
-  { return ( dirR == FORWARD_DIR ? hiR : loR ); }
+  long hiR2Q() const
+  { return ( isPositive() ? hiQ : loQ ); }
 };
 
 
