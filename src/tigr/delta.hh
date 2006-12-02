@@ -348,6 +348,7 @@ struct DeltaEdgelet_t
 
   DeltaEdgelet_t ( )
   {
+    edge = NULL;
     isGOOD = true;
     isQLIS = isRLIS = isGLIS = false;
     dirR = dirQ = FORWARD_DIR;
@@ -378,6 +379,12 @@ struct DeltaEdgelet_t
 
   long hiR2Q() const
   { return ( isPositive() ? hiQ : loQ ); }
+
+  long loQ2R() const
+  { return ( isPositive() ? loR : hiR ); }
+
+  long hiQ2R() const
+  { return ( isPositive() ? hiR : loR ); }
 };
 
 
