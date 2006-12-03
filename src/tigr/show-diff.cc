@@ -1,10 +1,10 @@
 //-----------------------------------------------------------------------------
 //   Programmer: Adam M Phillippy, University of Maryland
-//         File: show-breaks.cc
+//         File: show-diff.cc
 //         Date: 12 / 01 / 2006
 //
-//        Usage: show-breaks [options] <deltafile>
-//               Try 'show-breaks -h' for more information
+//        Usage: show-diff [options] <deltafile>
+//               Try 'show-diff -h' for more information
 //
 //  Description:
 //
@@ -21,8 +21,8 @@ using namespace std;
 
 //================================================================ Options ====
 string  OPT_AlignName;              // delta file name
-bool    OPT_RefBreaks = true;       // reference breaks
-bool    OPT_QryBreaks = true;       // query breaks
+bool    OPT_RefDiff = true;       // reference diff
+bool    OPT_QryDiff = true;       // query diff
 
 
 //=========================================================== Declarations ====
@@ -41,7 +41,7 @@ struct EdgeletLoRCmp_t
 };
 
 
-void PrintBreaks(DeltaGraph_t & graph);
+void PrintDiff(DeltaGraph_t & graph);
 void ParseArgs(int argc, char ** argv);
 void PrintHelp(const char * s);
 void PrintUsage(const char * s);
@@ -62,14 +62,14 @@ int main(int argc, char **argv)
   graph.flagWGA();
   graph.clean();
 
-  PrintBreaks(graph);
+  PrintDiff(graph);
 
   return EXIT_SUCCESS;
 }
 
 
-//------------------------------------------------------------- PrintBreaks ----
-void PrintBreaks(DeltaGraph_t & graph)
+//-------------------------------------------------------------- PrintDiff ----
+void PrintDiff(DeltaGraph_t & graph)
 {
   long i,j;
   long nAligns, gapR, gapQ, diff, lenR, lenQ;
@@ -86,7 +86,7 @@ void PrintBreaks(DeltaGraph_t & graph)
   vector<DeltaEdgelet_t *>::iterator eli;
 
   //-- For each reference sequence
-  if ( OPT_RefBreaks )
+  if ( OPT_RefDiff )
     for ( mi = graph.refnodes.begin(); mi != graph.refnodes.end(); ++ mi )
       {
         printf(">%s\n", mi->first.c_str());
@@ -163,6 +163,11 @@ void PrintBreaks(DeltaGraph_t & graph)
                                PA->hiR, A->loR, diff, gapR, gapQ);
                       }
                   }
+                //-- Lined up, something between
+                else
+                  {
+                    //-- Handled by duplication case below...
+                  }
               }
 
             //-- Duplication
@@ -178,7 +183,7 @@ void PrintBreaks(DeltaGraph_t & graph)
 
 
   //-- For each query sequence
-  if ( OPT_QryBreaks )
+  if ( OPT_QryDiff )
     for ( mi = graph.qrynodes.begin(); mi != graph.qrynodes.end(); ++ mi )
       {
         printf(">%s\n", mi->first.c_str());
@@ -286,11 +291,11 @@ void ParseArgs (int argc, char ** argv)
         break;
 
       case 'q':
-        OPT_RefBreaks = false;
+        OPT_RefDiff = false;
         break;
         
       case 'r':
-        OPT_QryBreaks = false;
+        OPT_QryDiff = false;
         break;
 
       default:
