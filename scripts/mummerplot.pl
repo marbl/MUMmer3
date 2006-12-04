@@ -1383,12 +1383,12 @@ sub ListenGP($$)
             print "$refid\t$qryid\t$refc\t$qryc\n";
 
             if ( $rsock ) {
-                print $rsock "contig E$refid $refc\n";
-                print "sent \"contig E$refid $refc\" to $OPT_rport\n";
+                print $rsock "contig I$refid $refc\n";
+                print "sent \"contig I$refid $refc\" to $OPT_rport\n";
             }
             if ( $qsock ) {
-                print $qsock "contig E$qryid $qryc\n";
-                print "sent \"contig E$qryid $qryc\" to $OPT_qport\n";
+                print $qsock "contig I$qryid $qryc\n";
+                print "sent \"contig I$qryid $qryc\" to $OPT_qport\n";
             }
         }
 

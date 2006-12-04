@@ -49,7 +49,7 @@ void PrintUsage(const char * s);
 
 void PrintNewSeq(const char* seq);
 void PrintGap(const char* seq, long s, long e);
-void PrintSeqJmp(const char* seq, long s);
+void PrintSeqJmp(const char* seq1, const char* seq2, long s);
 void PrintLisJmp(const char* seq, long s, long e);
 void PrintInv(const char* seq, long s, long e);
 void PrintTnd(const char* seq, long s, long e, long gap1, long gap2);
@@ -145,7 +145,7 @@ void PrintDiff(DeltaGraph_t & graph)
             //-- Jump to different query sequence
             if ( A->edge != PA->edge )
               {
-                PrintSeqJmp(qryid, A->loR);
+                PrintSeqJmp(refid, qryid, A->loR);
               }
             //-- 1-to-1 alignment
             else if ( A->isQLIS && A->edge == PGA->edge )
@@ -236,7 +236,7 @@ void PrintDiff(DeltaGraph_t & graph)
             //-- Jump to different reference sequence
             if ( A->edge != PA->edge )
               {
-                PrintSeqJmp(refid, A->loQ);
+                PrintSeqJmp(qryid, refid, A->loQ);
               }
             //-- 1-to-1 alignment
             else if ( A->isRLIS && A->edge == PGA->edge )
@@ -291,6 +291,7 @@ void PrintGap(const char* seq, long s, long e)
     printf
       (
        "{FEA\n"
+       "typ:A\n"
        "clr:%ld,%ld\n"
        "com:GAP %ld\t%ld\t%ld\n"
        "src:%s,CTG\n"
@@ -299,19 +300,20 @@ void PrintGap(const char* seq, long s, long e)
        );
 }
 
-void PrintSeqJmp(const char* seq, long s)
+void PrintSeqJmp(const char* seq1, const char* seq2, long s)
 {
   if ( !OPT_AMOS )
-    printf("SEQ %ld\t%s\n", s, seq);
+    printf("SEQ %ld\t%s\n", s, seq2);
   else
     printf
       (
        "{FEA\n"
+       "typ:A\n"
        "clr:%ld,%ld\n"
        "com:SEQ %ld\t%s\n"
        "src:%s,CTG\n"
        "}\n",
-       s, s, s, seq, seq
+       s, s, s, seq2, seq1
        );
 }
 
@@ -323,6 +325,7 @@ void PrintLisJmp(const char* seq, long s, long e)
     printf
       (
        "{FEA\n"
+       "typ:A\n"
        "clr:%ld,%ld\n"
        "com:JMP %ld\t%ld\t%ld\n"
        "src:%s,CTG\n"
@@ -339,6 +342,7 @@ void PrintInv(const char* seq, long s, long e)
     printf
       (
        "{FEA\n"
+       "typ:A\n"
        "clr:%ld,%ld\n"
        "com:INV %ld\t%ld\t%ld\n"
        "src:%s,CTG\n"
@@ -355,6 +359,7 @@ void PrintTnd(const char* seq, long s, long e, long gap1, long gap2)
     printf
       (
        "{FEA\n"
+       "typ:A\n"
        "clr:%ld,%ld\n"
        "com:TND %ld\t%ld\t%ld\t%ld\t%ld\n"
        "src:%s,CTG\n"
@@ -371,6 +376,7 @@ void PrintDup(const char* seq, long s, long e)
     printf
       (
        "{FEA\n"
+       "typ:A\n"
        "clr:%ld,%ld\n"
        "com:DUP %ld\t%ld\t%ld\n"
        "src:%s,CTG\n"
