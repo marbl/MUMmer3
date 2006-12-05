@@ -101,9 +101,9 @@ int main(int argc, char **argv)
 
   ParseArgs(argc, argv);
 
-  //-- Get the whole genome alignment, i.e. union of QLIS and RLIS
+  //-- Get M-to-M alignment, i.e. union of QLIS and RLIS
   graph.build(OPT_AlignName, false);
-  graph.flagWGA();
+  graph.flagMtoM();
   graph.clean();
 
   //-- Output diff

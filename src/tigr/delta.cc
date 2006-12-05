@@ -363,6 +363,17 @@ void DeltaEdge_t::build (const DeltaRecord_t & rec)
 
 //===================================================== DeltaGraph_t ===========
 //----------------------------------------------------- build ------------------
+//! \brief Build a new graph from a deltafile
+//!
+//! Does not populate:
+//! node->seq
+//! edgelet->frmR/frmQ
+//! edgelet->snps
+//!
+//! \param deltapath The path of the deltafile to read
+//! \param getdeltas Read the delta-encoded gap positions? yes/no
+//! \return void
+//!
 void DeltaGraph_t::build (const string & deltapath, bool getdeltas)
 {
   DeltaReader_t dr;
@@ -427,6 +438,13 @@ void DeltaGraph_t::build (const string & deltapath, bool getdeltas)
 
 
 //------------------------------------------------------------------- clean ----
+//! \brief Clean the graph of all edgelets where isGOOD = false
+//!
+//! Removes all edgelets from the graph where isGOOD = false. Afterwhich, all
+//! now empty edges or nodes are also removed.
+//!
+//! \return void
+//!
 void DeltaGraph_t::clean()
 {
   map<string, DeltaNode_t>::iterator i;
@@ -505,7 +523,34 @@ void DeltaGraph_t::clean()
 }
 
 
+//------------------------------------------------------------------- clear ----
+//! \brief Clear the graph of all nodes, edges and edgelets
+//!
+//! \return void
+//!
+void DeltaGraph_t::clear ( )
+{
+  //-- Make sure the edges only get destructed once
+  std::map<std::string, DeltaNode_t>::iterator i;
+  std::vector<DeltaEdge_t *>::iterator j;
+  for ( i = refnodes . begin( ); i != refnodes . end( ); ++ i )
+    for ( j  = i -> second . edges . begin( );
+          j != i -> second . edges . end( ); ++ j )
+      delete (*j);
+  
+  refnodes.clear( );
+  qrynodes.clear( );
+  refpath.erase( );
+  qrypath.erase( );
+  datatype = NULL_DATA;
+}
+
+
 //------------------------------------------------------------ getNodeCount ----
+//! \brief Counts and returns the number of graph nodes (sequences)
+//!
+//! \return The number of graph nodes
+//!
 long DeltaGraph_t::getNodeCount()
 {
   long sum = refnodes.size() + qrynodes.size();
@@ -514,6 +559,10 @@ long DeltaGraph_t::getNodeCount()
 
 
 //------------------------------------------------------------ getEdgeCount ----
+//! \brief Counts and returns the number of graph edges
+//!
+//! \return void
+//!
 long DeltaGraph_t::getEdgeCount()
 {
   long sum = 0;
@@ -527,6 +576,10 @@ long DeltaGraph_t::getEdgeCount()
 
 
 //--------------------------------------------------------- getEdgeletCount ----
+//! \brief Counts and returns the number of graph edgelets (alignments)
+//!
+//! \return void
+//!
 long DeltaGraph_t::getEdgeletCount()
 {
   long sum = 0;
@@ -543,6 +596,7 @@ long DeltaGraph_t::getEdgeletCount()
 
 
 //---------------------------------------------------------------- flagGOOD ----
+//! \brief Sets isGOOD = 1 for all edgelets
 void DeltaGraph_t::flagGOOD()
 {
   map<string, DeltaNode_t>::const_iterator mi;
@@ -567,8 +621,39 @@ void DeltaGraph_t::flagGOOD()
 }
 
 
-//----------------------------------------------------------------- flagWGA ----
-void DeltaGraph_t::flagWGA(float epsilon, float maxolap)
+//---------------------------------------------------------------- flag1to1 ----
+//! \brief Intersection of flagQLIS and flagRLIS
+void DeltaGraph_t::flag1to1(float epsilon, float maxolap)
+{
+  flagRLIS(epsilon, maxolap, false);
+  flagQLIS(epsilon, maxolap, false);
+
+  map<string, DeltaNode_t>::const_iterator mi;
+  vector<DeltaEdge_t *>::const_iterator ei;
+  vector<DeltaEdgelet_t *>::iterator eli;
+
+  //-- All references
+  for ( mi = refnodes.begin(); mi != refnodes.end(); ++ mi )
+    {
+      //-- All queries matching this reference
+      for ( ei  = (mi->second).edges.begin();
+            ei != (mi->second).edges.end(); ++ ei )
+        {
+          //-- All alignments between reference and query
+          for ( eli  = (*ei)->edgelets.begin();
+                eli != (*ei)->edgelets.end(); ++ eli )
+            {
+              if ( !(*eli)->isRLIS || !(*eli)->isQLIS )
+                (*eli)->isGOOD = false;
+            }
+        }
+    }
+}
+
+
+//---------------------------------------------------------------- flagMtoM ----
+//! \brief Union of flagQLIS and flagRLIS
+void DeltaGraph_t::flagMtoM(float epsilon, float maxolap)
 {
   flagRLIS(epsilon, maxolap, false);
   flagQLIS(epsilon, maxolap, false);
@@ -597,6 +682,17 @@ void DeltaGraph_t::flagWGA(float epsilon, float maxolap)
 
 
 //-------------------------------------------------------------- flagGLIS ------
+//! \brief Flag edgelets in the global LIS and unflag those who are not
+//!
+//! Runs a length*identity weigthed LIS to determine the longest, mutually
+//! consistent set of alignments between all pairs of sequences. This
+//! essentially constructs the global alignment between all sequence pairs.
+//!
+//! Sets isGLIS flag for good and unsets isGOOD flag for bad.
+//!
+//! \param epsilon Keep repeat alignments within epsilon % of the best align
+//! \return void
+//!
 void DeltaGraph_t::flagGLIS (float epsilon)
 {
   LIS_t * lis = NULL;
@@ -744,33 +840,20 @@ void DeltaGraph_t::flagGLIS (float epsilon)
 }
 
 
-//------------------------------------------------------------- flagScore ------
-void DeltaGraph_t::flagScore (long minlen, float minidy)
-{
-  map<string, DeltaNode_t>::const_iterator mi;
-  vector<DeltaEdge_t *>::const_iterator ei;
-  vector<DeltaEdgelet_t *>::iterator eli;
-
-  for ( mi = refnodes.begin(); mi != refnodes.end(); ++ mi )
-    for ( ei  = (mi->second).edges.begin();
-          ei != (mi->second).edges.end(); ++ ei )
-      for ( eli  = (*ei)->edgelets.begin();
-            eli != (*ei)->edgelets.end(); ++ eli )
-        if ( (*eli)->isGOOD )
-          {
-            //-- Flag low identities
-            if ( (*eli)->idy * 100.0 < minidy )
-              (*eli)->isGOOD = false;
-
-            //-- Flag small lengths
-            if ( (*eli)->hiR - (*eli)->loR + 1 < minlen ||
-                 (*eli)->hiQ - (*eli)->loQ + 1 < minlen )
-              (*eli)->isGOOD = false;
-          }
-}
-
-
 //-------------------------------------------------------------- flagQLIS ------
+//! \brief Flag edgelets in the query LIS and unflag those who are not
+//!
+//! Runs a length*identity weighted LIS to determine the longest, QUERY
+//! consistent set of alignments for all query sequences. This effectively
+//! identifies the "best" alignments for all positions of each query.
+//!
+//! Sets isQLIS flag for good and unsets isGOOD flag for bad.
+//!
+//! \param epsilon Keep repeat alignments within epsilon % of the best align
+//! \param maxolap Only allow alignments to overlap by maxolap percent [0-100]
+//! \param flagBad Flag non QLIS edgelets as !isGOOD
+//! \return void
+//!
 void DeltaGraph_t::flagQLIS (float epsilon, float maxolap, bool flagbad)
 {
   LIS_t * lis = NULL;
@@ -879,6 +962,19 @@ void DeltaGraph_t::flagQLIS (float epsilon, float maxolap, bool flagbad)
 
 
 //-------------------------------------------------------------- flagRLIS ------
+//! \brief Flag edgelets in the reference LIS and unflag those who are not
+//!
+//! Runs a length*identity weighted LIS to determine the longest, REFERENCE
+//! consistent set of alignments for all reference sequences. This effectively
+//! identifies the "best" alignments for all positions of each reference.
+//!
+//! Sets isRLIS flag for good and unsets isGOOD flag for bad.
+//!
+//! \param epsilon Keep repeat alignments within epsilon % of the best align
+//! \param maxolap Only allow alignments to overlap by maxolap percent [0-100]
+//! \param flagBad Flag non RLIS edgelets as !isGOOD
+//! \return void
+//!
 void DeltaGraph_t::flagRLIS (float epsilon, float maxolap, bool flagbad)
 {
   LIS_t * lis = NULL;
@@ -986,7 +1082,48 @@ void DeltaGraph_t::flagRLIS (float epsilon, float maxolap, bool flagbad)
 }
 
 
+//------------------------------------------------------------- flagScore ------
+//! \brief Flag edgelets with scores below a score threshold
+//!
+//! Unsets isGOOD for bad.
+//!
+//! \param minlen Flag edgelets if less than minlen in length
+//! \param minidy Flag edgelets if less than minidy identity [0-100]
+//! \return void
+//!
+void DeltaGraph_t::flagScore (long minlen, float minidy)
+{
+  map<string, DeltaNode_t>::const_iterator mi;
+  vector<DeltaEdge_t *>::const_iterator ei;
+  vector<DeltaEdgelet_t *>::iterator eli;
+
+  for ( mi = refnodes.begin(); mi != refnodes.end(); ++ mi )
+    for ( ei  = (mi->second).edges.begin();
+          ei != (mi->second).edges.end(); ++ ei )
+      for ( eli  = (*ei)->edgelets.begin();
+            eli != (*ei)->edgelets.end(); ++ eli )
+        if ( (*eli)->isGOOD )
+          {
+            //-- Flag low identities
+            if ( (*eli)->idy * 100.0 < minidy )
+              (*eli)->isGOOD = false;
+
+            //-- Flag small lengths
+            if ( (*eli)->hiR - (*eli)->loR + 1 < minlen ||
+                 (*eli)->hiQ - (*eli)->loQ + 1 < minlen )
+              (*eli)->isGOOD = false;
+          }
+}
+
+
 //-------------------------------------------------------------- flagUNIQ ------
+//! \brief Flag edgelets with uniqueness below a certain threshold
+//!
+//! Unsets isGOOD for bad.
+//!
+//! \param minuniq Flag edgelets if less that minuniq percent [0-100] unique
+//! \return void
+//!
 void DeltaGraph_t::flagUNIQ (float minuniq)
 {
   long i, uniq, len;
@@ -1098,6 +1235,10 @@ void DeltaGraph_t::flagUNIQ (float minuniq)
 
 
 //----------------------------------------------------- loadSequences ----------
+//! \brief Load the sequence information into the DeltaNodes
+//!
+//! \return void
+//!
 void DeltaGraph_t::loadSequences ()
 {
   map<string, DeltaNode_t>::iterator mi;
@@ -1168,6 +1309,11 @@ void DeltaGraph_t::loadSequences ()
 
 
 //----------------------------------------------------- outputDelta ------------
+//! \brief Outputs the contents of the graph as a deltafile
+//!
+//! \param out The output stream to write to
+//! \return The output stream
+//!
 ostream & DeltaGraph_t::outputDelta (ostream & out)
 {
   bool header;

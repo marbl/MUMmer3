@@ -398,9 +398,7 @@ struct DeltaEdge_t
   std::vector<DeltaEdgelet_t *> edgelets;  //!< the set of individual alignments
 
   DeltaEdge_t ( )
-  {
-    refnode = qrynode = NULL;
-  }
+  { refnode = qrynode = NULL; }
 
   ~DeltaEdge_t ( )
   {
@@ -423,17 +421,10 @@ struct DeltaNode_t
   std::vector<DeltaEdge_t *> edges;   //!< the set of related edges
 
   DeltaNode_t ( )
-  {
-    id = NULL;
-    seq = NULL;
-    len = 0;
-  }
+  { id = NULL; seq = NULL; len = 0; }
 
   ~DeltaNode_t ( )
-  {
-    free (seq);
-  // DeltaGraph_t will take care of destructing the edges
-  }
+  { free (seq); } // DeltaGraph_t will take care of destructing the edges
 };
 
 
@@ -464,190 +455,34 @@ public:
   std::string qrypath;         //!< path of the query FastA file
   AlignmentType_t datatype;    //!< alignment data type
 
-  DeltaGraph_t ( )
-  {
-    datatype = NULL_DATA;
-  }
+  DeltaGraph_t()
+  { datatype = NULL_DATA; }
 
   ~DeltaGraph_t ( )
-  {
-    clear( );
-  }
+  { clear(); }
 
-  //--------------------------------------------------- build ------------------
-  //! \brief Build a new graph from a deltafile
-  //!
-  //! Does not populate:
-  //! node->seq
-  //! edgelet->frmR/frmQ
-  //! edgelet->snps
-  //!
-  //! \param deltapath The path of the deltafile to read
-  //! \param getdeltas Read the delta-encoded gap positions? yes/no
-  //! \return void
-  //!
-  void build (const std::string & deltapath, bool getdeltas = true);
+  void build(const std::string & deltapath, bool getdeltas = true);
+  void clean();
+  void clear();
+  long getNodeCount();
+  long getEdgeCount();
+  long getEdgeletCount();
 
-
-  //--------------------------------------------------- clean ------------------
-  //! \brief Clean the graph of all edgelets where isGOOD = false
-  //!
-  //! Removes all edgelets from the graph where isGOOD = false. Afterwhich, all
-  //! now empty edges or nodes are also removed.
-  //!
-  //! \return void
-  //!
-  void clean ( );
-
-
-  //--------------------------------------------------- clear ------------------
-  //! \brief Clear the graph of all nodes, edges and edgelets
-  //!
-  //! \return void
-  //!
-  void clear ( )
-  {
-    //-- Make sure the edges only get destructed once
-    std::map<std::string, DeltaNode_t>::iterator i;
-    std::vector<DeltaEdge_t *>::iterator j;
-    for ( i = refnodes . begin( ); i != refnodes . end( ); ++ i )
-      for ( j  = i -> second . edges . begin( );
-            j != i -> second . edges . end( ); ++ j )
-        delete (*j);
-
-    refnodes.clear( );
-    qrynodes.clear( );
-    refpath.erase( );
-    qrypath.erase( );
-    datatype = NULL_DATA;
-  }
-
-
-  //--------------------------------------------------- getNodeCount -----------
-  //! \brief Counts and returns the number of graph nodes (sequences)
-  //!
-  //! \return The number of graph nodes
-  //!
-  long getNodeCount ( );
-
-
-  //--------------------------------------------------- getEdgeCount -----------
-  //! \brief Counts and returns the number of graph edges
-  //!
-  //! \return void
-  //!
-  long getEdgeCount ( );
-
-
-  //--------------------------------------------------- getEdgeletCount --------
-  //! \brief Counts and returns the number of graph edgelets (alignments)
-  //!
-  //! \return void
-  //!
-  long getEdgeletCount ( );
-
-
-  //--------------------------------------------------- flagGOOD ---------------
-  //! \brief Sets isGOOD = 1 for all edgelets
   void flagGOOD();
+  void flag1to1(float epsilon = -1, float maxolap = 100.0);
+  void flagMtoM(float epsilon = -1, float maxolap = 100.0);
+  void flagGLIS(float epsilon = -1);
+  void flagQLIS(float epsilon = -1,
+                float maxolap = 100.0,
+                bool flagBad = true);
+  void flagRLIS(float epsilon = -1,
+                float maxolap = 100.0,
+                bool flagbad = true);
+  void flagScore(long minlen, float minidy);
+  void flagUNIQ(float minuniq);
 
-
-  //---------------------------------------------------- flagWGA ---------------
-  //! \brief Union of flagQLIS and flagRLIS
-  void flagWGA(float epsilon = -1, float maxolap = 100.0);
-
-
-  //--------------------------------------------------- flagGLIS ---------------
-  //! \brief Flag edgelets in the global LIS and unflag those who are not
-  //!
-  //! Runs a length*identity weigthed LIS to determine the longest, mutually
-  //! consistent set of alignments between all pairs of sequences. This
-  //! essentially constructs the global alignment between all sequence pairs.
-  //!
-  //! Sets isGLIS flag for good and unsets isGOOD flag for bad.
-  //!
-  //! \param epsilon Keep repeat alignments within epsilon % of the best align
-  //! \return void
-  //!
-  void flagGLIS (float epsilon = -1);
-
-
-  //--------------------------------------------------- flagQLIS ---------------
-  //! \brief Flag edgelets in the query LIS and unflag those who are not
-  //!
-  //! Runs a length*identity weighted LIS to determine the longest, QUERY
-  //! consistent set of alignments for all query sequences. This effectively
-  //! identifies the "best" alignments for all positions of each query.
-  //!
-  //! Sets isQLIS flag for good and unsets isGOOD flag for bad.
-  //!
-  //! \param epsilon Keep repeat alignments within epsilon % of the best align
-  //! \param maxolap Only allow alignments to overlap by maxolap percent [0-100]
-  //! \param flagBad Flag non QLIS edgelets as !isGOOD
-  //! \return void
-  //!
-  void flagQLIS (float epsilon = -1,
-                 float maxolap = 100.0,
-                 bool flagBad = true);
-
-
-  //--------------------------------------------------- flagRLIS ---------------
-  //! \brief Flag edgelets in the reference LIS and unflag those who are not
-  //!
-  //! Runs a length*identity weighted LIS to determine the longest, REFERENCE
-  //! consistent set of alignments for all reference sequences. This effectively
-  //! identifies the "best" alignments for all positions of each reference.
-  //!
-  //! Sets isRLIS flag for good and unsets isGOOD flag for bad.
-  //!
-  //! \param epsilon Keep repeat alignments within epsilon % of the best align
-  //! \param maxolap Only allow alignments to overlap by maxolap percent [0-100]
-  //! \param flagBad Flag non RLIS edgelets as !isGOOD
-  //! \return void
-  //!
-  void flagRLIS (float epsilon = -1,
-                 float maxolap = 100.0,
-                 bool flagbad = true);
-
-
-  //--------------------------------------------------- flagScore --------------
-  //! \brief Flag edgelets with scores below a score threshold
-  //!
-  //! Unsets isGOOD for bad.
-  //!
-  //! \param minlen Flag edgelets if less than minlen in length
-  //! \param minidy Flag edgelets if less than minidy identity [0-100]
-  //! \return void
-  //!
-  void flagScore (long minlen, float minidy);
-
-
-  //--------------------------------------------------- flagUNIQ ---------------
-  //! \brief Flag edgelets with uniqueness below a certain threshold
-  //!
-  //! Unsets isGOOD for bad.
-  //!
-  //! \param minuniq Flag edgelets if less that minuniq percent [0-100] unique
-  //! \return void
-  //!
-  void flagUNIQ (float minuniq);
-
-
-  //--------------------------------------------------- loadSequences ----------
-  //! \brief Load the sequence information into the DeltaNodes
-  //!
-  //! \return void
-  //!
-  void loadSequences ( );
-
-
-  //--------------------------------------------------- outputDelta ------------
-  //! \brief Outputs the contents of the graph as a deltafile
-  //!
-  //! \param out The output stream to write to
-  //! \return The output stream
-  //!
-  std::ostream & outputDelta (std::ostream & out);
+  void loadSequences();
+  std::ostream & outputDelta(std::ostream & out);
 };
 
 #endif // #ifndef __DELTA_HH
