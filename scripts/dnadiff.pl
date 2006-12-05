@@ -54,6 +54,7 @@ my $USAGE_INFO = q~
 my @DEPEND_INFO =
     (
      "$BIN_DIR/delta-filter",
+     "$BIN_DIR/show-diff",
      "$BIN_DIR/show-snps",
      "$BIN_DIR/show-coords",
      "$BIN_DIR/nucmer",
@@ -61,6 +62,7 @@ my @DEPEND_INFO =
      );
 
 my $DELTA_FILTER = "$BIN_DIR/delta-filter";
+my $SHOW_DIFF = "$BIN_DIR/show-diff";
 my $SHOW_SNPS = "$BIN_DIR/show-snps";
 my $SHOW_COORDS = "$BIN_DIR/show-coords";
 my $NUCMER = "$BIN_DIR/nucmer";
@@ -71,7 +73,7 @@ my $OPT_QryFile;                    # query file
 my $OPT_DeltaFile;                  # unfiltered alignment file
 my $OPT_FilterFile = ".deltaf";     # filtered alignment file
 my $OPT_SnpsFile   = ".snp";        # snps output file
-my $OPT_ShufFile   = ".shuf";       # shuffle file
+my $OPT_DiffFile   = ".diff";       # difffle file
 my $OPT_ReportFile = ".report";     # report file
 
 my $TIGR;  # TIGR Foundation object
@@ -166,6 +168,9 @@ sub GetOpt()
     $TIGR->isExecutableFile($DELTA_FILTER)
         or push(@errs, $DELTA_FILTER);
 
+    $TIGR->isExecutableFile($SHOW_DIFF)
+        or push(@errs, $SHOW_DIFF);
+
     $TIGR->isExecutableFile($SHOW_SNPS)
         or push(@errs, $SHOW_SNPS);
 
@@ -198,10 +203,10 @@ sub GetOpt()
         or $TIGR->isWritableFile("$OPT_SnpsFile")
         or push(@errs, "$OPT_SnpsFile");
 
-    $OPT_ShufFile = $OPT_Prefix . $OPT_ShufFile;
-    $TIGR->isCreatableFile("$OPT_ShufFile")
-        or $TIGR->isWritableFile("$OPT_ShufFile")
-        or push(@errs, "$OPT_ShufFile");
+    $OPT_DiffFile = $OPT_Prefix . $OPT_DiffFile;
+    $TIGR->isCreatableFile("$OPT_DiffFile")
+        or $TIGR->isWritableFile("$OPT_DiffFile")
+        or push(@errs, "$OPT_DiffFile");
 
     $OPT_ReportFile = $OPT_Prefix . $OPT_ReportFile;
     $TIGR->isCreatableFile("$OPT_ReportFile")
