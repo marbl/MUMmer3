@@ -49,10 +49,10 @@ void PrintUsage(const char * s);
 
 void PrintNewSeq(const char* seq);
 void PrintGap(const char* seq, long s, long e);
-void PrintSeqJmp(const char* seq1, const char* seq2, long s);
+void PrintSeqJmp(const char* seq1, const char* seq2, long s, long e);
 void PrintLisJmp(const char* seq, long s, long e);
 void PrintInv(const char* seq, long s, long e);
-void PrintTnd(const char* seq, long s, long e, long gap1, long gap2);
+void PrintIndel(const char* seq, long s, long e, long gap1, long gap2);
 void PrintDup(const char* seq, long s, long e);
 
 
@@ -135,20 +135,22 @@ void PrintDiff(DeltaGraph_t & graph)
             A = aligns[i];
             gapR = A->loR - PA->hiR - 1;
 
-            if ( gapR > 0 )
-              PrintGap(refid, PA->hiR, A->loR);
-
             //-- End of alignments
-            if ( A->edge == NULL ) break;
+            if ( A->edge == NULL )
+              {
+                PrintGap(refid, PA->hiR, A->loR);
+                break;
+              }
+
             qryid = A->edge->qrynode->id->c_str();
 
             //-- Jump to different query sequence
-            if ( A->edge != PA->edge )
+            if ( A->edge != PGA->edge )
               {
-                PrintSeqJmp(refid, qryid, A->loR);
+                PrintSeqJmp(refid, qryid, PA->hiR, A->loR);
               }
             //-- 1-to-1 alignment
-            else if ( A->isQLIS && A->edge == PGA->edge )
+            else if ( A->isQLIS )
               {
                 //-- Jump within Q
                 if ( A->slope() != PGA->slope() ||
@@ -159,27 +161,29 @@ void PrintDiff(DeltaGraph_t & graph)
                     else
                       PrintInv(refid, PA->hiR, A->loR);
                   }
-                //-- Lined up, with reference overlap
-                else if ( PA == PGA && gapR <= 0 )
+                //-- Lined up, nothing in between
+                else if ( PA == PGA )
                   {
                     gapQ = A->isPositive() ?
                       A->loQ - PGA->hiQ - 1 :
                       PGA->loQ - A->hiQ - 1;
-                    PrintTnd(refid, PA->hiR, A->loR, gapR, gapQ);
+                    PrintIndel(refid, PA->hiR, A->loR, gapR, gapQ);
                   }
-                //-- Lined up, something between
+                //-- Lined up, duplication in between
                 else
                   {
-                    // Already handled by PrintGap
+                    PrintGap(refid, PA->hiR, A->loR);
                   }
               }
-
             //-- Duplication
+            else
+              {
+                PrintGap(refid, PA->hiR, A->loR);
+                PrintDup(refid, A->loR, A->hiR);
+              }
+
             if ( A->isQLIS )
               PGA = A;
-            else
-              PrintDup(refid, A->loR, A->hiR);
-
             PA = A;
           }
       }
@@ -226,17 +230,19 @@ void PrintDiff(DeltaGraph_t & graph)
             A = aligns[i];
             gapQ = A->loQ - PA->hiQ - 1;
 
-            if ( gapQ > 0 )
-              PrintGap(qryid, PA->hiQ, A->loQ);
-
             //-- End of alignments
-            if ( A->edge == NULL ) break;
+            if ( A->edge == NULL )
+              {
+                PrintGap(qryid, PA->hiQ, A->loQ);
+                break;
+              }
+
             refid = A->edge->refnode->id->c_str();
 
             //-- Jump to different reference sequence
             if ( A->edge != PA->edge )
               {
-                PrintSeqJmp(qryid, refid, A->loQ);
+                PrintSeqJmp(qryid, refid, PA->hiQ, A->loQ);
               }
             //-- 1-to-1 alignment
             else if ( A->isRLIS && A->edge == PGA->edge )
@@ -250,27 +256,29 @@ void PrintDiff(DeltaGraph_t & graph)
                     else
                       PrintInv(qryid, PA->hiQ, A->loQ);
                   }
-                //-- All lined up, nothing between
-                else if ( PA == PGA && gapQ <= 0 )
+                //-- All lined up, nothing in between
+                else if ( PA == PGA )
                   {
                     gapR = A->isPositive() ?
                       A->loR - PGA->hiR - 1 :
                       PGA->loR - A->hiR - 1;
-                    PrintTnd(qryid, PA->hiQ, A->loQ, gapQ, gapR);
+                    PrintIndel(qryid, PA->hiQ, A->loQ, gapQ, gapR);
                   }
-                //-- Lined up, something between
+                //-- Lined up, duplication in between
                 else
                   {
-                    //-- Already handled by PrintGap
+                    PrintGap(qryid, PA->hiQ, A->loQ);
                   }
               }
-
             //-- Duplication
+            else
+              {
+                PrintGap(qryid, PA->hiQ, A->loQ);
+                PrintDup(qryid, A->loQ, A->hiQ);
+              }
+
             if ( A->isRLIS )
               PGA = A;
-            else
-              PrintDup(qryid, A->loQ, A->hiQ);
-
             PA = A;
           }
       }
@@ -300,20 +308,20 @@ void PrintGap(const char* seq, long s, long e)
        );
 }
 
-void PrintSeqJmp(const char* seq1, const char* seq2, long s)
+void PrintSeqJmp(const char* seq1, const char* seq2, long s, long e)
 {
   if ( !OPT_AMOS )
-    printf("SEQ %ld\t%s\n", s, seq2);
+    printf("SEQ %ld\t%ld\t%ld\t%s\n", s, e, e-s-1, seq2);
   else
     printf
       (
        "{FEA\n"
        "typ:A\n"
        "clr:%ld,%ld\n"
-       "com:SEQ %ld\t%s\n"
+       "com:SEQ %ld\t%ld\t%ld\t%s\n"
        "src:%s,CTG\n"
        "}\n",
-       s, s, s, seq2, seq1
+       s, e, s, e, e-s-1, seq2, seq1
        );
 }
 
@@ -351,20 +359,24 @@ void PrintInv(const char* seq, long s, long e)
        );
 }
 
-void PrintTnd(const char* seq, long s, long e, long gap1, long gap2)
+void PrintIndel(const char* seq, long s, long e, long gap1, long gap2)
 {
   if ( !OPT_AMOS )
-    printf("TND %ld\t%ld\t%ld\t%ld\t%ld\n", s, e, gap1-gap2, gap1, gap2);
+    printf
+      (
+       "%s %ld\t%ld\t%ld\t%ld\t%ld\n",
+       gap1-gap2 > 0 ? "INS" : "DEL", s, e, gap1-gap2, gap1, gap2
+       );
   else
     printf
       (
        "{FEA\n"
        "typ:A\n"
        "clr:%ld,%ld\n"
-       "com:TND %ld\t%ld\t%ld\t%ld\t%ld\n"
+       "com:%s %ld\t%ld\t%ld\t%ld\t%ld\n"
        "src:%s,CTG\n"
        "}\n",
-       s, e, s, e, gap1-gap2, gap1, gap2, seq
+       s, e, gap1-gap2 > 0 ? "INS" : "DEL", s, e, gap1-gap2, gap1, gap2, seq
        );
 }
 
