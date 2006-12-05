@@ -6,8 +6,6 @@
 //        Usage: show-diff [options] <deltafile>
 //               Try 'show-diff -h' for more information
 //
-//  Description:
-//
 //-----------------------------------------------------------------------------
 
 #include "delta.hh"
@@ -22,8 +20,8 @@ using namespace std;
 //================================================================ Options ====
 string  OPT_AlignName;            // delta file name
 bool    OPT_AMOS    = false;      // AMOS output
-bool    OPT_RefDiff = true;       // reference diff
-bool    OPT_QryDiff = true;       // query diff
+bool    OPT_RefDiff = true;       // output reference diff only
+bool    OPT_QryDiff = true;       // output query diff only
 
 
 //=========================================================== Declarations ====
@@ -83,10 +81,6 @@ struct EdgeletIdRLoRCmp_t
 
 
 void PrintDiff(DeltaGraph_t & graph);
-void ParseArgs(int argc, char ** argv);
-void PrintHelp(const char * s);
-void PrintUsage(const char * s);
-
 void PrintNewSeq(const char* seq);
 void PrintGap(const char* seq, long s, long e);
 void PrintSeqJmp(const char* seq1, const char* seq2, long s, long e);
@@ -94,6 +88,9 @@ void PrintLisJmp(const char* seq, long s, long e);
 void PrintInv(const char* seq, long s, long e);
 void PrintIndel(const char* seq, long s, long e, long gap1, long gap2);
 void PrintDup(const char* seq, long s, long e);
+void ParseArgs(int argc, char ** argv);
+void PrintHelp(const char * s);
+void PrintUsage(const char * s);
 
 
 //============================================================ Definitions ====
@@ -104,12 +101,12 @@ int main(int argc, char **argv)
 
   ParseArgs(argc, argv);
 
+  //-- Get the whole genome alignment, i.e. union of QLIS and RLIS
   graph.build(OPT_AlignName, false);
-
-  //-- Keep the union of FlagRLIS and FlagQLIS
   graph.flagWGA();
   graph.clean();
 
+  //-- Output diff
   PrintDiff(graph);
 
   return EXIT_SUCCESS;
@@ -123,12 +120,12 @@ void PrintDiff(DeltaGraph_t & graph)
   const char* qryid;
   long i,j;
   long nAligns, gapR, gapQ;
-  DeltaEdgelet_t lpad, rpad;
+  DeltaEdgelet_t lpad, rpad;          // padding for the alignment vector
   lpad.isRLIS = rpad.isRLIS = true;
   lpad.isQLIS = rpad.isQLIS = true;
   lpad.loR = lpad.hiR = lpad.loQ = lpad.hiQ = 0;
 
-  DeltaEdgelet_t *A, *PA, *PGA;
+  DeltaEdgelet_t *A, *PA, *PGA;       // alignment, prev, prev global
   vector<DeltaEdgelet_t *> aligns;
 
   map<string, DeltaNode_t>::const_iterator mi;
@@ -139,6 +136,7 @@ void PrintDiff(DeltaGraph_t & graph)
   if ( OPT_RefDiff )
     for ( mi = graph.refnodes.begin(); mi != graph.refnodes.end(); ++ mi )
       {
+        //-- Announce new reference sequence
         refid = mi->first.c_str();
         PrintNewSeq(refid);
 
@@ -150,6 +148,7 @@ void PrintDiff(DeltaGraph_t & graph)
                 eli != (*ei)->edgelets.end(); ++eli )
             aligns.push_back(*eli);
 
+        //-- Pad the front and back of the alignment vector
         rpad.loR = rpad.hiR = mi->second.len + 1;
         rpad.loQ = rpad.hiQ = LONG_MAX;
         aligns.push_back(&lpad);
@@ -157,7 +156,7 @@ void PrintDiff(DeltaGraph_t & graph)
 
         nAligns = aligns.size();
 
-        //-- OVERRIDE *stpc* with loQ QLIS ordering
+        //-- OVERRIDE *stpc* value with loQ QLIS ordering
         sort(aligns.begin(), aligns.end(), EdgeletIdQLoQCmp_t());
         for ( i = 0, j = 0; i != nAligns; ++i )
           aligns[i]->stpc = aligns[i]->isQLIS ? j++ : -1;
@@ -170,12 +169,13 @@ void PrintDiff(DeltaGraph_t & graph)
         PA = PGA = aligns[0];
         for ( i = 1; i != nAligns; ++i )
           {
+            //-- Only interested in reference covering alignments
             if ( !aligns[i]->isRLIS ) continue;
 
             A = aligns[i];
             gapR = A->loR - PA->hiR - 1;
 
-            //-- End of alignments
+            //-- Reached pad, end of alignments
             if ( A->edge == NULL )
               {
                 PrintGap(refid, PA->hiR, A->loR);
@@ -192,9 +192,7 @@ void PrintDiff(DeltaGraph_t & graph)
                      A->stpc != PGA->stpc + PGA->slope() )
                   {
                     if ( A->slope() == PGA->slope() )
-                      {
-                        PrintLisJmp(refid, PA->hiR, A->loR);
-                      }
+                      PrintLisJmp(refid, PA->hiR, A->loR);
                     else
                       PrintInv(refid, PA->hiR, A->loR);
                   }
@@ -212,13 +210,13 @@ void PrintDiff(DeltaGraph_t & graph)
                     PrintGap(refid, PA->hiR, A->loR);
                   }
               }
-            //-- Duplication
+            //-- Not in QLIS? Must be a duplication in R
             else if ( !A->isQLIS )
               {
                 PrintGap(refid, PA->hiR, A->loR);
                 PrintDup(refid, A->loR, A->hiR);
               }
-            //-- Jump to different query sequence
+            //-- A->edge != PGA->edge? Jump to different query sequence
             else
               {
                 PrintSeqJmp(refid, qryid, PA->hiR, A->loR);
@@ -230,16 +228,14 @@ void PrintDiff(DeltaGraph_t & graph)
           }
       }
 
-  //---------- WARNING! BULK CODE COPY FOR QUERY CASE! ----------//
 
-  //-- For each query sequence
+  //---------- WARNING! Same code as above but Q's for R's and R's for Q's
   if ( OPT_QryDiff )
     for ( mi = graph.qrynodes.begin(); mi != graph.qrynodes.end(); ++ mi )
       {
         qryid = mi->first.c_str();
         PrintNewSeq(qryid);
 
-        //-- Collect all alignments for this reference sequence
         aligns.clear();
         for ( ei  = (mi->second).edges.begin();
               ei != (mi->second).edges.end(); ++ei )
@@ -254,16 +250,13 @@ void PrintDiff(DeltaGraph_t & graph)
 
         nAligns = aligns.size();
 
-        //-- OVERRIDE *stpc* with loR RLIS ordering
         sort(aligns.begin(), aligns.end(), EdgeletIdRLoRCmp_t());
         for ( i = 0, j = 0; i != nAligns; ++i )
           aligns[i]->stpc = aligns[i]->isRLIS ? j++ : -1;
 
-        //-- Sort by query order
         sort(aligns.begin(), aligns.end(), EdgeletLoQCmp_t());
         assert ( aligns[0] == &lpad && aligns[nAligns-1] == &rpad );
 
-        //-- Walk reference cover alignments, low to high
         PA = PGA = aligns[0];
         for ( i = 1; i != nAligns; ++i )
           {
@@ -272,7 +265,6 @@ void PrintDiff(DeltaGraph_t & graph)
             A = aligns[i];
             gapQ = A->loQ - PA->hiQ - 1;
 
-            //-- End of alignments
             if ( A->edge == NULL )
               {
                 PrintGap(qryid, PA->hiQ, A->loQ);
@@ -281,10 +273,8 @@ void PrintDiff(DeltaGraph_t & graph)
 
             refid = A->edge->refnode->id->c_str();
 
-            //-- 1-to-1 alignment
             if ( A->isRLIS && A->edge == PGA->edge )
               {
-                //-- Jump within R
                 if ( A->slope() != PGA->slope() ||
                      A->stpc != PGA->stpc + PGA->slope() )
                   {
@@ -293,7 +283,6 @@ void PrintDiff(DeltaGraph_t & graph)
                     else
                       PrintInv(qryid, PA->hiQ, A->loQ);
                   }
-                //-- All lined up, nothing in between
                 else if ( PA == PGA )
                   {
                     gapR = A->isPositive() ?
@@ -301,19 +290,16 @@ void PrintDiff(DeltaGraph_t & graph)
                       PGA->loR - A->hiR - 1;
                     PrintIndel(qryid, PA->hiQ, A->loQ, gapQ, gapR);
                   }
-                //-- Lined up, duplication in between
                 else
                   {
                     PrintGap(qryid, PA->hiQ, A->loQ);
                   }
               }
-            //-- Duplication
             else if ( !A->isRLIS )
               {
                 PrintGap(qryid, PA->hiQ, A->loQ);
                 PrintDup(qryid, A->loQ, A->hiQ);
               }
-            //-- Jump to different reference sequence
             else
               {
                 PrintSeqJmp(qryid, refid, PA->hiQ, A->loQ);
@@ -333,17 +319,18 @@ void PrintNewSeq(const char* seq)
     printf(">%s\n", seq);
 }
 
+
 void PrintGap(const char* seq, long s, long e)
 {
   if ( !OPT_AMOS )
-    printf("GAP %ld\t%ld\t%ld\n", s, e, e-s-1);
+    printf("GAP\t%ld\t%ld\t%ld\n", s, e, e-s-1);
   else
     printf
       (
        "{FEA\n"
        "typ:A\n"
        "clr:%ld,%ld\n"
-       "com:GAP %ld\t%ld\t%ld\n"
+       "com:GAP\t%ld\t%ld\t%ld\n"
        "src:%s,CTG\n"
        "}\n",
        s, e, s, e, e-s-1, seq
@@ -353,14 +340,14 @@ void PrintGap(const char* seq, long s, long e)
 void PrintSeqJmp(const char* seq1, const char* seq2, long s, long e)
 {
   if ( !OPT_AMOS )
-    printf("SEQ %ld\t%ld\t%ld\t%s\n", s, e, e-s-1, seq2);
+    printf("SEQ\t%ld\t%ld\t%ld\t%s\n", s, e, e-s-1, seq2);
   else
     printf
       (
        "{FEA\n"
        "typ:A\n"
        "clr:%ld,%ld\n"
-       "com:SEQ %ld\t%ld\t%ld\t%s\n"
+       "com:SEQ\t%ld\t%ld\t%ld\t%s\n"
        "src:%s,CTG\n"
        "}\n",
        s, e, s, e, e-s-1, seq2, seq1
@@ -370,14 +357,14 @@ void PrintSeqJmp(const char* seq1, const char* seq2, long s, long e)
 void PrintLisJmp(const char* seq, long s, long e)
 {
   if ( !OPT_AMOS )
-    printf("JMP %ld\t%ld\t%ld\n", s, e, e-s-1);
+    printf("JMP\t%ld\t%ld\t%ld\n", s, e, e-s-1);
   else
     printf
       (
        "{FEA\n"
        "typ:A\n"
        "clr:%ld,%ld\n"
-       "com:JMP %ld\t%ld\t%ld\n"
+       "com:JMP\t%ld\t%ld\t%ld\n"
        "src:%s,CTG\n"
        "}\n",
        s, e, s, e, e-s-1, seq
@@ -387,14 +374,14 @@ void PrintLisJmp(const char* seq, long s, long e)
 void PrintInv(const char* seq, long s, long e)
 {
   if ( !OPT_AMOS )
-    printf("INV %ld\t%ld\t%ld\n", s, e, e-s-1);
+    printf("INV\t%ld\t%ld\t%ld\n", s, e, e-s-1);
   else
     printf
       (
        "{FEA\n"
        "typ:A\n"
        "clr:%ld,%ld\n"
-       "com:INV %ld\t%ld\t%ld\n"
+       "com:INV\t%ld\t%ld\t%ld\n"
        "src:%s,CTG\n"
        "}\n",
        s, e, s, e, e-s-1, seq
@@ -406,7 +393,7 @@ void PrintIndel(const char* seq, long s, long e, long gap1, long gap2)
   if ( !OPT_AMOS )
     printf
       (
-       "%s %ld\t%ld\t%ld\t%ld\t%ld\n",
+       "%s\t%ld\t%ld\t%ld\t%ld\t%ld\n",
        gap1-gap2 > 0 ? "INS" : "DEL", s, e, gap1, gap2, gap1-gap2
        );
   else
@@ -415,7 +402,7 @@ void PrintIndel(const char* seq, long s, long e, long gap1, long gap2)
        "{FEA\n"
        "typ:A\n"
        "clr:%ld,%ld\n"
-       "com:%s %ld\t%ld\t%ld\t%ld\t%ld\n"
+       "com:%s\t%ld\t%ld\t%ld\t%ld\t%ld\n"
        "src:%s,CTG\n"
        "}\n",
        s, e, gap1-gap2 > 0 ? "INS" : "DEL", s, e, gap1, gap2, gap1-gap2, seq
@@ -425,14 +412,14 @@ void PrintIndel(const char* seq, long s, long e, long gap1, long gap2)
 void PrintDup(const char* seq, long s, long e)
 {
   if ( !OPT_AMOS )
-    printf("DUP %ld\t%ld\t%ld\n", s, e, e-s+1);
+    printf("DUP\t%ld\t%ld\t%ld\n", s, e, e-s+1);
   else
     printf
       (
        "{FEA\n"
        "typ:A\n"
        "clr:%ld,%ld\n"
-       "com:DUP %ld\t%ld\t%ld\n"
+       "com:DUP\t%ld\t%ld\t%ld\n"
        "src:%s,CTG\n"
        "}\n",
        s, e, s, e, e-s+1, seq
@@ -494,7 +481,29 @@ void PrintHelp (const char * s)
     << endl;
 
   cerr
-    << "  Description\n"
+    << "  Outputs a list of structural differences for each sequence in\n"
+    << "the reference and query, sorted by position. For a reference\n"
+    << "sequence R, and its matching query sequence Q, differences are\n"
+    << "categorized as SEQ (jump to new Q), GAP (unaligned gap in R),\n"
+    << "JMP (rearrangement), INV (inversion and rearrangement), INS\n"
+    << "(insertion into R), DEL (deletion from R), and DUP (duplicate\n"
+    << "insertion into R). The first three columns of output are feature\n"
+    << "type, R feature start, and R feature end. Additional columns are\n"
+    << "added depending on the feature type. Negative feature lengths\n"
+    << "indicate adjacent alignment blocks overlap.\n"
+    << "  SEQ gap-start gap-end gap-length new-sequence\n"
+    << "  GAP gap-start gap-end gap-length\n"
+    << "  JMP gap-start gap-end gap-length\n"
+    << "  INV gap-start gap-end gap-length\n"
+    << "  INS gap-start gap-end gap-lengthR gap-lengthQ gap-diff\n"
+    << "  DEL gap-start gap-end gap-lengthR gap-lengthQ gap-diff\n"
+    << "  DUP dup-start dup-end dup-length\n"
+    << "Feature lists are headed by a > line with the ID of the sequence\n"
+    << "being described. Positions always reference this sequence. The\n"
+    << "sum of the third column (ignoring negative values) for a sequence\n"
+    << "R is the total amount of sequence inserted into R with respect\n"
+    << "to Q. Summing the third column after removing DUP features is the\n"
+    << "total amount of unique sequence in R.\n"
     << endl;
 
   return;
