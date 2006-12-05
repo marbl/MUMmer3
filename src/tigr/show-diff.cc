@@ -28,17 +28,57 @@ bool    OPT_QryDiff = true;       // query diff
 
 //=========================================================== Declarations ====
 struct EdgeletLoQCmp_t
-//!< Sorts query low coord, lo to hi
+//!< Sorts query by lo coord, lo to hi
 {
-  bool operator( ) (const DeltaEdgelet_t * i, const DeltaEdgelet_t * j) const
+  bool operator()(const DeltaEdgelet_t * i, const DeltaEdgelet_t * j) const
   { return ( i->loQ < j->loQ ); }
 };
 
-struct EdgeletLoRCmp_t
-//!< Sorts reference lo coord, lo to hi
+struct EdgeletIdQLoQCmp_t
+//!< Sorts query by ID and lo coord, lo to hi
 {
-  bool operator( ) (const DeltaEdgelet_t * i, const DeltaEdgelet_t * j) const
+  bool operator()(const DeltaEdgelet_t * i, const DeltaEdgelet_t * j) const
+  {
+    if ( i->edge && j->edge )
+      {
+        if ( i->edge->qrynode < j->edge->qrynode )
+          return true;
+        else if ( i->edge->qrynode > j->edge->qrynode )
+          return false;
+      }
+    else if ( !i->edge && j->edge )
+      return true;
+    else if ( i->edge && !j->edge )
+      return false;
+    return ( i->loQ < j->loQ );
+  }
+};
+
+struct EdgeletLoRCmp_t
+//!< Sorts reference by lo coord, lo to hi
+{
+  bool operator()(const DeltaEdgelet_t * i, const DeltaEdgelet_t * j) const
   { return ( i->loR < j->loR ); }
+};
+
+struct EdgeletIdRLoRCmp_t
+//!< Sorts reference by ID and lo coord, lo to hi
+{
+  bool operator()(const DeltaEdgelet_t * i, const DeltaEdgelet_t * j) const
+  {
+    if ( i->edge && j->edge )
+      {
+        if ( i->edge->refnode < j->edge->refnode )
+          return true;
+        else if ( i->edge->refnode > j->edge->refnode )
+          return false;
+      }
+    else if ( !i->edge && j->edge )
+      return true;
+    else if ( i->edge && !j->edge )
+      return false;
+    return ( i->loR < j->loR );
+  }
 };
 
 
@@ -118,7 +158,7 @@ void PrintDiff(DeltaGraph_t & graph)
         nAligns = aligns.size();
 
         //-- OVERRIDE *stpc* with loQ QLIS ordering
-        sort(aligns.begin(), aligns.end(), EdgeletLoQCmp_t());
+        sort(aligns.begin(), aligns.end(), EdgeletIdQLoQCmp_t());
         for ( i = 0, j = 0; i != nAligns; ++i )
           aligns[i]->stpc = aligns[i]->isQLIS ? j++ : -1;
 
@@ -144,20 +184,17 @@ void PrintDiff(DeltaGraph_t & graph)
 
             qryid = A->edge->qrynode->id->c_str();
 
-            //-- Jump to different query sequence
-            if ( A->edge != PGA->edge )
-              {
-                PrintSeqJmp(refid, qryid, PA->hiR, A->loR);
-              }
             //-- 1-to-1 alignment
-            else if ( A->isQLIS )
+            if ( A->isQLIS && A->edge == PGA->edge )
               {
                 //-- Jump within Q
                 if ( A->slope() != PGA->slope() ||
                      A->stpc != PGA->stpc + PGA->slope() )
                   {
                     if ( A->slope() == PGA->slope() )
-                      PrintLisJmp(refid, PA->hiR, A->loR);
+                      {
+                        PrintLisJmp(refid, PA->hiR, A->loR);
+                      }
                     else
                       PrintInv(refid, PA->hiR, A->loR);
                   }
@@ -176,10 +213,15 @@ void PrintDiff(DeltaGraph_t & graph)
                   }
               }
             //-- Duplication
-            else
+            else if ( !A->isQLIS )
               {
                 PrintGap(refid, PA->hiR, A->loR);
                 PrintDup(refid, A->loR, A->hiR);
+              }
+            //-- Jump to different query sequence
+            else
+              {
+                PrintSeqJmp(refid, qryid, PA->hiR, A->loR);
               }
 
             if ( A->isQLIS )
@@ -213,7 +255,7 @@ void PrintDiff(DeltaGraph_t & graph)
         nAligns = aligns.size();
 
         //-- OVERRIDE *stpc* with loR RLIS ordering
-        sort(aligns.begin(), aligns.end(), EdgeletLoRCmp_t());
+        sort(aligns.begin(), aligns.end(), EdgeletIdRLoRCmp_t());
         for ( i = 0, j = 0; i != nAligns; ++i )
           aligns[i]->stpc = aligns[i]->isRLIS ? j++ : -1;
 
@@ -239,13 +281,8 @@ void PrintDiff(DeltaGraph_t & graph)
 
             refid = A->edge->refnode->id->c_str();
 
-            //-- Jump to different reference sequence
-            if ( A->edge != PA->edge )
-              {
-                PrintSeqJmp(qryid, refid, PA->hiQ, A->loQ);
-              }
             //-- 1-to-1 alignment
-            else if ( A->isRLIS && A->edge == PGA->edge )
+            if ( A->isRLIS && A->edge == PGA->edge )
               {
                 //-- Jump within R
                 if ( A->slope() != PGA->slope() ||
@@ -271,10 +308,15 @@ void PrintDiff(DeltaGraph_t & graph)
                   }
               }
             //-- Duplication
-            else
+            else if ( !A->isRLIS )
               {
                 PrintGap(qryid, PA->hiQ, A->loQ);
                 PrintDup(qryid, A->loQ, A->hiQ);
+              }
+            //-- Jump to different reference sequence
+            else
+              {
+                PrintSeqJmp(qryid, refid, PA->hiQ, A->loQ);
               }
 
             if ( A->isRLIS )
@@ -365,7 +407,7 @@ void PrintIndel(const char* seq, long s, long e, long gap1, long gap2)
     printf
       (
        "%s %ld\t%ld\t%ld\t%ld\t%ld\n",
-       gap1-gap2 > 0 ? "INS" : "DEL", s, e, gap1-gap2, gap1, gap2
+       gap1-gap2 > 0 ? "INS" : "DEL", s, e, gap1, gap2, gap1-gap2
        );
   else
     printf
@@ -376,7 +418,7 @@ void PrintIndel(const char* seq, long s, long e, long gap1, long gap2)
        "com:%s %ld\t%ld\t%ld\t%ld\t%ld\n"
        "src:%s,CTG\n"
        "}\n",
-       s, e, gap1-gap2 > 0 ? "INS" : "DEL", s, e, gap1-gap2, gap1, gap2, seq
+       s, e, gap1-gap2 > 0 ? "INS" : "DEL", s, e, gap1, gap2, gap1-gap2, seq
        );
 }
 
