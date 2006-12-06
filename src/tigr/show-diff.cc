@@ -20,8 +20,9 @@ using namespace std;
 //================================================================ Options ====
 string  OPT_AlignName;            // delta file name
 bool    OPT_AMOS    = false;      // AMOS output
-bool    OPT_RefDiff = true;       // output reference diff only
-bool    OPT_QryDiff = true;       // output query diff only
+bool    OPT_RefDiff = false;      // output reference diff
+bool    OPT_QryDiff = false;      // output query diff
+bool    OPT_PrintHeader = true;   // -H option
 
 
 //=========================================================== Declarations ====
@@ -81,13 +82,13 @@ struct EdgeletIdRLoRCmp_t
 
 
 void PrintDiff(DeltaGraph_t & graph);
-void PrintGap(const char* seq, long s, long e);
+void PrintBrk(const char* seq, long s, long e);
 void PrintSeqJmp(const char* seq,
                  const char* seqp, const char* seqn,
                  long s, long e);
 void PrintLisJmp(const char* seq, long s, long e);
 void PrintInv(const char* seq, long s, long e);
-void PrintIndel(const char* seq, long s, long e, long gap1, long gap2);
+void PrintGap(const char* seq, long s, long e, long gap1, long gap2);
 void PrintDup(const char* seq, long s, long e);
 void ParseArgs(int argc, char ** argv);
 void PrintHelp(const char * s);
@@ -117,6 +118,15 @@ int main(int argc, char **argv)
 //-------------------------------------------------------------- PrintDiff ----
 void PrintDiff(DeltaGraph_t & graph)
 {
+  if ( OPT_PrintHeader )
+    {
+      printf ("%s %s\n%s\n\n",
+              graph . refpath . c_str( ), graph . qrypath . c_str( ),
+              graph . datatype == NUCMER_DATA ? "NUCMER" : "PROMER");
+      printf ("%s\t%s\t%s\t%s\t%s\n",
+              "[SEQ]", "[TYPE]", "[S1]", "[E1]", "[LEN 1]");
+    }
+
   const char* refid;
   const char* qryid;
   long i,j;
@@ -177,7 +187,7 @@ void PrintDiff(DeltaGraph_t & graph)
             //-- Reached pad, end of alignments
             if ( A->edge == NULL )
               {
-                PrintGap(refid, PA->hiR, A->loR);
+                PrintBrk(refid, PA->hiR, A->loR);
               }
             //-- 1-to-1 alignment
             else if ( A->isQLIS && A->edge == PGA->edge )
@@ -197,18 +207,18 @@ void PrintDiff(DeltaGraph_t & graph)
                     gapQ = A->isPositive() ?
                       A->loQ - PGA->hiQ - 1 :
                       PGA->loQ - A->hiQ - 1;
-                    PrintIndel(refid, PA->hiR, A->loR, gapR, gapQ);
+                    PrintGap(refid, PA->hiR, A->loR, gapR, gapQ);
                   }
                 //-- Lined up, duplication in between
                 else
                   {
-                    PrintGap(refid, PA->hiR, A->loR);
+                    PrintBrk(refid, PA->hiR, A->loR);
                   }
               }
             //-- Not in QLIS? Must be a duplication in R
             else if ( !A->isQLIS )
               {
-                PrintGap(refid, PA->hiR, A->loR);
+                PrintBrk(refid, PA->hiR, A->loR);
                 PrintDup(refid, A->loR, A->hiR);
               }
             //-- A->edge != PGA->edge? Jump to different query sequence
@@ -222,7 +232,7 @@ void PrintDiff(DeltaGraph_t & graph)
             //-- Gap before first alignment
             else
               {
-                PrintGap(refid, PA->hiR, A->loR);
+                PrintBrk(refid, PA->hiR, A->loR);
               }
 
             if ( A->isQLIS )
@@ -269,7 +279,7 @@ void PrintDiff(DeltaGraph_t & graph)
 
             if ( A->edge == NULL )
               {
-                PrintGap(qryid, PA->hiQ, A->loQ);
+                PrintBrk(qryid, PA->hiQ, A->loQ);
               }
             else if ( A->isRLIS && A->edge == PGA->edge )
               {
@@ -286,16 +296,16 @@ void PrintDiff(DeltaGraph_t & graph)
                     gapR = A->isPositive() ?
                       A->loR - PGA->hiR - 1 :
                       PGA->loR - A->hiR - 1;
-                    PrintIndel(qryid, PA->hiQ, A->loQ, gapQ, gapR);
+                    PrintGap(qryid, PA->hiQ, A->loQ, gapQ, gapR);
                   }
                 else
                   {
-                    PrintGap(qryid, PA->hiQ, A->loQ);
+                    PrintBrk(qryid, PA->hiQ, A->loQ);
                   }
               }
             else if ( !A->isRLIS )
               {
-                PrintGap(qryid, PA->hiQ, A->loQ);
+                PrintBrk(qryid, PA->hiQ, A->loQ);
                 PrintDup(qryid, A->loQ, A->hiQ);
               }
             else if ( PGA->edge != NULL )
@@ -307,7 +317,7 @@ void PrintDiff(DeltaGraph_t & graph)
               }
             else
               {
-                PrintGap(qryid, PA->hiQ, A->loQ);
+                PrintBrk(qryid, PA->hiQ, A->loQ);
               }
 
             if ( A->isRLIS )
@@ -318,15 +328,15 @@ void PrintDiff(DeltaGraph_t & graph)
 }
 
 
-void PrintGap(const char* seq, long s, long e)
+void PrintBrk(const char* seq, long s, long e)
 {
   if ( e-s-1 == 0 ) return;
 
   if ( !OPT_AMOS )
-    printf("%s\tGAP\t%ld\t%ld\t%ld\n",
+    printf("%s\tBRK\t%ld\t%ld\t%ld\n",
            seq, s, e, e-s-1);
   else
-    printf("%s\tA\t%ld\t%ld\tGAP\t%ld\t%ld\t%ld\n",
+    printf("%s\tA\t%ld\t%ld\tBRK\t%ld\t%ld\t%ld\n",
            seq, s, e, s, e, e-s-1);
 }
 
@@ -363,14 +373,14 @@ void PrintInv(const char* seq, long s, long e)
            seq, s, e, s, e, e-s-1);
 }
 
-void PrintIndel(const char* seq, long s, long e, long gap1, long gap2)
+void PrintGap(const char* seq, long s, long e, long gap1, long gap2)
 {
   if ( !OPT_AMOS )
-    printf("%s\t%s\t%ld\t%ld\t%ld\t%ld\t%ld\n",
-           seq, (gap1-gap2 > 0 ? "INS":"DEL"), s, e, gap1, gap2, gap1-gap2);
+    printf("%s\tGAP\t%ld\t%ld\t%ld\t%ld\t%ld\n",
+           seq, s, e, gap1, gap2, gap1-gap2);
   else
-    printf("%s\tA\t%ld\t%ld\t%s\t%ld\t%ld\t%ld\t%ld\t%ld\n",
-           seq,s,e,(gap1-gap2 > 0 ? "INS":"DEL"), s, e, gap1, gap2, gap1-gap2);
+    printf("%s\tA\t%ld\t%ld\tGAP\t%ld\t%ld\t%ld\t%ld\t%ld\n",
+           seq, s, e, s, e, gap1, gap2, gap1-gap2);
 }
 
 void PrintDup(const char* seq, long s, long e)
@@ -391,7 +401,7 @@ void ParseArgs (int argc, char ** argv)
   optarg = NULL;
 
   while ( !errflg  &&
-          ((ch = getopt (argc, argv, "fhqr")) != EOF) )
+          ((ch = getopt (argc, argv, "fhHqr")) != EOF) )
     switch (ch)
       {
       case 'f':
@@ -403,23 +413,35 @@ void ParseArgs (int argc, char ** argv)
         exit (EXIT_SUCCESS);
         break;
 
+      case 'H':
+        OPT_PrintHeader = false;
+        break;
+
       case 'q':
-        OPT_RefDiff = false;
+        OPT_QryDiff = true;
         break;
         
       case 'r':
-        OPT_QryDiff = false;
+        OPT_RefDiff = true;
         break;
 
       default:
         errflg ++;
       }
 
+  if ( OPT_RefDiff && OPT_QryDiff )
+    {
+      cerr << "ERROR: -r and -q options cannot be combined\n";
+      errflg++;
+    }
+  if ( !OPT_RefDiff && !OPT_QryDiff )
+    OPT_RefDiff = true;
+
   if ( errflg > 0  ||  optind != argc - 1 )
     {
-      PrintUsage (argv[0]);
+      PrintUsage(argv[0]);
       cerr << "Try '" << argv[0] << " -h' for more information.\n";
-      exit (EXIT_FAILURE);
+      exit(EXIT_FAILURE);
     }
 
   OPT_AlignName = argv [optind ++];
@@ -433,33 +455,36 @@ void PrintHelp (const char * s)
   cerr
     << "-f            Output diff information as AMOS features\n"
     << "-h            Display help information\n"
-    << "-q            Show break information for queries only\n"
-    << "-r            Show break information for references only\n"
+    << "-H            Do not show header\n"
+    << "-q            Show diff information for queries\n"
+    << "-r            Show diff information for references (default)\n"
     << endl;
 
   cerr
     << "  Outputs a list of structural differences for each sequence in\n"
     << "the reference and query, sorted by position. For a reference\n"
     << "sequence R, and its matching query sequence Q, differences are\n"
-    << "categorized as SEQ (jump to new Q), GAP (unaligned gap in R),\n"
-    << "JMP (rearrangement), INV (inversion and rearrangement), INS\n"
-    << "(insertion into R), DEL (deletion from R), and DUP (duplicate\n"
-    << "insertion into R). The first five columns of output are seq ID, \n"
-    << "feature type, feature start, feature end, and feature length.\n"
-    << "Additional columns are added depending on the feature type.\n"
-    << "Negative feature lengths indicate adjacent alignment blocks overlap.\n"
-    << "  IDR SEQ gap-start gap-end gap-length prev-sequence next-sequence\n"
-    << "  IDR GAP gap-start gap-end gap-length\n"
+    << "categorized as GAP (gap between two mutually consistent alignments),\n"
+    << "DUP (inserted duplication), BRK (other inserted sequence), JMP\n"
+    << "(rearrangement), INV (rearrangement with inversion), SEQ\n"
+    << "(rearrangement with another sequence). The first five columns of\n"
+    << "the output are seq ID, feature type, feature start, feature end,\n"
+    << "and feature length. Additional columns are added depending on the\n"
+    << "feature type. Negative feature lengths indicate overlapping adjacent\n"
+    << "alignment blocks.\n"
+    << "  IDR GAP gap-start gap-end gap-length-R gap-length-Q gap-diff\n"
+    << "  IDR DUP dup-start dup-end dup-length\n"
+    << "  IDR BRK gap-start gap-end gap-length\n"
     << "  IDR JMP gap-start gap-end gap-length\n"
     << "  IDR INV gap-start gap-end gap-length\n"
-    << "  IDR INS gap-start gap-end gap-length-R gap-length-Q gap-diff\n"
-    << "  IDR DEL gap-start gap-end gap-length-R gap-length-Q gap-diff\n"
-    << "  IDR DUP dup-start dup-end dup-length\n"
+    << "  IDR SEQ gap-start gap-end gap-length prev-sequence next-sequence\n"
     << "Positions always reference the sequence with the given ID. The\n"
-    << "sum of the fifth column (ignoring negative values) for a sequence\n"
-    << "R is the total amount of sequence inserted into R with respect\n"
-    << "to Q. Summing the fifth column after removing DUP features is the\n"
-    << "total amount of unique sequence in R.\n"
+    << "sum of the fifth column (ignoring negative values) is the total\n"
+    << "amount of inserted sequence. Summing the fifth column after removing\n"
+    << "DUP features is total unique inserted sequence. Note that unaligned\n"
+    << "sequence are not counted, and could represent additional \"unique\"\n"
+    << "sequences. See documentation for tips on how to interpret these\n"
+    << "alignment break features.\n"
     << endl;
 
   return;
