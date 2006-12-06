@@ -83,7 +83,9 @@ struct EdgeletIdRLoRCmp_t
 void PrintDiff(DeltaGraph_t & graph);
 void PrintNewSeq(const char* seq);
 void PrintGap(const char* seq, long s, long e);
-void PrintSeqJmp(const char* seq1, const char* seq2, long s, long e);
+void PrintSeqJmp(const char* seq,
+                 const char* seqp, const char* seqn,
+                 long s, long e);
 void PrintLisJmp(const char* seq, long s, long e);
 void PrintInv(const char* seq, long s, long e);
 void PrintIndel(const char* seq, long s, long e, long gap1, long gap2);
@@ -179,13 +181,9 @@ void PrintDiff(DeltaGraph_t & graph)
             if ( A->edge == NULL )
               {
                 PrintGap(refid, PA->hiR, A->loR);
-                break;
               }
-
-            qryid = A->edge->qrynode->id->c_str();
-
             //-- 1-to-1 alignment
-            if ( A->isQLIS && A->edge == PGA->edge )
+            else if ( A->isQLIS && A->edge == PGA->edge )
               {
                 //-- Jump within Q
                 if ( A->slope() != PGA->slope() ||
@@ -217,9 +215,17 @@ void PrintDiff(DeltaGraph_t & graph)
                 PrintDup(refid, A->loR, A->hiR);
               }
             //-- A->edge != PGA->edge? Jump to different query sequence
+            else if ( PGA->edge != NULL )
+              {
+                PrintSeqJmp(refid,
+                            PGA->edge->qrynode->id->c_str(),
+                            A->edge->qrynode->id->c_str(),
+                            PA->hiR, A->loR);
+              }
+            //-- Gap before first alignment
             else
               {
-                PrintSeqJmp(refid, qryid, PA->hiR, A->loR);
+                PrintGap(refid, PA->hiR, A->loR);
               }
 
             if ( A->isQLIS )
@@ -268,12 +274,8 @@ void PrintDiff(DeltaGraph_t & graph)
             if ( A->edge == NULL )
               {
                 PrintGap(qryid, PA->hiQ, A->loQ);
-                break;
               }
-
-            refid = A->edge->refnode->id->c_str();
-
-            if ( A->isRLIS && A->edge == PGA->edge )
+            else if ( A->isRLIS && A->edge == PGA->edge )
               {
                 if ( A->slope() != PGA->slope() ||
                      A->stpc != PGA->stpc + PGA->slope() )
@@ -300,9 +302,16 @@ void PrintDiff(DeltaGraph_t & graph)
                 PrintGap(qryid, PA->hiQ, A->loQ);
                 PrintDup(qryid, A->loQ, A->hiQ);
               }
+            else if ( PGA->edge != NULL )
+              {
+                PrintSeqJmp(qryid,
+                            PA->edge->refnode->id->c_str(),
+                            A->edge->refnode->id->c_str(),
+                            PA->hiQ, A->loQ);
+              }
             else
               {
-                PrintSeqJmp(qryid, refid, PA->hiQ, A->loQ);
+                PrintGap(qryid, PA->hiQ, A->loQ);
               }
 
             if ( A->isRLIS )
@@ -322,53 +331,37 @@ void PrintNewSeq(const char* seq)
 
 void PrintGap(const char* seq, long s, long e)
 {
+  if ( e-s-1 == 0 ) return;
+
   if ( !OPT_AMOS )
-    printf("GAP\t%ld\t%ld\t%ld\n", s, e, e-s-1);
+    printf("GAP\t%ld\t%ld\t%ld\n",
+           s, e, e-s-1);
   else
-    printf
-      (
-       "{FEA\n"
-       "typ:A\n"
-       "clr:%ld,%ld\n"
-       "com:GAP\t%ld\t%ld\t%ld\n"
-       "src:%s,CTG\n"
-       "}\n",
-       s, e, s, e, e-s-1, seq
-       );
+    printf("%s\tA\t%ld\t%ld\tGAP\t%ld\t%ld\t%ld\n",
+           seq, s, e, s, e, e-s-1);
 }
 
-void PrintSeqJmp(const char* seq1, const char* seq2, long s, long e)
+void PrintSeqJmp(const char* seq,
+                 const char* seqp,
+                 const char* seqn,
+                 long s, long e)
 {
   if ( !OPT_AMOS )
-    printf("SEQ\t%ld\t%ld\t%ld\t%s\n", s, e, e-s-1, seq2);
+    printf("SEQ\t%ld\t%ld\t%ld\t%s\t%s\n",
+           s, e, e-s-1, seqp, seqn);
   else
-    printf
-      (
-       "{FEA\n"
-       "typ:A\n"
-       "clr:%ld,%ld\n"
-       "com:SEQ\t%ld\t%ld\t%ld\t%s\n"
-       "src:%s,CTG\n"
-       "}\n",
-       s, e, s, e, e-s-1, seq2, seq1
-       );
+    printf("%s\tA\t%ld\t%ld\tSEQ\t%ld\t%ld\t%ld\t%s\t%s\n",
+           seq, s, e, s, e, e-s-1, seqp, seqn);
 }
 
 void PrintLisJmp(const char* seq, long s, long e)
 {
   if ( !OPT_AMOS )
-    printf("JMP\t%ld\t%ld\t%ld\n", s, e, e-s-1);
+    printf("JMP\t%ld\t%ld\t%ld\n",
+           s, e, e-s-1);
   else
-    printf
-      (
-       "{FEA\n"
-       "typ:A\n"
-       "clr:%ld,%ld\n"
-       "com:JMP\t%ld\t%ld\t%ld\n"
-       "src:%s,CTG\n"
-       "}\n",
-       s, e, s, e, e-s-1, seq
-       );
+    printf("%s\tA\t%ld\t%ld\tJMP\t%ld\t%ld\t%ld\n",
+           seq, s, e, s, e, e-s-1);
 }
 
 void PrintInv(const char* seq, long s, long e)
@@ -376,54 +369,28 @@ void PrintInv(const char* seq, long s, long e)
   if ( !OPT_AMOS )
     printf("INV\t%ld\t%ld\t%ld\n", s, e, e-s-1);
   else
-    printf
-      (
-       "{FEA\n"
-       "typ:A\n"
-       "clr:%ld,%ld\n"
-       "com:INV\t%ld\t%ld\t%ld\n"
-       "src:%s,CTG\n"
-       "}\n",
-       s, e, s, e, e-s-1, seq
-       );
+    printf("%s\tA\t%ld\t%ld\tINV\t%ld\t%ld\t%ld\n",
+           seq, s, e, s, e, e-s-1);
 }
 
 void PrintIndel(const char* seq, long s, long e, long gap1, long gap2)
 {
   if ( !OPT_AMOS )
-    printf
-      (
-       "%s\t%ld\t%ld\t%ld\t%ld\t%ld\n",
-       gap1-gap2 > 0 ? "INS" : "DEL", s, e, gap1, gap2, gap1-gap2
-       );
+    printf("%s\t%ld\t%ld\t%ld\t%ld\t%ld\n",
+           (gap1-gap2 > 0 ? "INS":"DEL"), s, e, gap1, gap2, gap1-gap2);
   else
-    printf
-      (
-       "{FEA\n"
-       "typ:A\n"
-       "clr:%ld,%ld\n"
-       "com:%s\t%ld\t%ld\t%ld\t%ld\t%ld\n"
-       "src:%s,CTG\n"
-       "}\n",
-       s, e, gap1-gap2 > 0 ? "INS" : "DEL", s, e, gap1, gap2, gap1-gap2, seq
-       );
+    printf("%s\tA\t%ld\t%ld\t%s\t%ld\t%ld\t%ld\t%ld\t%ld\n",
+           seq,s,e,(gap1-gap2 > 0 ? "INS":"DEL"), s, e, gap1, gap2, gap1-gap2);
 }
 
 void PrintDup(const char* seq, long s, long e)
 {
   if ( !OPT_AMOS )
-    printf("DUP\t%ld\t%ld\t%ld\n", s, e, e-s+1);
+    printf("DUP\t%ld\t%ld\t%ld\n",
+           s, e, e-s+1);
   else
-    printf
-      (
-       "{FEA\n"
-       "typ:A\n"
-       "clr:%ld,%ld\n"
-       "com:DUP\t%ld\t%ld\t%ld\n"
-       "src:%s,CTG\n"
-       "}\n",
-       s, e, s, e, e-s+1, seq
-       );
+    printf("%s\tA\t%ld\t%ld\tDUP\t%ld\t%ld\t%ld\n",
+           seq, s, e, s, e, e-s+1);
 }
 
 
