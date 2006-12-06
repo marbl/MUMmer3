@@ -81,7 +81,6 @@ struct EdgeletIdRLoRCmp_t
 
 
 void PrintDiff(DeltaGraph_t & graph);
-void PrintNewSeq(const char* seq);
 void PrintGap(const char* seq, long s, long e);
 void PrintSeqJmp(const char* seq,
                  const char* seqp, const char* seqn,
@@ -138,9 +137,7 @@ void PrintDiff(DeltaGraph_t & graph)
   if ( OPT_RefDiff )
     for ( mi = graph.refnodes.begin(); mi != graph.refnodes.end(); ++ mi )
       {
-        //-- Announce new reference sequence
         refid = mi->first.c_str();
-        PrintNewSeq(refid);
 
         //-- Collect all alignments for this reference sequence
         aligns.clear();
@@ -240,7 +237,6 @@ void PrintDiff(DeltaGraph_t & graph)
     for ( mi = graph.qrynodes.begin(); mi != graph.qrynodes.end(); ++ mi )
       {
         qryid = mi->first.c_str();
-        PrintNewSeq(qryid);
 
         aligns.clear();
         for ( ei  = (mi->second).edges.begin();
@@ -322,20 +318,13 @@ void PrintDiff(DeltaGraph_t & graph)
 }
 
 
-void PrintNewSeq(const char* seq)
-{
-  if ( !OPT_AMOS )
-    printf(">%s\n", seq);
-}
-
-
 void PrintGap(const char* seq, long s, long e)
 {
   if ( e-s-1 == 0 ) return;
 
   if ( !OPT_AMOS )
-    printf("GAP\t%ld\t%ld\t%ld\n",
-           s, e, e-s-1);
+    printf("%s\tGAP\t%ld\t%ld\t%ld\n",
+           seq, s, e, e-s-1);
   else
     printf("%s\tA\t%ld\t%ld\tGAP\t%ld\t%ld\t%ld\n",
            seq, s, e, s, e, e-s-1);
@@ -347,8 +336,8 @@ void PrintSeqJmp(const char* seq,
                  long s, long e)
 {
   if ( !OPT_AMOS )
-    printf("SEQ\t%ld\t%ld\t%ld\t%s\t%s\n",
-           s, e, e-s-1, seqp, seqn);
+    printf("%s\tSEQ\t%ld\t%ld\t%ld\t%s\t%s\n",
+           seq, s, e, e-s-1, seqp, seqn);
   else
     printf("%s\tA\t%ld\t%ld\tSEQ\t%ld\t%ld\t%ld\t%s\t%s\n",
            seq, s, e, s, e, e-s-1, seqp, seqn);
@@ -357,8 +346,8 @@ void PrintSeqJmp(const char* seq,
 void PrintLisJmp(const char* seq, long s, long e)
 {
   if ( !OPT_AMOS )
-    printf("JMP\t%ld\t%ld\t%ld\n",
-           s, e, e-s-1);
+    printf("%s\tJMP\t%ld\t%ld\t%ld\n",
+           seq, s, e, e-s-1);
   else
     printf("%s\tA\t%ld\t%ld\tJMP\t%ld\t%ld\t%ld\n",
            seq, s, e, s, e, e-s-1);
@@ -367,7 +356,8 @@ void PrintLisJmp(const char* seq, long s, long e)
 void PrintInv(const char* seq, long s, long e)
 {
   if ( !OPT_AMOS )
-    printf("INV\t%ld\t%ld\t%ld\n", s, e, e-s-1);
+    printf("%s\tINV\t%ld\t%ld\t%ld\n",
+           seq, s, e, e-s-1);
   else
     printf("%s\tA\t%ld\t%ld\tINV\t%ld\t%ld\t%ld\n",
            seq, s, e, s, e, e-s-1);
@@ -376,8 +366,8 @@ void PrintInv(const char* seq, long s, long e)
 void PrintIndel(const char* seq, long s, long e, long gap1, long gap2)
 {
   if ( !OPT_AMOS )
-    printf("%s\t%ld\t%ld\t%ld\t%ld\t%ld\n",
-           (gap1-gap2 > 0 ? "INS":"DEL"), s, e, gap1, gap2, gap1-gap2);
+    printf("%s\t%s\t%ld\t%ld\t%ld\t%ld\t%ld\n",
+           seq, (gap1-gap2 > 0 ? "INS":"DEL"), s, e, gap1, gap2, gap1-gap2);
   else
     printf("%s\tA\t%ld\t%ld\t%s\t%ld\t%ld\t%ld\t%ld\t%ld\n",
            seq,s,e,(gap1-gap2 > 0 ? "INS":"DEL"), s, e, gap1, gap2, gap1-gap2);
@@ -386,8 +376,8 @@ void PrintIndel(const char* seq, long s, long e, long gap1, long gap2)
 void PrintDup(const char* seq, long s, long e)
 {
   if ( !OPT_AMOS )
-    printf("DUP\t%ld\t%ld\t%ld\n",
-           s, e, e-s+1);
+    printf("%s\tDUP\t%ld\t%ld\t%ld\n",
+           seq, s, e, e-s+1);
   else
     printf("%s\tA\t%ld\t%ld\tDUP\t%ld\t%ld\t%ld\n",
            seq, s, e, s, e, e-s+1);
@@ -454,22 +444,21 @@ void PrintHelp (const char * s)
     << "categorized as SEQ (jump to new Q), GAP (unaligned gap in R),\n"
     << "JMP (rearrangement), INV (inversion and rearrangement), INS\n"
     << "(insertion into R), DEL (deletion from R), and DUP (duplicate\n"
-    << "insertion into R). The first three columns of output are feature\n"
-    << "type, R feature start, and R feature end. Additional columns are\n"
-    << "added depending on the feature type. Negative feature lengths\n"
-    << "indicate adjacent alignment blocks overlap.\n"
-    << "  SEQ gap-start gap-end gap-length new-sequence\n"
-    << "  GAP gap-start gap-end gap-length\n"
-    << "  JMP gap-start gap-end gap-length\n"
-    << "  INV gap-start gap-end gap-length\n"
-    << "  INS gap-start gap-end gap-lengthR gap-lengthQ gap-diff\n"
-    << "  DEL gap-start gap-end gap-lengthR gap-lengthQ gap-diff\n"
-    << "  DUP dup-start dup-end dup-length\n"
-    << "Feature lists are headed by a > line with the ID of the sequence\n"
-    << "being described. Positions always reference this sequence. The\n"
-    << "sum of the third column (ignoring negative values) for a sequence\n"
+    << "insertion into R). The first five columns of output are seq ID, \n"
+    << "feature type, feature start, feature end, and feature length.\n"
+    << "Additional columns are added depending on the feature type.\n"
+    << "Negative feature lengths indicate adjacent alignment blocks overlap.\n"
+    << "  IDR SEQ gap-start gap-end gap-length prev-sequence next-sequence\n"
+    << "  IDR GAP gap-start gap-end gap-length\n"
+    << "  IDR JMP gap-start gap-end gap-length\n"
+    << "  IDR INV gap-start gap-end gap-length\n"
+    << "  IDR INS gap-start gap-end gap-length-R gap-length-Q gap-diff\n"
+    << "  IDR DEL gap-start gap-end gap-length-R gap-length-Q gap-diff\n"
+    << "  IDR DUP dup-start dup-end dup-length\n"
+    << "Positions always reference the sequence with the given ID. The\n"
+    << "sum of the fifth column (ignoring negative values) for a sequence\n"
     << "R is the total amount of sequence inserted into R with respect\n"
-    << "to Q. Summing the third column after removing DUP features is the\n"
+    << "to Q. Summing the fifth column after removing DUP features is the\n"
     << "total amount of unique sequence in R.\n"
     << endl;
 
