@@ -39,3 +39,5 @@
        mummerplot, and mgaps. Multiplot capability added to mummerplot.
 3.18 - Fixed bugs in delta-filter, began migrating to delta library.
 3.19 - Fixed gcc4 build problem
+3.20 - Added 'dnadiff' comparative analysis script, 'show-diff' nucmer
+       utility, and fixed a number of build issues.

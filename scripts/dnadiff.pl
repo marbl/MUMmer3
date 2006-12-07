@@ -22,8 +22,8 @@ DNAdiff version 1.00
     ~;
 
 my $HELP_INFO = q~
-  USAGE: dnadiff  [options]  <Reference>  <Query>
-    or   dnadiff  [options]  -d <Delta File>
+  USAGE: dnadiff  [options]  <reference>  <query>
+    or   dnadiff  [options]  -d <delta file>
 
   DESCRIPTION:
     Run comparative analysis of two sequence sets using nucmer and its
@@ -37,15 +37,15 @@ my $HELP_INFO = q~
     .1coords - 1-to-1 coordinates from show-coords -THrcl .1delta
     .mcoords - M-to-M coordinates from show-coords -THrcl .mdelta
     .snps    - SNPs from show-snps -rlTHC .1delta
-    .rdiff   - Classified alignment breakpoints from show-diff -rH .mdelta
-    .qdiff   - Classified alignment breakpoints from show-diff -qH .mdelta
+    .rdiff   - Classified ref breakpoints from show-diff -rH .mdelta
+    .qdiff   - Classified qry breakpoints from show-diff -qH .mdelta
     .report  - Summary of alignments, differences and SNPs
 
   MANDATORY:
-    Reference       Set the input reference multi-FASTA filename
-    Query           Set the input query multi-FASTA filename
+    reference       Set the input reference multi-FASTA filename
+    query           Set the input query multi-FASTA filename
       or
-    Delta File      Unfiltered .delta alignment file from nucmer
+    delta file      Unfiltered .delta alignment file from nucmer
 
   OPTIONS:
     -d|delta        Provide precomputed delta file for analysis

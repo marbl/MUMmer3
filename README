@@ -21,11 +21,11 @@ two bacterial genomes of ~5 million base pairs each in 20 seconds, using 90 MB
 of memory, on a typical 1.8 GHz Linux desktop computer.  MUMmer can also align
 incomplete genomes; it handles the 100s or 1000s of contigs from a shotgun
 sequencing project with ease, and will align them to another set of contigs or
-a genome, using the NUCmer utility included with the system.  The PROmer
+a genome, using the nucmer utility included with the system.  The promer
 utility takes this a step further by generating alignments based upon the
-six-frame translations of both input sequences.  PROmer permits the alignment
+six-frame translations of both input sequences.  promer permits the alignment
 of genomes for which the proteins are similar but the DNA sequence is too
-divergent to detect similarity.  See the NUCmer and PROmer readme files in the
+divergent to detect similarity.  See the nucmer and promer readme files in the
 "docs/" subdirectory for more details.  MUMmer is open source, so all we ask
 is that you cite our most recent paper in any publications that use this
 system:
@@ -61,6 +61,14 @@ Simple use case:
 FASTA format and another file containing multiple sequences in FastA
 format (qry.seq) type the following at the command line:
 
+   './nucmer  -p <prefix>  ref.seq  qry.seq'
+
+   To produce the following files:
+        <prefix>.cluster
+        <prefix>.delta
+
+or
+
    './run-mummer3.csh  ref.seq  qry.seq  <prefix>'
 
    To produce the following files:
@@ -68,14 +76,6 @@ format (qry.seq) type the following at the command line:
         <prefix>.gaps
         <prefix>.align
         <prefix>.errorsgaps
-
-or
-
-   './nucmer  -p <prefix>  ref.seq  qry.seq'
-
-   To produce the following files:
-        <prefix>.cluster
-        <prefix>.delta
 
    Please read the utility-specific documentation in the "docs/" subdirectory
 for descriptions of these files and information on how to change the
@@ -108,7 +108,7 @@ descriptions and usage definitions for these scripts.  Please refer to the
    ** nucmer **
 
         DESCRIPTION:
-        NUCmer is for the all-vs-all comparison of nucleotide sequences
+        nucmer is for the all-vs-all comparison of nucleotide sequences
         contained in multi-FastA data files.  It is best used for highly
         similar sequence that may have large rearrangements.  Common use
         cases are: comparing two unfinished shotgun sequencing assemblies,
@@ -145,17 +145,17 @@ descriptions and usage definitions for these scripts.  Please refer to the
    ** promer **
 
         DESCRIPTION:
-        PROmer is for the protein level, all-vs-all comparison of nucleotide
+        promer is for the protein level, all-vs-all comparison of nucleotide
         sequences contained in multi-FastA data files.  The nucleotide input
         files are translated in all 6 reading frames and then aligned to one
-        another via the same methods as NUCmer.  It is best used for highly
+        another via the same methods as nucmer.  It is best used for highly
         divergent sequences that may have moderate to high similarity on the
         protein level.  Common use cases are: identifying syntenic regions
         between highly divergent genomes, comparative genome annotation i.e.
         using an already annotated genome to help in the annotation of a
         newly sequenced genome, and the general comparison of two fairly
         divergent genomes that have large rearrangements and may only be
-        similar on the protein level.  Please refer to "docs/promer.README"
+        similar on the protein level. Please refer to "docs/promer.README"
         for more information regarding this script and its output, or type
         'promer -h' for a list of its options.
 
@@ -268,6 +268,47 @@ descriptions and usage definitions for these scripts.  Please refer to the
         system is confusing.
 
 
+   ** dnadiff **
+
+        DESCRIPTION:
+        This script is a wrapper around nucmer that builds an
+        alignment using default parameters, and runs many of nucmer's
+        helper scripts to process the output and report alignment
+        statistics, SNPs, breakpoints, etc. It is designed for
+        evaluating the sequence and structural similarity of two
+        highly similar sequence sets. E.g. comparing two different
+        assemblies of the same organism, or comparing two strains of
+        the same species.  Please refer to "docs/dnadiff.README" for
+        more information regarding this script and its output, or type
+        'dnadiff -h' for a list of its options.
+
+        USAGE: dnadiff  [options]  <reference>  <query>
+          or   dnadiff  [options]  -d <delta file>
+
+        <reference>       Set the input reference multi-FASTA filename
+        <query>           Set the input query multi-FASTA filename
+           or
+        <delta file>      Unfiltered .delta alignment file from nucmer
+
+        OUTPUT:
+        .delta   - Standard nucmer alignment output
+        .1delta  - 1-to-1 alignment from delta-filter -1
+        .mdelta  - M-to-M alignment from delta-filter -m
+        .1coords - 1-to-1 coordinates from show-coords -THrcl .1delta
+        .mcoords - M-to-M coordinates from show-coords -THrcl .mdelta
+        .snps    - SNPs from show-snps -rlTHC .1delta
+        .rdiff   - Classified ref breakpoints from show-diff -rH .mdelta
+        .qdiff   - Classified qry breakpoints from show-diff -qH .mdelta
+        .report  - Summary of alignments, differences and SNPs
+
+        NOTES:
+        The report file generated by this script can be useful for
+        comparing the differences between two similar genomes or
+        assemblies. The other outputs generated by this script are in
+        unlabeled tabular format, so please refer to the utility
+        specific documentation for interpreting them. A full
+        description of the report file is given in "docs/dnadiff.README".
+
 
 -- RUNNING THE MUMmer UTILITIES --
    The MUMmer package consists of various utilities that can interact with
@@ -301,7 +342,7 @@ and usage definitions for these utilities.
 
         NOTES:
         This program will eventually be dropped in favor of the combineMUMs
-        or NUCmer match extenders, but persists for the time being.
+        or nucmer match extenders, but persists for the time being.
 
 
    ** combineMUMs **
@@ -339,30 +380,35 @@ and usage definitions for these utilities.
    ** delta-filter **
 
         DESCRIPTION:
-        This program filters a delta alignment file produced by either nucmer
-        or promer, leaving only the desired alignments which are output to
-        stdout in the same delta format as the input. Its primary function is
-        the LIS clustering algorithm which calculates the longest increasing
-        subset of alignments. This allows for the calculation of a global set
-        of alignments (i.e. one-to-one and mutually consistent order) with the
-        -g option or locally consistent with -r and -q. It can also exclude
-        alignments based on uniqueness and identity constraints. This allows
-        the user to exclude chance and repeat induced alignments, leaving only
-        the "best" alignments between the two data sets.
+
+        This program filters a delta alignment file produced by either
+        nucmer or promer, leaving only the desired alignments which
+        are output to stdout in the same delta format as the
+        input. Its primary function is the LIS algorithm which
+        calculates the longest increasing subset of alignments. This
+        allows for the calculation of a global set of alignments
+        (i.e. 1-to-1 and mutually consistent order) with the -g option
+        or locally consistent with -1 or -m. Reference sequences can
+        be mapped to query sequences with -r, or queries to references
+        with -q. This allows the user to exclude chance and repeat
+        induced alignments, leaving only the "best" alignments between
+        the two data sets. Filtering can also be performed on length,
+        identity, and uniquenes.
 
         USAGE:
         delta-filter  [options]  <deltafile>
 
         [options]    type 'delta-filter -h' for a list of options.
-        <deltafile>  the .delta output file from either NUCmer or PROmer.
+        <deltafile>  the .delta output file from either nucmer or promer.
 
         OUTPUT:
         stdout  The same delta alignment format as output by nucmer and promer.
 
         NOTES:
-        Use the -g option for sequences with no rearrangements.
-        Use the -q -r options for sequences with rearrangements.
-        These options make good pre-filters for SNP identification.
+        For most cases the -m option is recommended, however -1 is
+        useful for applications that require a 1-to-1 mapping, such as
+        SNP finding. Use the -q option for mapping query contigs to
+        their best reference location.
 
 
    ** exact-tandems **
@@ -412,7 +458,7 @@ and usage definitions for these utilities.
 
         NOTES:
         This program will eventually be rewritten to be interchangeable with
-        'mgaps', so that it may be plugged into the NUCmer or PROmer
+        'mgaps', so that it may be plugged into the nucmer or promer
         pipelines.
 
 
@@ -420,7 +466,7 @@ and usage definitions for these utilities.
 
         DESCRIPTION:
         mapview is a utility program for displaying sequence alignments as
-        provided by MUMmer, NUCmer or PROmer. This program takes the output
+        provided by MUMmer, nucmer or promer. This program takes the output
         from these alignment routines and converts it to a FIG, PDF or PS
         file for visual analysis. It can also break the output into multiple
         files for easier viewing and printing. Please refer to
@@ -441,7 +487,7 @@ and usage definitions for these utilities.
 
         NOTES:
         The produce the coords file input, 'show-coords' must be run with the
-        -r -l options. To reduce redundant matches in PROmer output, run
+        -r -l options. To reduce redundant matches in promer output, run
         show-coords with the -k option. To generate output formats other than
         xfig, the fig2dev utility must be available from the system path. For
         very large reference genomes, FIG format may be the only option that
@@ -555,7 +601,7 @@ and usage definitions for these utilities.
    ** nucmer2xfig **
 
         DESCRIPTION:
-        Script for plotting NUCmer hits against a reference sequence. See top
+        Script for plotting nucmer hits against a reference sequence. See top
         of script for more information, or see if 'mummerplot' or 'mapview'
         has the functionality required as they are properly maintained.
 
@@ -586,7 +632,7 @@ and usage definitions for these utilities.
    ** show-aligns **
 
         DESCRIPTION:
-        This program parses the delta alignment output of NUCmer and PROmer
+        This program parses the delta alignment output of nucmer and promer
         and displays all of the pairwise alignments from the two sequences
         specified on the command line.
 
@@ -594,7 +640,7 @@ and usage definitions for these utilities.
         show-aligns  [options]  <deltafile>  <IdR>  <IdQ>
 
         [options]    type 'show-aligns -h' for a list of options.
-        <deltafile>  the .delta output file from either NUCmer or PROmer.
+        <deltafile>  the .delta output file from either nucmer or promer.
         <IdR>        the FastA header tag of the desired reference sequence.
         <IdQ>        the FastA header tag of the desired query sequence.
 
@@ -618,7 +664,7 @@ and usage definitions for these utilities.
    ** show-coords **
 
         DESCRIPTION:
-        This program parses the delta alignment output of NUCmer and PROmer
+        This program parses the delta alignment output of nucmer and promer
         and displays the coordinates, and other useful information about the
         alignments.
 
@@ -626,12 +672,12 @@ and usage definitions for these utilities.
         show-coords  [options]  <deltafile>
 
         [options]    type 'show-coords -h' for a list of options.
-        <deltafile>  the .delta output file from either NUCmer or PROmer.
+        <deltafile>  the .delta output file from either nucmer or promer.
 
         OUTPUT:
         stdout  run 'show-coords' without the -H option to see the column
                 header tags.  Here is a description of each tag.  Note that
-                some of the below tags do not apply to NUCmer data, and that
+                some of the below tags do not apply to nucmer data, and that
                 all coordinates are inclusive and relative to the forward DNA
                 strand.
 
@@ -671,7 +717,7 @@ and usage definitions for these utilities.
 
         [FRM]   Reading frame for the reference sequence and the reading frame
         for the query sequence respectively.  This is one of the columns
-        absent from the NUCmer data, however, match direction can easily be
+        absent from the nucmer data, however, match direction can easily be
         determined by the start and end coordinates.
 
         [TAGS]  The reference FastA ID and the query FastA ID.
@@ -680,7 +726,7 @@ and usage definitions for these utilities.
         or -o option) that will contain some 'annotations'. The -o option will
         annotate alignments that represent overlaps between two sequences,
         while the -w option is antiquated and should no longer be used.
-        Sometimes, NUCmer or PROmer will extend adjacent clusters past one
+        Sometimes, nucmer or promer will extend adjacent clusters past one
         another, thus causing a somewhat redundant output, this option will
         notify users of such rare occurrences.
 
@@ -694,11 +740,95 @@ and usage definitions for these utilities.
         orientation, so should not be used if this information is needed.
 
 
+   ** show-diff **
+
+        DESCRIPTION:
+        This program classifies alignment breakpoints for the
+        quantification of macroscopic differences between two
+        genomes. It takes a standard, unfiltered delta file as input,
+        determines the best mapping between the two sequence sets, and
+        reports breaks in that mapping.
+
+        USAGE:
+        show-diff  [options]  <deltafile>
+
+        [options]    type 'show-diff -h' for a list of options.
+        <deltafile>  the .delta output file from nucmer
+
+        OUTPUT:
+        stdout  Classified breakpoints are output one per line with
+                the following types and column definitions. The first
+                five columns of every row are seq ID, feature type,
+                feature start, feature end, and feature length.
+
+        Feature Columns
+
+        IDR GAP gap-start gap-end gap-length-R gap-length-Q gap-diff
+        IDR DUP dup-start dup-end dup-length
+        IDR BRK gap-start gap-end gap-length
+        IDR JMP gap-start gap-end gap-length
+        IDR INV gap-start gap-end gap-length
+        IDR SEQ gap-start gap-end gap-length prev-sequence next-sequence
+
+        Feature Types
+
+        [GAP] A gap between two mutually consistent ordered and
+        oriented alignments. gap-length-R is the length of the
+        alignment gap in the reference, gap-length-Q is the length of
+        the alignment gap in the query, and gap-diff is the difference
+        between the two gap lengths. If gap-diff is positive, sequence
+        has been inserted in the reference. If gap-diff is negative,
+        sequence has been deleted from the reference. If both
+        gap-length-R and gap-length-Q are negative, the indel is
+        tandem duplication copy difference.
+
+        [DUP] A duplicated sequence in the reference that occurs more
+        times in the reference than in the query. The coordinate
+        columns specify the bounds and length of the
+        duplication. These features are often bookended by BRK
+        features if there is unique sequence bounding the duplication.
+
+        [BRK] An insertion in the reference of unknown origin, that
+        indicates no query sequence aligns to the sequence bounded by
+        gap-start and gap-end. Often found around DUP elements or at
+        the beginning or end of sequences.
+
+        [JMP] A relocation event, where the consistent ordering of
+        alignments is disrupted. The coordinate columns specify the
+        breakpoints of the relocation in the reference, and the
+        gap-length between them. A negative gap-length indicates the
+        relocation occurred around a repetitive sequence, and a
+        positive length indicates unique sequence between the
+        alignments.
+
+        [INV] The same as a relocation event, however both the
+        ordering and orientation of the alignments is disrupted. Note
+        that for JMP and INV, generally two features will be output,
+        one for the beginning of the inverted region, and another for
+        the end of the inverted region.
+
+        [SEQ] A relocation event that requires jumping to a new query
+        sequence in order to continue aligning to the reference. If
+        each input sequence is a chromosome, these features correspond
+        to translocation events.
+
+        NOTES:
+        Summing the fifth column (ignoring negative values) yeilds the
+        total amount of inserted sequence in the reference. Summing
+        the fifth column after removing DUP features yields the total
+        amount of unique (unaligned) sequence in the reference. Note
+        that unaligned sequences are not counted, and could represent
+        additional "unique" sequences. Use the 'dnadiff' script if you
+        must recover this information. Finally, the -q option switches
+        references for queries, and uses the query coordinates for the
+        analysis.
+
+
    ** show-snps **
 
         DESCRIPTION:
         This program reports polymorphism contained in a delta encoded
-        alignment file output by either NUCmer or PROmer. It catalogs
+        alignment file output by either nucmer or promer. It catalogs
         all of the single nucleotide polymorphisms (SNPs) and
         insertions/deletions within the delta file
         alignments. Polymorphisms are reported one per line, in a
@@ -711,7 +841,7 @@ and usage definitions for these utilities.
         show-snps  [options]  <deltafile>
 
         [options]    type 'show-snps -h' for a list of options.
-        <deltafile>  the .delta output file from either NUCmer or PROmer.
+        <deltafile>  the .delta output file from either nucmer or promer.
 
         OUTPUT:
         stdout  Standard output has column headers with the following
@@ -747,7 +877,7 @@ and usage definitions for these utilities.
 
         [FRM]   Reading frame for the reference sequence and the
         reading frame for the query sequence respectively. Simply
-        'forward' 1, or 'reverse' -1 for NUCmer data.
+        'forward' 1, or 'reverse' -1 for nucmer data.
 
         [TAGS]  The reference FastA ID and the query FastA ID.
 
@@ -767,7 +897,7 @@ and usage definitions for these utilities.
         once, so repetitive regions may cause this program some difficulty.
         This program is useful for aiding in the scaffolding and closure of an
         unfinished set of contigs, if a suitable, high similarity, reference
-        genome is available.  Or, if using PROmer, 'show-tiling' will help
+        genome is available.  Or, if using promer, 'show-tiling' will help
         in the identification of syntenic regions and their contig's mapping
         the the references.
 
@@ -775,7 +905,7 @@ and usage definitions for these utilities.
         show-tiling  [options]  <deltafile>
 
         [options]    type 'show-tiling -h' for a list of options.
-        <deltafile>  the .delta output file from either NUCmer or PROmer.
+        <deltafile>  the .delta output file from either nucmer or promer.
 
         OUTPUT:
         stdout  Standard output has 8 columns: start in reference, end in
