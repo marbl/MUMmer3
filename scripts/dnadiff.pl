@@ -377,13 +377,14 @@ sub MakeReport()
         my $r = uc($A[1]);
         my $q = uc($A[2]);
 
-        $rqnSNPs++;
-        $rqnIndels++ if ( $r eq '.' || $q eq '.' );
         $rqSNPs{$r}{$q}++;
+        if ( $r eq '.' || $q eq '.' ) { $rqnIndels++; }
+        else                          { $rqnSNPs++; }
+
         if ( $A[4] >= $SNPBuff ) {
-            $rqnGSNPs++;
-            $rqnGIndels++ if ( $r eq '.' || $q eq '.' );
             $rqGSNPs{$r}{$q}++;
+            if ( $r eq '.' || $q eq '.' ) { $rqnGIndels++; }
+            else                          { $rqnGSNPs++; }
         }
     }
     FileClose($fhi, $OPT_SnpsFile);
