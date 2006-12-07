@@ -5,12 +5,7 @@
 #         File: dnadiff
 #         Date: 11 / 29 / 06
 #
-#        Usage:
-#    dnadiff  [options]  <Reference>  <Query>
-#
-#                Try 'dnadiff -h' for more information.
-#
-#      Purpose: Run comparative analysis of Reference vs. Query.
+#   Try 'dnadiff -h' for more information.
 #
 #-------------------------------------------------------------------------------
 
@@ -31,11 +26,26 @@ my $HELP_INFO = q~
     or   dnadiff  [options]  -d <Delta File>
 
   DESCRIPTION:
-    Run comparative analysis of two genomes using nucmer.
+    Run comparative analysis of two sequence sets using nucmer and its
+    associated utilities with recommended parameters. See MUMmer
+    documentation for a more detailed description of the
+    output. Produces the following output files:
+
+    .delta   - Standard nucmer alignment output
+    .1delta  - 1-to-1 alignment from delta-filter -1
+    .mdelta  - M-to-M alignment from delta-filter -m
+    .1coords - 1-to-1 coordinates from show-coords -THrcl .1delta
+    .mcoords - M-to-M coordinates from show-coords -THrcl .mdelta
+    .snps    - SNPs from show-snps -rlTHC .1delta
+    .rdiff   - Classified alignment breakpoints from show-diff -rH .mdelta
+    .qdiff   - Classified alignment breakpoints from show-diff -qH .mdelta
+    .report  - Summary of alignments, differences and SNPs
 
   MANDATORY:
     Reference       Set the input reference multi-FASTA filename
     Query           Set the input query multi-FASTA filename
+      or
+    Delta File      Unfiltered .delta alignment file from nucmer
 
   OPTIONS:
     -d|delta        Provide precomputed delta file for analysis
@@ -74,9 +84,9 @@ my $OPT_Prefix      = "out";         # prefix for all output files
 my $OPT_RefFile;                     # reference file
 my $OPT_QryFile;                     # query file
 my $OPT_DeltaFile;                   # unfiltered alignment file
-my $OPT_DeltaFileO  = ".1delta";     # 1-to-1 delta alignment
+my $OPT_DeltaFile1  = ".1delta";     # 1-to-1 delta alignment
 my $OPT_DeltaFileM  = ".mdelta";     # M-to-M delta alignment
-my $OPT_CoordsFileO = ".ocoords";    # 1-to-1 alignment coords
+my $OPT_CoordsFile1 = ".1coords";    # 1-to-1 alignment coords
 my $OPT_CoordsFileM = ".mcoords";    # M-to-M alignment coords
 my $OPT_SnpsFile    = ".snps";       # snps output file
 my $OPT_DiffRFile   = ".rdiff";      # diffile for R
@@ -135,7 +145,7 @@ sub RunAlignment()
 sub RunFilter()
 {
     print STDERR "Filtering alignments\n";
-    my $cmd1 = "$DELTA_FILTER -1 $OPT_DeltaFile > $OPT_DeltaFileO";
+    my $cmd1 = "$DELTA_FILTER -1 $OPT_DeltaFile > $OPT_DeltaFile1";
     my $cmd2 = "$DELTA_FILTER -m $OPT_DeltaFile > $OPT_DeltaFileM";
     my $err = "ERROR: Failed to run delta-filter, aborting.\n";
 
@@ -149,7 +159,7 @@ sub RunFilter()
 sub RunSNPs()
 {
     print STDERR "Analyzing SNPs\n";
-    my $cmd = "$SHOW_SNPS -rlTHC $OPT_DeltaFileO > $OPT_SnpsFile";
+    my $cmd = "$SHOW_SNPS -rlTHC $OPT_DeltaFile1 > $OPT_SnpsFile";
     my $err = "ERROR: Failed to run show-snps, aborting.\n";
 
     system($cmd) == 0 or die $err;
@@ -161,7 +171,7 @@ sub RunSNPs()
 sub RunCoords()
 {
     print STDERR "Extracting alignment coordinates\n";
-    my $cmd1 = "$SHOW_COORDS -rclTH $OPT_DeltaFileO > $OPT_CoordsFileO";
+    my $cmd1 = "$SHOW_COORDS -rclTH $OPT_DeltaFile1 > $OPT_CoordsFile1";
     my $cmd2 = "$SHOW_COORDS -rclTH $OPT_DeltaFileM > $OPT_CoordsFileM";
     my $err = "ERROR: Failed to run show-coords, aborting.\n";
 
@@ -190,41 +200,39 @@ sub MakeReport()
 {
     print STDERR "Generating report file\n";
 
-    my ($fhi, $fho);
-    my ($lo, $hi);
-    my (%refs, %qrys) = ((),());
-    my ($rqnAlignsO, $rqnAlignsM) = (0,0);
-    my ($rSumLenO, $qSumLenO) = (0,0);
-    my ($rSumLenM, $qSumLenM) = (0,0);
-    my ($rqSumIdyO, $rqSumIdyM) = (0,0);
-    my ($qnIns, $rnIns) = (0,0);
-    my ($qSumIns, $rSumIns) = (0,0);
-    my ($qnTIns, $rnTIns) = (0,0);
-    my ($qSumTIns, $rSumTIns) = (0,0);
-    my ($qnInv, $rnInv) = (0,0);
-    my ($qnRel, $rnRel) = (0,0);
-    my ($qnTrn, $rnTrn) = (0,0);
-    my ($rnSeqs, $qnSeqs) = (0,0);
-    my ($rnASeqs, $qnASeqs) = (0,0);
-    my ($rnBases, $qnBases) = (0,0);
-    my ($rnABases, $qnABases) = (0,0);
-    my ($rnBrk, $qnBrk) = (0,0);
-    my ($rqnSNPs, $rqnIndels) = (0,0);
-    my ($rqnGSNPs, $rqnGIndels) = (0,0);
-    my %rqSNPs =
+    my ($fhi, $fho);    # filehandle-in and filehandle-out
+    my (%refs, %qrys) = ((),());            # R and Q ID->length
+    my ($rqnAligns1, $rqnAlignsM) = (0,0);  # alignment counter
+    my ($rSumLen1, $qSumLen1) = (0,0);      # alignment length sum
+    my ($rSumLenM, $qSumLenM) = (0,0);      # alignment length sum
+    my ($rqSumIdy1, $rqSumIdyM) = (0,0);    # alignment identity sum
+    my ($qnIns, $rnIns) = (0,0);            # insertion count
+    my ($qSumIns, $rSumIns) = (0,0);        # insertion length sum
+    my ($qnTIns, $rnTIns) = (0,0);          # tandem insertion count
+    my ($qSumTIns, $rSumTIns) = (0,0);      # tandem insertion length sum
+    my ($qnInv, $rnInv) = (0,0);            # inversion count
+    my ($qnRel, $rnRel) = (0,0);            # relocation count
+    my ($qnTrn, $rnTrn) = (0,0);            # translocation count
+    my ($rnSeqs, $qnSeqs) = (0,0);          # sequence count
+    my ($rnASeqs, $qnASeqs) = (0,0);        # aligned sequence count
+    my ($rnBases, $qnBases) = (0,0);        # bases count
+    my ($rnABases, $qnABases) = (0,0);      # aligned bases count
+    my ($rnBrk, $qnBrk) = (0,0);            # breakpoint count
+    my ($rqnSNPs, $rqnIndels) = (0,0);      # snp and indel counts
+    my ($rqnGSNPs, $rqnGIndels) = (0,0);    # good snp and indel counts
+    my %rqSNPs =                            # SNP hash
         ( "."=>{"A"=>0,"C"=>0,"G"=>0,"T"=>0},
           "A"=>{"."=>0,"C"=>0,"G"=>0,"T"=>0},
           "C"=>{"."=>0,"A"=>0,"G"=>0,"T"=>0},
           "G"=>{"."=>0,"A"=>0,"C"=>0,"T"=>0},
           "T"=>{"."=>0,"A"=>0,"C"=>0,"G"=>0} );
-
-    my %rqGSNPs =
+    my %rqGSNPs =                           # good SNP hash
         ( "."=>{"A"=>0,"C"=>0,"G"=>0,"T"=>0},
           "A"=>{"."=>0,"C"=>0,"G"=>0,"T"=>0},
           "C"=>{"."=>0,"A"=>0,"G"=>0,"T"=>0},
           "G"=>{"."=>0,"A"=>0,"C"=>0,"T"=>0},
           "T"=>{"."=>0,"A"=>0,"C"=>0,"G"=>0} );
-    my $header;
+    my $header;                             # delta header
 
     #-- Get delta header
     $fhi = FileOpen("<", $OPT_DeltaFile);
@@ -255,11 +263,13 @@ sub MakeReport()
         scalar(@A) == 13
             or die "ERROR: Unrecognized format $OPT_CoordsFileM, aborting.\n";
 
+        #-- Add to M-to-M alignment counts
         $rqnAlignsM++;
         $rSumLenM += $A[4];
         $qSumLenM += $A[5];
         $rqSumIdyM += $A[6];
 
+        #-- If new ID, add to sequence and base count
         if ( $refs{$A[11]} > 0 ) {
             $rnASeqs++;
             $rnABases += $refs{$A[11]};
@@ -271,6 +281,8 @@ sub MakeReport()
             $qrys{$A[12]} *= -1;
         }
 
+        #-- Add to breakpoint counts
+        my ($lo, $hi);
         if ( $A[1] < $A[2] ) { $lo = $A[1]; $hi = $A[2]; }
         else                 { $lo = $A[2]; $hi = $A[1]; }
         $rnBrk++ if ( $lo != 1 );
@@ -284,19 +296,20 @@ sub MakeReport()
     FileClose($fhi, $OPT_CoordsFileM);
 
     #-- Calculate average %idy, length, etc.
-    $fhi = FileOpen("<", $OPT_CoordsFileO);
+    $fhi = FileOpen("<", $OPT_CoordsFile1);
     while (<$fhi>) {
         chomp;
         my @A = split "\t";
         scalar(@A) == 13
-            or die "ERROR: Unrecognized format $OPT_CoordsFileO, aborting.\n";
+            or die "ERROR: Unrecognized format $OPT_CoordsFile1, aborting.\n";
 
-        $rqnAlignsO++;
-        $rSumLenO += $A[4];
-        $qSumLenO += $A[5];
-        $rqSumIdyO += $A[6];
+        #-- Add to 1-to-1 alignment counts
+        $rqnAligns1++;
+        $rSumLen1 += $A[4];
+        $qSumLen1 += $A[5];
+        $rqSumIdy1 += $A[6];
     }
-    FileClose($fhi, $OPT_CoordsFileO);
+    FileClose($fhi, $OPT_CoordsFile1);
 
     #-- If you are reading this, you need to get out more...
 
@@ -310,7 +323,7 @@ sub MakeReport()
         my $gap = $A[4];
         my $ins = $gap;
 
-        #-- Check for tandem signature
+        #-- Add to tandem insertion counts
         if ( $A[1] eq "GAP" ) {
             scalar(@A) == 7
                 or die "ERROR: Unrecognized format $OPT_DiffRFile, aborting.\n";
@@ -321,15 +334,19 @@ sub MakeReport()
              }
         }
 
+        #-- "unalign" sequence
         $rnABases -= $gap if ( $gap > 0 );
-        $rnInv++ if ( $A[1] eq "INV" );
-        $rnRel++ if ( $A[1] eq "JMP" );
-        $rnTrn++ if ( $A[1] eq "SEQ" );
 
+        #-- Add to insertion count
         if ( $ins > 0 ) {
             $rnIns++;
             $rSumIns += $ins;
         }
+
+        #-- Add to rearrangement counts
+        $rnInv++ if ( $A[1] eq "INV" );
+        $rnRel++ if ( $A[1] eq "JMP" );
+        $rnTrn++ if ( $A[1] eq "SEQ" );
     }
     FileClose($fhi, $OPT_DiffRFile);
     
@@ -343,7 +360,7 @@ sub MakeReport()
         my $gap = $A[4];
         my $ins = $gap;
 
-        #-- Check for tandem signature
+        #-- Add to tandem insertion counts
         if ( $A[1] eq "GAP" ) {
             scalar(@A) == 7
                 or die "ERROR: Unrecognized format $OPT_DiffRFile, aborting.\n";
@@ -354,15 +371,19 @@ sub MakeReport()
             }
         }
 
+        #-- "unalign" sequence
         $qnABases -= $gap if ( $gap > 0 );
-        $qnInv++ if ( $A[1] eq "INV" );
-        $qnRel++ if ( $A[1] eq "JMP" );
-        $qnTrn++ if ( $A[1] eq "SEQ" );
 
+        #-- Add to insertion count
         if ( $ins > 0 ) {
             $qnIns++;
             $qSumIns += $ins;
         }
+
+        #-- Add to rearrangement counts
+        $qnInv++ if ( $A[1] eq "INV" );
+        $qnRel++ if ( $A[1] eq "JMP" );
+        $qnTrn++ if ( $A[1] eq "SEQ" );
     }
     FileClose($fhi, $OPT_DiffQFile);
 
@@ -377,10 +398,12 @@ sub MakeReport()
         my $r = uc($A[1]);
         my $q = uc($A[2]);
 
+        #-- Plain SNPs
         $rqSNPs{$r}{$q}++;
         if ( $r eq '.' || $q eq '.' ) { $rqnIndels++; }
         else                          { $rqnSNPs++; }
 
+        #-- Good SNPs with sufficient match buffer
         if ( $A[4] >= $SNPBuff ) {
             $rqGSNPs{$r}{$q}++;
             if ( $r eq '.' || $q eq '.' ) { $rqnGIndels++; }
@@ -437,17 +460,17 @@ sub MakeReport()
     print  $fho "\n[Alignments]\n";
 
     printf $fho "%-15s %20d %20d\n",
-    "1-to-1", $rqnAlignsO, $rqnAlignsO;
+    "1-to-1", $rqnAligns1, $rqnAligns1;
     printf $fho "%-15s %20d %20d\n",
-    "TotalLength", $rSumLenO, $qSumLenO;
+    "TotalLength", $rSumLen1, $qSumLen1;
     printf $fho "%-15s %20.2f %20.2f\n",
     "AvgLength",
-    ($rqnAlignsO ? $rSumLenO / $rqnAlignsO : 0),
-    ($rqnAlignsO ? $qSumLenO / $rqnAlignsO : 0);
+    ($rqnAligns1 ? $rSumLen1 / $rqnAligns1 : 0),
+    ($rqnAligns1 ? $qSumLen1 / $rqnAligns1 : 0);
     printf $fho "%-15s %20.2f %20.2f\n",
     "AvgIdentity",
-    ($rqnAlignsO ? $rqSumIdyO / $rqnAlignsO : 0),
-    ($rqnAlignsO ? $rqSumIdyO / $rqnAlignsO : 0);
+    ($rqnAligns1 ? $rqSumIdy1 / $rqnAligns1 : 0),
+    ($rqnAligns1 ? $rqSumIdy1 / $rqnAligns1 : 0);
 
     print  $fho "\n";
 
@@ -698,20 +721,20 @@ sub GetOpt()
     $TIGR->isReadableFile($OPT_QryFile)
         or push(@errs, $OPT_QryFile);
 
-    $OPT_DeltaFileO = $OPT_Prefix . $OPT_DeltaFileO;
-    $TIGR->isCreatableFile("$OPT_DeltaFileO")
-        or $TIGR->isWritableFile("$OPT_DeltaFileO")
-        or push(@errs, "$OPT_DeltaFileO");
+    $OPT_DeltaFile1 = $OPT_Prefix . $OPT_DeltaFile1;
+    $TIGR->isCreatableFile("$OPT_DeltaFile1")
+        or $TIGR->isWritableFile("$OPT_DeltaFile1")
+        or push(@errs, "$OPT_DeltaFile1");
 
     $OPT_DeltaFileM = $OPT_Prefix . $OPT_DeltaFileM;
     $TIGR->isCreatableFile("$OPT_DeltaFileM")
         or $TIGR->isWritableFile("$OPT_DeltaFileM")
         or push(@errs, "$OPT_DeltaFileM");
 
-    $OPT_CoordsFileO = $OPT_Prefix . $OPT_CoordsFileO;
-    $TIGR->isCreatableFile("$OPT_CoordsFileO")
-        or $TIGR->isWritableFile("$OPT_CoordsFileO")
-        or push(@errs, "$OPT_CoordsFileO");
+    $OPT_CoordsFile1 = $OPT_Prefix . $OPT_CoordsFile1;
+    $TIGR->isCreatableFile("$OPT_CoordsFile1")
+        or $TIGR->isWritableFile("$OPT_CoordsFile1")
+        or push(@errs, "$OPT_CoordsFile1");
 
     $OPT_CoordsFileM = $OPT_Prefix . $OPT_CoordsFileM;
     $TIGR->isCreatableFile("$OPT_CoordsFileM")
