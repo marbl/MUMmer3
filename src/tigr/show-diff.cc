@@ -184,7 +184,7 @@ void PrintDiff(DeltaGraph_t & graph)
             A = aligns[i];
             gapR = A->loR - PA->hiR - 1;
 
-            //-- Reached pad, end of alignments
+            //-- Reached end of alignments
             if ( A->edge == NULL )
               {
                 PrintBrk(refid, PA->hiR, A->loR);
@@ -330,7 +330,7 @@ void PrintDiff(DeltaGraph_t & graph)
 
 void PrintBrk(const char* seq, long s, long e)
 {
-  if ( e-s-1 == 0 ) return;
+  if ( e-s-1 <= 0 ) return;
 
   if ( !OPT_AMOS )
     printf("%s\tBRK\t%ld\t%ld\t%ld\n",

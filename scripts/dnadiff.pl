@@ -28,7 +28,7 @@ DNAdiff version 1.00
 
 my $HELP_INFO = q~
   USAGE: dnadiff  [options]  <Reference>  <Query>
-  USAGE: dnadiff  [options]  -d <Delta File>
+    or   dnadiff  [options]  -d <Delta File>
 
   DESCRIPTION:
     Run comparative analysis of two genomes using nucmer.
@@ -49,6 +49,7 @@ my $HELP_INFO = q~
 
 my $USAGE_INFO = q~
   USAGE: dnadiff  [options]  <Reference>  <Query>
+    or   dnadiff  [options]  -d <Delta File>
     ~;
 
 
