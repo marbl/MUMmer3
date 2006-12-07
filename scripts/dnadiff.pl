@@ -74,7 +74,7 @@ my $OPT_Prefix      = "out";         # prefix for all output files
 my $OPT_RefFile;                     # reference file
 my $OPT_QryFile;                     # query file
 my $OPT_DeltaFile;                   # unfiltered alignment file
-my $OPT_DeltaFileO  = ".odelta";     # 1-to-1 delta alignment
+my $OPT_DeltaFileO  = ".1delta";     # 1-to-1 delta alignment
 my $OPT_DeltaFileM  = ".mdelta";     # M-to-M delta alignment
 my $OPT_CoordsFileO = ".ocoords";    # 1-to-1 alignment coords
 my $OPT_CoordsFileM = ".mcoords";    # M-to-M alignment coords
