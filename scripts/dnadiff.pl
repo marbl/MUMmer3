@@ -40,6 +40,8 @@ my $HELP_INFO = q~
     .snps    - SNPs from show-snps -rlTHC .1delta
     .rdiff   - Classified ref breakpoints from show-diff -rH .mdelta
     .qdiff   - Classified qry breakpoints from show-diff -qH .mdelta
+    .unref   - Unaligned reference IDs and lengths (if applicable)
+    .unqry   - Unaligned query IDs and lengths (if applicable)
 
   MANDATORY:
     reference       Set the input reference multi-FASTA filename
@@ -84,6 +86,7 @@ my $OPT_Prefix      = "out";         # prefix for all output files
 my $OPT_RefFile;                     # reference file
 my $OPT_QryFile;                     # query file
 my $OPT_DeltaFile;                   # unfiltered alignment file
+my $OPT_ReportFile  = ".report";     # report file
 my $OPT_DeltaFile1  = ".1delta";     # 1-to-1 delta alignment
 my $OPT_DeltaFileM  = ".mdelta";     # M-to-M delta alignment
 my $OPT_CoordsFile1 = ".1coords";    # 1-to-1 alignment coords
@@ -91,7 +94,8 @@ my $OPT_CoordsFileM = ".mcoords";    # M-to-M alignment coords
 my $OPT_SnpsFile    = ".snps";       # snps output file
 my $OPT_DiffRFile   = ".rdiff";      # diffile for R
 my $OPT_DiffQFile   = ".qdiff";      # diffile for Q
-my $OPT_ReportFile  = ".report";     # report file
+my $OPT_UnRefFile    = ".unref";     # unaligned ref IDs and lengths
+my $OPT_UnQryFile    = ".unqry";     # unaligned qry IDs and lengths
 
 my $TIGR;  # TIGR Foundation object
 
@@ -273,12 +277,12 @@ sub MakeReport()
         if ( $refs{$A[11]} > 0 ) {
             $rnASeqs++;
             $rnABases += $refs{$A[11]};
-            $refs{$A[11]} *= -1;
+            $refs{$A[11]} *= -1; # If ref has alignment, length will be -neg
         }
         if ( $qrys{$A[12]} > 0 ) {
             $qnASeqs++;
             $qnABases += $qrys{$A[12]};
-            $qrys{$A[12]} *= -1;
+            $qrys{$A[12]} *= -1; # If qry has alignment, length will be -neg
         }
 
         #-- Add to breakpoint counts
@@ -597,6 +601,23 @@ sub MakeReport()
     }
 
     FileClose($fho, $OPT_ReportFile);
+
+
+    #-- Output unaligned reference and query IDs, if applicable
+    if ( $rnSeqs != $rnASeqs ) {
+        $fho = FileOpen(">", $OPT_UnRefFile);
+        while ( my ($key, $val) = each(%refs) ) {
+            print $fho "$key\t$val\n" unless $val < 0;
+        }
+        FileClose($fho, $OPT_UnRefFile);
+    }
+    if ( $qnSeqs != $qnASeqs ) {
+        $fho = FileOpen(">", $OPT_UnQryFile);
+        while ( my ($key, $val) = each(%qrys) ) {
+            print $fho "$key\t$val\n" unless $val < 0;
+        }
+        FileClose($fho, $OPT_UnQryFile);
+    }
 }
 
 
@@ -721,6 +742,11 @@ sub GetOpt()
     $TIGR->isReadableFile($OPT_QryFile)
         or push(@errs, $OPT_QryFile);
 
+    $OPT_ReportFile = $OPT_Prefix . $OPT_ReportFile;
+    $TIGR->isCreatableFile("$OPT_ReportFile")
+        or $TIGR->isWritableFile("$OPT_ReportFile")
+        or push(@errs, "$OPT_ReportFile");
+
     $OPT_DeltaFile1 = $OPT_Prefix . $OPT_DeltaFile1;
     $TIGR->isCreatableFile("$OPT_DeltaFile1")
         or $TIGR->isWritableFile("$OPT_DeltaFile1")
@@ -756,10 +782,15 @@ sub GetOpt()
         or $TIGR->isWritableFile("$OPT_DiffQFile")
         or push(@errs, "$OPT_DiffQFile");
 
-    $OPT_ReportFile = $OPT_Prefix . $OPT_ReportFile;
-    $TIGR->isCreatableFile("$OPT_ReportFile")
-        or $TIGR->isWritableFile("$OPT_ReportFile")
-        or push(@errs, "$OPT_ReportFile");
+    $OPT_UnRefFile = $OPT_Prefix . $OPT_UnRefFile;
+        $TIGR->isCreatableFile("$OPT_UnRefFile")
+        or $TIGR->isWritableFile("$OPT_UnRefFile")
+        or push(@errs, "$OPT_UnRefFile");
+
+    $OPT_UnQryFile = $OPT_Prefix . $OPT_UnQryFile;
+        $TIGR->isCreatableFile("$OPT_UnQryFile")
+        or $TIGR->isWritableFile("$OPT_UnQryFile")
+        or push(@errs, "$OPT_UnQryFile");
 
     if ( scalar(@errs) ) {
         print STDERR "ERROR: The following critical files could not be used\n";
