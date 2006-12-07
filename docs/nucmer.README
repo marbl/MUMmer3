@@ -10,9 +10,11 @@ Use Cases:
 
 If any of this code is used in any publication, please cite the following:
 
-Fast algorithms for large-scale genome alignment and comparison.
-A.L. Delcher. A. Phillippy, J. Carlton, and S.L. Salzberg.  Nucleic
-Acids Research 30:11 (2002), 2478-2483.
+  Versatile and open software for comparing large genomes.
+  S. Kurtz, A. Phillippy, A.L. Delcher,
+  M. Smoot, M. Shumway, C. Antonescu, and S.L. Salzberg.
+  Genome Biology (2004), 5:R12.
+
 --------------------------------------------------------------------------------
 
 ** NOTE **

@@ -31,6 +31,7 @@ my $HELP_INFO = q~
     documentation for a more detailed description of the
     output. Produces the following output files:
 
+    .report  - Summary of alignments, differences and SNPs
     .delta   - Standard nucmer alignment output
     .1delta  - 1-to-1 alignment from delta-filter -1
     .mdelta  - M-to-M alignment from delta-filter -m
@@ -39,7 +40,6 @@ my $HELP_INFO = q~
     .snps    - SNPs from show-snps -rlTHC .1delta
     .rdiff   - Classified ref breakpoints from show-diff -rH .mdelta
     .qdiff   - Classified qry breakpoints from show-diff -qH .mdelta
-    .report  - Summary of alignments, differences and SNPs
 
   MANDATORY:
     reference       Set the input reference multi-FASTA filename
