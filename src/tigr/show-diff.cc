@@ -187,7 +187,7 @@ void PrintDiff(DeltaGraph_t & graph)
             //-- Reached end of alignments
             if ( A->edge == NULL )
               {
-                PrintBrk(refid, PA->hiR, A->loR);
+                PrintBrk(refid, PA->hiR+1, A->loR-1);
               }
             //-- 1-to-1 alignment
             else if ( A->isQLIS && A->edge == PGA->edge )
@@ -197,9 +197,9 @@ void PrintDiff(DeltaGraph_t & graph)
                      A->stpc != PGA->stpc + PGA->slope() )
                   {
                     if ( A->slope() == PGA->slope() )
-                      PrintLisJmp(refid, PA->hiR, A->loR);
+                      PrintLisJmp(refid, PA->hiR+1, A->loR-1);
                     else
-                      PrintInv(refid, PA->hiR, A->loR);
+                      PrintInv(refid, PA->hiR+1, A->loR-1);
                   }
                 //-- Lined up, nothing in between
                 else if ( PA == PGA )
@@ -207,18 +207,18 @@ void PrintDiff(DeltaGraph_t & graph)
                     gapQ = A->isPositive() ?
                       A->loQ - PGA->hiQ - 1 :
                       PGA->loQ - A->hiQ - 1;
-                    PrintGap(refid, PA->hiR, A->loR, gapR, gapQ);
+                    PrintGap(refid, PA->hiR+1, A->loR-1, gapR, gapQ);
                   }
                 //-- Lined up, duplication in between
                 else
                   {
-                    PrintBrk(refid, PA->hiR, A->loR);
+                    PrintBrk(refid, PA->hiR+1, A->loR-1);
                   }
               }
             //-- Not in QLIS? Must be a duplication in R
             else if ( !A->isQLIS )
               {
-                PrintBrk(refid, PA->hiR, A->loR);
+                PrintBrk(refid, PA->hiR+1, A->loR-1);
                 PrintDup(refid, A->loR, A->hiR);
               }
             //-- A->edge != PGA->edge? Jump to different query sequence
@@ -227,12 +227,12 @@ void PrintDiff(DeltaGraph_t & graph)
                 PrintSeqJmp(refid,
                             PGA->edge->qrynode->id->c_str(),
                             A->edge->qrynode->id->c_str(),
-                            PA->hiR, A->loR);
+                            PA->hiR+1, A->loR-1);
               }
             //-- Gap before first alignment
             else
               {
-                PrintBrk(refid, PA->hiR, A->loR);
+                PrintBrk(refid, PA->hiR+1, A->loR-1);
               }
 
             if ( A->isQLIS )
@@ -279,7 +279,7 @@ void PrintDiff(DeltaGraph_t & graph)
 
             if ( A->edge == NULL )
               {
-                PrintBrk(qryid, PA->hiQ, A->loQ);
+                PrintBrk(qryid, PA->hiQ+1, A->loQ-1);
               }
             else if ( A->isRLIS && A->edge == PGA->edge )
               {
@@ -287,25 +287,25 @@ void PrintDiff(DeltaGraph_t & graph)
                      A->stpc != PGA->stpc + PGA->slope() )
                   {
                     if ( A->slope() == PGA->slope() )
-                      PrintLisJmp(qryid, PA->hiQ, A->loQ);
+                      PrintLisJmp(qryid, PA->hiQ+1, A->loQ-1);
                     else
-                      PrintInv(qryid, PA->hiQ, A->loQ);
+                      PrintInv(qryid, PA->hiQ+1, A->loQ-1);
                   }
                 else if ( PA == PGA )
                   {
                     gapR = A->isPositive() ?
                       A->loR - PGA->hiR - 1 :
                       PGA->loR - A->hiR - 1;
-                    PrintGap(qryid, PA->hiQ, A->loQ, gapQ, gapR);
+                    PrintGap(qryid, PA->hiQ+1, A->loQ-1, gapQ, gapR);
                   }
                 else
                   {
-                    PrintBrk(qryid, PA->hiQ, A->loQ);
+                    PrintBrk(qryid, PA->hiQ+1, A->loQ-1);
                   }
               }
             else if ( !A->isRLIS )
               {
-                PrintBrk(qryid, PA->hiQ, A->loQ);
+                PrintBrk(qryid, PA->hiQ+1, A->loQ-1);
                 PrintDup(qryid, A->loQ, A->hiQ);
               }
             else if ( PGA->edge != NULL )
@@ -313,11 +313,11 @@ void PrintDiff(DeltaGraph_t & graph)
                 PrintSeqJmp(qryid,
                             PA->edge->refnode->id->c_str(),
                             A->edge->refnode->id->c_str(),
-                            PA->hiQ, A->loQ);
+                            PA->hiQ+1, A->loQ-1);
               }
             else
               {
-                PrintBrk(qryid, PA->hiQ, A->loQ);
+                PrintBrk(qryid, PA->hiQ+1, A->loQ-1);
               }
 
             if ( A->isRLIS )
@@ -330,14 +330,14 @@ void PrintDiff(DeltaGraph_t & graph)
 
 void PrintBrk(const char* seq, long s, long e)
 {
-  if ( e-s-1 <= 0 ) return;
+  if ( e-s+1 <= 0 ) return;
 
   if ( !OPT_AMOS )
     printf("%s\tBRK\t%ld\t%ld\t%ld\n",
-           seq, s, e, e-s-1);
+           seq, s, e, e-s+1);
   else
     printf("%s\tA\t%ld\t%ld\tBRK\t%ld\t%ld\t%ld\n",
-           seq, s, e, s, e, e-s-1);
+           seq, s, e, s, e, e-s+1);
 }
 
 void PrintSeqJmp(const char* seq,
@@ -347,30 +347,30 @@ void PrintSeqJmp(const char* seq,
 {
   if ( !OPT_AMOS )
     printf("%s\tSEQ\t%ld\t%ld\t%ld\t%s\t%s\n",
-           seq, s, e, e-s-1, seqp, seqn);
+           seq, s, e, e-s+1, seqp, seqn);
   else
     printf("%s\tA\t%ld\t%ld\tSEQ\t%ld\t%ld\t%ld\t%s\t%s\n",
-           seq, s, e, s, e, e-s-1, seqp, seqn);
+           seq, s, e, s, e, e-s+1, seqp, seqn);
 }
 
 void PrintLisJmp(const char* seq, long s, long e)
 {
   if ( !OPT_AMOS )
     printf("%s\tJMP\t%ld\t%ld\t%ld\n",
-           seq, s, e, e-s-1);
+           seq, s, e, e-s+1);
   else
     printf("%s\tA\t%ld\t%ld\tJMP\t%ld\t%ld\t%ld\n",
-           seq, s, e, s, e, e-s-1);
+           seq, s, e, s, e, e-s+1);
 }
 
 void PrintInv(const char* seq, long s, long e)
 {
   if ( !OPT_AMOS )
     printf("%s\tINV\t%ld\t%ld\t%ld\n",
-           seq, s, e, e-s-1);
+           seq, s, e, e-s+1);
   else
     printf("%s\tA\t%ld\t%ld\tINV\t%ld\t%ld\t%ld\n",
-           seq, s, e, s, e, e-s-1);
+           seq, s, e, s, e, e-s+1);
 }
 
 void PrintGap(const char* seq, long s, long e, long gap1, long gap2)
