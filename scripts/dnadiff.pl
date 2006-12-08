@@ -60,8 +60,8 @@ my $HELP_INFO = q~
 
 
 my $USAGE_INFO = q~
-  USAGE: dnadiff  [options]  <Reference>  <Query>
-    or   dnadiff  [options]  -d <Delta File>
+  USAGE: dnadiff  [options]  <reference>  <query>
+    or   dnadiff  [options]  -d <delta file>
     ~;
 
 
