@@ -99,6 +99,8 @@ my $OPT_Pfile;                     # .ps .png output
 
 my $OPT_gpstatus;                  # gnuplot status
 
+my $OPT_ONLY_USE_FATTEST;          # Only use fattest alignment for layout
+
 
 #============================================================== Foundation ====#
 my $VERSION = '3.5';
@@ -146,6 +148,7 @@ my $HELP = qq~
     -l
     --layout        Layout a .delta multiplot in an intelligible fashion,
                     this option requires the -R -Q options
+    --fat           Layout sequences using fattest alignment only
     -p|prefix       Set the prefix of the output files (default '$OPT_prefix')
     -rv             Reverse video for x11 plots
     -r|IdR          Plot a particular reference sequence ID on the X-axis
@@ -289,6 +292,7 @@ MAIN:
         #-- parent runs gnuplot
         if ( $child ) {
             RunGP( );
+            kill 1, $child;
         }
         #-- child listens to clipboard
         elsif ( defined $child ) {
@@ -693,6 +697,28 @@ sub LayoutIDs ($$)
 
         $loQ = $dQ == 1 ? $sQ : $eQ;
         $hiQ = $dQ == 1 ? $eQ : $sQ;
+
+        if ($OPT_ONLY_USE_FATTEST)
+        {
+          #-- Check to see if there is another better alignment
+          if (exists $qc{$idQ})
+          {
+            my ($oldR) = keys %{$qc{$idQ}[2]};
+            my $val = $qc{$idQ}[2]{$oldR};
+
+            if (${$val->[4]} - ${$val->[3]} > $hiR - $loR)
+            {
+              #-- Old alignment is better, skip this one
+              next;
+            }
+            else
+            {
+              #-- This alignment is better, prune old alignment
+              delete $rc{$oldR}[2]{$idQ};
+              delete $qc{$idQ};
+            }
+          }
+        }
 
         #-- initialize
         if ( !exists $rc{$idR} ) { $rc{$idR} = [ 0, $lenR, { } ]; }
@@ -1435,6 +1461,7 @@ sub ParseOptions ( )
          "small"        => \$opt_small,
          "medium"       => \$opt_medium,
          "large"        => \$opt_large,
+         "fat"          => \$OPT_ONLY_USE_FATTEST,
          );
 
     if ( !$err  ||  scalar (@ARGV) != 1 ) {
@@ -1522,6 +1549,11 @@ sub ParseOptions ( )
         $OPT_Hfile = $OPT_prefix . $SUFFIX{$HLTPLOT};
         $tigr->isWritableFile($OPT_Hfile) or $tigr->isCreatableFile($OPT_Hfile)
             or die "ERROR: Could not write $OPT_Hfile, $!\n";
+    }
+
+    if ($OPT_ONLY_USE_FATTEST)
+    {
+      $OPT_layout = 1;
     }
 
     if ( $OPT_filter || $OPT_layout ) {
