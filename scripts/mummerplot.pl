@@ -384,6 +384,9 @@ sub ParseIDs ($$)
     my $isfasta;
     my $offset = 0;
     while ( <IDFILE> ) {
+        #-- Ignore blank lines
+        if ( /^\s*$/ ) { next; }
+
         #-- FastA header
         if ( /^>(\S+)/ ) {
             if ( exists $href->{$1} ) {
