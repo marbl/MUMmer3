@@ -14,6 +14,8 @@
 #include <cstdlib>
 #include <cassert>
 #include <climits>
+#include <algorithm>
+
 using namespace std;
 
 
