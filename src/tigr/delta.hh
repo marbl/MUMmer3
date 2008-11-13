@@ -149,6 +149,13 @@ private:
       {
 	std::cerr << "ERROR: Could not parse delta file, "
 		  << delta_path_m << std::endl;
+
+
+        std::cerr << "error no: "
+                  << int(delta_stream_m.rdstate() & std::ifstream::failbit)
+                  << int(delta_stream_m.rdstate() & std::ifstream::badbit)
+                  << int(delta_stream_m.rdstate() & std::ifstream::eofbit)
+                  << std::endl;
 	exit (-1);
       }
   }

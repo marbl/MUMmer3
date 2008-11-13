@@ -15,6 +15,7 @@
 #include <cassert>
 #include <climits>
 #include <algorithm>
+#include <vector>
 
 using namespace std;
 

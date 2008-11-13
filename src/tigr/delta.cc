@@ -212,7 +212,7 @@ void DeltaReader_t::open
   delta_stream_m >> query_path_m;
   delta_stream_m >> data_type_m;
   if ( (data_type_m != NUCMER_STRING  &&  data_type_m != PROMER_STRING) )
-    delta_stream_m.setstate (ios::badbit);
+    delta_stream_m.setstate (ios::failbit);
   checkStream ();
   is_open_m = true;
 
@@ -244,7 +244,7 @@ void DeltaReader_t::readNextAlignment
   if ( align.sR <= 0  ||  align.eR <= 0  ||
        align.sQ <= 0  ||  align.eQ <= 0  ||
        align.idyc < 0  ||  align.simc < 0  ||  align.stpc < 0 )
-    delta_stream_m.setstate (ios::badbit);
+    delta_stream_m.setstate (ios::failbit);
   checkStream ();
 
   total = labs(align.eR - align.sR) + 1.0;
@@ -291,7 +291,7 @@ bool DeltaReader_t::readNextRecord (const bool read_deltas)
   delta_stream_m >> record_m.lenR;
   delta_stream_m >> record_m.lenQ;
   if ( record_m.lenR <= 0  ||  record_m.lenQ <= 0 )
-    delta_stream_m.setstate (ios::badbit);
+    delta_stream_m.setstate (ios::failbit);
   checkStream ();
 
   //-- Flush the remaining whitespace
