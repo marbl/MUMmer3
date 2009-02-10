@@ -498,8 +498,10 @@ Sint procmaxmatches(MMcallinfo *mmcallinfo,Multiseq *subjectmultiseq)
 
   fprintf(stderr,"# construct suffix tree for sequence of length %lu\n",
            (Showuint) subjectmultiseq->totallength);
-  fprintf(stderr,"# (maximum input length is %lu)\n",
+  fprintf(stderr,"# (maximum reference length is %lu)\n",
            (Showuint) getmaxtextlenstree());
+  fprintf(stderr,"# (maximum query length is %lu)\n",
+          (Showuint) ~((Uint)0));
   if(constructprogressstree (&matchprocessinfo.stree,
                              subjectmultiseq->sequence,
                              subjectmultiseq->totallength,

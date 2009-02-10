@@ -111,6 +111,12 @@ Sint simplefileOpen(char *filename,Uint *numofbytes)
      ERROR1("cannot access status for file \"%s\"",filename);
      return -2;
   }
+  if ( buf.st_size > (~((Uint)0)) )
+  {
+    ERROR1("maximum file size exceeded for \"%s\"",filename);
+    return -2;
+  }
+
   *numofbytes = (Uint) buf.st_size;
   return (Sint) fd;
 }
