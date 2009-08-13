@@ -23,7 +23,7 @@
 #
 #-------------------------------------------------------------------------------
 SHELL = /bin/sh
-VERSION := 3.21
+VERSION := 3.22
 
 
 TOP_DIR     := $(CURDIR)
@@ -42,7 +42,7 @@ CSH  := $(filter /%,$(shell /bin/sh -c 'type csh'))
 PERL := $(filter /%,$(shell /bin/sh -c 'type perl'))
 AR   := $(filter /%,$(shell /bin/sh -c 'type ar'))
 
-CPPFLAGS = -Wall -O3
+CPPFLAGS = -O3
 LDFLAGS  =
 
 FLATS = ACKNOWLEDGEMENTS COPYRIGHT INSTALL LICENSE Makefile README ChangeLog

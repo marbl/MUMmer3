@@ -287,13 +287,13 @@ sub MakeReport()
 
         #-- Add to breakpoint counts
         my ($lo, $hi);
-        if ( $A[1] < $A[2] ) { $lo = $A[1]; $hi = $A[2]; }
-        else                 { $lo = $A[2]; $hi = $A[1]; }
+        if ( $A[0] < $A[1] ) { $lo = $A[0]; $hi = $A[1]; }
+        else                 { $lo = $A[1]; $hi = $A[0]; }
         $rnBrk++ if ( $lo != 1 );
         $rnBrk++ if ( $hi != $A[7] );
 
-        if ( $A[3] < $A[4] ) { $lo = $A[3]; $hi = $A[4]; }
-        else                 { $lo = $A[4]; $hi = $A[3]; }
+        if ( $A[3] < $A[4] ) { $lo = $A[2]; $hi = $A[3]; }
+        else                 { $lo = $A[3]; $hi = $A[2]; }
         $qnBrk++ if ( $lo != 1 );
         $qnBrk++ if ( $hi != $A[8] );
     }
@@ -528,7 +528,7 @@ sub MakeReport()
 
     printf $fho "%-15s %20d %20d\n",
     "TotalSNPs", $rqnSNPs, $rqnSNPs;
-    foreach my $r ("A","C") {
+    foreach my $r ("A","C","G","T") {
         foreach my $q ("A","C","G","T") {
             if ( $r ne $q ) {
                 printf $fho "%-15s %20s %20s\n",
@@ -547,7 +547,7 @@ sub MakeReport()
 
     printf $fho "%-15s %20d %20d\n",
     "TotalGSNPs", $rqnGSNPs, $rqnGSNPs;
-    foreach my $r ("A","C") {
+    foreach my $r ("A","C","G","T") {
         foreach my $q ("A","C","G","T") {
             if ( $r ne $q ) {
                 printf $fho "%-15s %20s %20s\n",
