@@ -338,8 +338,10 @@ sub MakeReport()
              }
         }
 
-        #-- "unalign" sequence
-        $rnABases -= $gap if ( $gap > 0 );
+        #-- Remove unaligned sequence from count
+        if ( $A[1] ne "DUP" ) {
+          $rnABases -= $gap if ( $gap > 0 );
+        }
 
         #-- Add to insertion count
         if ( $ins > 0 ) {
@@ -353,7 +355,7 @@ sub MakeReport()
         $rnTrn++ if ( $A[1] eq "SEQ" );
     }
     FileClose($fhi, $OPT_DiffRFile);
-    
+
     #-- Count query diff features and indels
     $fhi = FileOpen("<", $OPT_DiffQFile);
     while (<$fhi>) {
@@ -375,8 +377,10 @@ sub MakeReport()
             }
         }
 
-        #-- "unalign" sequence
-        $qnABases -= $gap if ( $gap > 0 );
+        #-- Remove unaligned sequence from count
+        if ( $A[1] ne "DUP" ) {
+          $qnABases -= $gap if ( $gap > 0 );
+        }
 
         #-- Add to insertion count
         if ( $ins > 0 ) {
@@ -441,7 +445,7 @@ sub MakeReport()
      ( sprintf "%10d(%.2f%%)",
        $qnSeqs - $qnASeqs,
        ($qnSeqs ? ($qnSeqs - $qnASeqs) / $qnSeqs * 100.0 : 0) );
-     
+
     print  $fho "\n[Bases]\n";
 
     printf $fho "%-15s %20d %20d\n",
@@ -607,14 +611,14 @@ sub MakeReport()
     if ( $rnSeqs != $rnASeqs ) {
         $fho = FileOpen(">", $OPT_UnRefFile);
         while ( my ($key, $val) = each(%refs) ) {
-            print $fho "$key\t$val\n" unless $val < 0;
+            print $fho "$key\tUNI\t1\t$val\t$val\n" unless $val < 0;
         }
         FileClose($fho, $OPT_UnRefFile);
     }
     if ( $qnSeqs != $qnASeqs ) {
         $fho = FileOpen(">", $OPT_UnQryFile);
         while ( my ($key, $val) = each(%qrys) ) {
-            print $fho "$key\t$val\n" unless $val < 0;
+            print $fho "$key\tUNI\t1\t$val\t$val\n" unless $val < 0;
         }
         FileClose($fho, $OPT_UnQryFile);
     }
@@ -681,7 +685,7 @@ sub GetOpt()
         print STDERR "ERROR: TIGR::Foundation could not be initialized";
         exit(1);
     }
-    
+
     #-- Set help and usage information
     $TIGR->setHelpInfo($HELP_INFO);
     $TIGR->setUsageInfo($USAGE_INFO);
@@ -694,7 +698,7 @@ sub GetOpt()
          "d|delta=s"  => \$OPT_DeltaFile,
          "p|prefix=s" => \$OPT_Prefix,
          );
-    
+
     #-- Check if the parsing was successful
     if ( $err
          || (defined($OPT_DeltaFile) && scalar(@ARGV) != 0)
