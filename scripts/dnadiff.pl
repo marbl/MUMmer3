@@ -292,7 +292,7 @@ sub MakeReport()
         $rnBrk++ if ( $lo != 1 );
         $rnBrk++ if ( $hi != $A[7] );
 
-        if ( $A[3] < $A[4] ) { $lo = $A[2]; $hi = $A[3]; }
+        if ( $A[2] < $A[3] ) { $lo = $A[2]; $hi = $A[3]; }
         else                 { $lo = $A[3]; $hi = $A[2]; }
         $qnBrk++ if ( $lo != 1 );
         $qnBrk++ if ( $hi != $A[8] );
