@@ -209,7 +209,8 @@ sub MakeReport()
     my ($rqnAligns1, $rqnAlignsM) = (0,0);  # alignment counter
     my ($rSumLen1, $qSumLen1) = (0,0);      # alignment length sum
     my ($rSumLenM, $qSumLenM) = (0,0);      # alignment length sum
-    my ($rqSumIdy1, $rqSumIdyM) = (0,0);    # alignment identity sum
+    my ($rqSumLen1, $rqSumLenM) = (0,0);    # weighted alignment sum
+    my ($rqSumIdy1, $rqSumIdyM) = (0,0);    # weighted alignment identity sum
     my ($qnIns, $rnIns) = (0,0);            # insertion count
     my ($qSumIns, $rSumIns) = (0,0);        # insertion length sum
     my ($qnTIns, $rnTIns) = (0,0);          # tandem insertion count
@@ -271,7 +272,8 @@ sub MakeReport()
         $rqnAlignsM++;
         $rSumLenM += $A[4];
         $qSumLenM += $A[5];
-        $rqSumIdyM += $A[6];
+        $rqSumIdyM += $A[6] * ($rSumLenM + $qSumLenM);
+        $rqSumLenM += $rSumLenM + $qSumLenM;
 
         #-- If new ID, add to sequence and base count
         if ( $refs{$A[11]} > 0 ) {
@@ -311,7 +313,8 @@ sub MakeReport()
         $rqnAligns1++;
         $rSumLen1 += $A[4];
         $qSumLen1 += $A[5];
-        $rqSumIdy1 += $A[6];
+        $rqSumIdy1 += $A[6] * ($rSumLen1 + $qSumLen1);
+        $rqSumLen1 += $rSumLen1 + $qSumLen1;
     }
     FileClose($fhi, $OPT_CoordsFile1);
 
@@ -477,8 +480,8 @@ sub MakeReport()
     ($rqnAligns1 ? $qSumLen1 / $rqnAligns1 : 0);
     printf $fho "%-15s %20.2f %20.2f\n",
     "AvgIdentity",
-    ($rqnAligns1 ? $rqSumIdy1 / $rqnAligns1 : 0),
-    ($rqnAligns1 ? $rqSumIdy1 / $rqnAligns1 : 0);
+    ($rqSumLen1 ? $rqSumIdy1 / $rqSumLen1 : 0),
+    ($rqSumLen1 ? $rqSumIdy1 / $rqSumLen1 : 0);
 
     print  $fho "\n";
 
@@ -492,8 +495,8 @@ sub MakeReport()
     ($rqnAlignsM ? $qSumLenM / $rqnAlignsM : 0);
     printf $fho "%-15s %20.2f %20.2f\n",
     "AvgIdentity",
-    ($rqnAlignsM ? $rqSumIdyM / $rqnAlignsM : 0),
-    ($rqnAlignsM ? $rqSumIdyM / $rqnAlignsM : 0);
+    ($rqSumLenM ? $rqSumIdyM / $rqSumLenM : 0),
+    ($rqSumLenM ? $rqSumIdyM / $rqSumLenM : 0);
 
     print  $fho "\n[Feature Estimates]\n";
 
@@ -571,37 +574,62 @@ sub MakeReport()
     printf $fho "%-15s %20d %20d\n",
     "TotalIndels", $rqnIndels, $rqnIndels;
     foreach my $r ("A","C","G","T") {
-        foreach my $q (".") {
-            if ( $r ne $q ) {
-                printf $fho "%-15s %20s %20s\n",
-                "$r$q",
-                ( sprintf "%10d(%.2f%%)",
-                  $rqSNPs{$r}{$q},
-                  ($rqnIndels ? $rqSNPs{$r}{$q} / $rqnIndels * 100.0 : 0) ),
+      $q = ".";
+      if ( $r ne $q ) {
+        printf $fho "%-15s %20s %20s\n",
+          "$r$q",
+            ( sprintf "%10d(%.2f%%)",
+              $rqSNPs{$r}{$q},
+              ($rqnIndels ? $rqSNPs{$r}{$q} / $rqnIndels * 100.0 : 0) ),
                 ( sprintf "%10d(%.2f%%)",
                   $rqSNPs{$q}{$r},
                   ($rqnIndels ? $rqSNPs{$q}{$r} / $rqnIndels * 100.0 : 0) );
-            }
-        }
+      }
     }
+    foreach my $q ("A","C","G","T") {
+      $r = ".";
+      if ( $r ne $q ) {
+        printf $fho "%-15s %20s %20s\n",
+          "$r$q",
+            ( sprintf "%10d(%.2f%%)",
+              $rqSNPs{$r}{$q},
+              ($rqnIndels ? $rqSNPs{$r}{$q} / $rqnIndels * 100.0 : 0) ),
+                ( sprintf "%10d(%.2f%%)",
+                  $rqSNPs{$q}{$r},
+                  ($rqnIndels ? $rqSNPs{$q}{$r} / $rqnIndels * 100.0 : 0) );
+      }
+    }
+
 
     print  $fho "\n";
 
     printf $fho "%-15s %20d %20d\n",
     "TotalGIndels", $rqnGIndels, $rqnGIndels;
     foreach my $r ("A","C","G","T") {
-        foreach my $q (".") {
-            if ( $r ne $q ) {
-                printf $fho "%-15s %20s %20s\n",
-                "$r$q",
-                ( sprintf "%10d(%.2f%%)",
-                  $rqGSNPs{$r}{$q},
-                  ($rqnGIndels ? $rqGSNPs{$r}{$q} / $rqnGIndels * 100.0 : 0) ),
+      $q = ".";
+      if ( $r ne $q ) {
+        printf $fho "%-15s %20s %20s\n",
+          "$r$q",
+            ( sprintf "%10d(%.2f%%)",
+              $rqGSNPs{$r}{$q},
+              ($rqnGIndels ? $rqGSNPs{$r}{$q} / $rqnGIndels * 100.0 : 0) ),
                 ( sprintf "%10d(%.2f%%)",
                   $rqGSNPs{$q}{$r},
                   ($rqnGIndels ? $rqGSNPs{$q}{$r} / $rqnGIndels * 100.0 : 0) );
-            }
-        }
+      }
+    }
+    foreach my $q ("A","C","G","T") {
+      $r = ".";
+      if ( $r ne $q ) {
+        printf $fho "%-15s %20s %20s\n",
+          "$r$q",
+            ( sprintf "%10d(%.2f%%)",
+              $rqGSNPs{$r}{$q},
+              ($rqnGIndels ? $rqGSNPs{$r}{$q} / $rqnGIndels * 100.0 : 0) ),
+                ( sprintf "%10d(%.2f%%)",
+                  $rqGSNPs{$q}{$r},
+                  ($rqnGIndels ? $rqGSNPs{$q}{$r} / $rqnGIndels * 100.0 : 0) );
+      }
     }
 
     FileClose($fho, $OPT_ReportFile);
