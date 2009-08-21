@@ -226,17 +226,18 @@ sub MakeReport()
     my ($rqnSNPs, $rqnIndels) = (0,0);      # snp and indel counts
     my ($rqnGSNPs, $rqnGIndels) = (0,0);    # good snp and indel counts
     my %rqSNPs =                            # SNP hash
-        ( "."=>{"A"=>0,"C"=>0,"G"=>0,"T"=>0},
-          "A"=>{"."=>0,"C"=>0,"G"=>0,"T"=>0},
-          "C"=>{"."=>0,"A"=>0,"G"=>0,"T"=>0},
-          "G"=>{"."=>0,"A"=>0,"C"=>0,"T"=>0},
-          "T"=>{"."=>0,"A"=>0,"C"=>0,"G"=>0} );
+      ( "."=>{"A"=>0,"C"=>0,"G"=>0,"T"=>0},
+        "A"=>{"."=>0,"C"=>0,"G"=>0,"T"=>0},
+        "C"=>{"."=>0,"A"=>0,"G"=>0,"T"=>0},
+        "G"=>{"."=>0,"A"=>0,"C"=>0,"T"=>0},
+        "T"=>{"."=>0,"A"=>0,"C"=>0,"G"=>0} );
     my %rqGSNPs =                           # good SNP hash
-        ( "."=>{"A"=>0,"C"=>0,"G"=>0,"T"=>0},
-          "A"=>{"."=>0,"C"=>0,"G"=>0,"T"=>0},
-          "C"=>{"."=>0,"A"=>0,"G"=>0,"T"=>0},
-          "G"=>{"."=>0,"A"=>0,"C"=>0,"T"=>0},
-          "T"=>{"."=>0,"A"=>0,"C"=>0,"G"=>0} );
+      ( "."=>{"A"=>0,"C"=>0,"G"=>0,"T"=>0},
+        "A"=>{"."=>0,"C"=>0,"G"=>0,"T"=>0},
+        "C"=>{"."=>0,"A"=>0,"G"=>0,"T"=>0},
+        "G"=>{"."=>0,"A"=>0,"C"=>0,"T"=>0},
+        "T"=>{"."=>0,"A"=>0,"C"=>0,"G"=>0} );
+
     my $header;                             # delta header
 
     #-- Get delta header
@@ -411,12 +412,14 @@ sub MakeReport()
 
         #-- Plain SNPs
         $rqSNPs{$r}{$q}++;
+        if ( !exists($rqSNPs{$q}{$r}) ) { $rqSNPs{$q}{$r} = 0; }
         if ( $r eq '.' || $q eq '.' ) { $rqnIndels++; }
         else                          { $rqnSNPs++; }
 
         #-- Good SNPs with sufficient match buffer
         if ( $A[4] >= $SNPBuff ) {
             $rqGSNPs{$r}{$q}++;
+            if ( !exists($rqGSNPs{$q}{$r}) ) { $rqGSNPs{$q}{$r} = 0; }
             if ( $r eq '.' || $q eq '.' ) { $rqnGIndels++; }
             else                          { $rqnGSNPs++; }
         }
@@ -535,100 +538,103 @@ sub MakeReport()
 
     printf $fho "%-15s %20d %20d\n",
     "TotalSNPs", $rqnSNPs, $rqnSNPs;
-    foreach my $r ("A","C","G","T") {
-        foreach my $q ("A","C","G","T") {
-            if ( $r ne $q ) {
-                printf $fho "%-15s %20s %20s\n",
-                "$r$q",
-                ( sprintf "%10d(%.2f%%)",
-                  $rqSNPs{$r}{$q},
-                  ($rqnSNPs ? $rqSNPs{$r}{$q} / $rqnSNPs * 100.0 : 0) ),
-                ( sprintf "%10d(%.2f%%)",
-                  $rqSNPs{$q}{$r},
-                  ($rqnSNPs ? $rqSNPs{$q}{$r} / $rqnSNPs * 100.0 : 0) );
-            }
+    foreach my $r (keys %rqSNPs) {
+      foreach my $q (keys %{$rqSNPs{$r}}) {
+        if ( $r ne "." && $q ne "." ) {
+          printf $fho "%-15s %20s %20s\n",
+            "$r$q",
+              ( sprintf "%10d(%.2f%%)",
+                $rqSNPs{$r}{$q},
+                ($rqnSNPs ? $rqSNPs{$r}{$q} / $rqnSNPs * 100.0 : 0) ),
+                  ( sprintf "%10d(%.2f%%)",
+                    $rqSNPs{$q}{$r},
+                    ($rqnSNPs ? $rqSNPs{$q}{$r} / $rqnSNPs * 100.0 : 0) );
         }
+      }
     }
 
     print  $fho "\n";
 
     printf $fho "%-15s %20d %20d\n",
     "TotalGSNPs", $rqnGSNPs, $rqnGSNPs;
-    foreach my $r ("A","C","G","T") {
-        foreach my $q ("A","C","G","T") {
-            if ( $r ne $q ) {
-                printf $fho "%-15s %20s %20s\n",
-                "$r$q",
-                ( sprintf "%10d(%.2f%%)",
-                  $rqGSNPs{$r}{$q},
-                  ($rqnGSNPs ? $rqGSNPs{$r}{$q} / $rqnGSNPs * 100.0 : 0) ),
-                ( sprintf "%10d(%.2f%%)",
-                  $rqGSNPs{$q}{$r},
-                  ($rqnGSNPs ? $rqGSNPs{$q}{$r} / $rqnGSNPs * 100.0 : 0) );
-            }
+    foreach my $r (keys %rqGSNPs) {
+      foreach my $q (keys %{$rqGSNPs{$r}}) {
+        if ( $r ne "." && $q ne "." ) {
+          printf $fho "%-15s %20s %20s\n",
+            "$r$q",
+              ( sprintf "%10d(%.2f%%)",
+                $rqGSNPs{$r}{$q},
+                ($rqnGSNPs ? $rqGSNPs{$r}{$q} / $rqnGSNPs * 100.0 : 0) ),
+                  ( sprintf "%10d(%.2f%%)",
+                    $rqGSNPs{$q}{$r},
+                    ($rqnGSNPs ? $rqGSNPs{$q}{$r} / $rqnGSNPs * 100.0 : 0) );
         }
+      }
     }
 
     print  $fho "\n";
 
     printf $fho "%-15s %20d %20d\n",
     "TotalIndels", $rqnIndels, $rqnIndels;
-    foreach my $r ("A","C","G","T") {
-      my $q = ".";
-      if ( $r ne $q ) {
-        printf $fho "%-15s %20s %20s\n",
-          "$r$q",
-            ( sprintf "%10d(%.2f%%)",
-              $rqSNPs{$r}{$q},
-              ($rqnIndels ? $rqSNPs{$r}{$q} / $rqnIndels * 100.0 : 0) ),
-                ( sprintf "%10d(%.2f%%)",
-                  $rqSNPs{$q}{$r},
-                  ($rqnIndels ? $rqSNPs{$q}{$r} / $rqnIndels * 100.0 : 0) );
+    foreach my $r (keys %rqSNPs) {
+      foreach my $q (keys %{$rqSNPs{$r}}) {
+        if ( $q eq "." ) {
+          printf $fho "%-15s %20s %20s\n",
+            "$r$q",
+              ( sprintf "%10d(%.2f%%)",
+                $rqSNPs{$r}{$q},
+                ($rqnIndels ? $rqSNPs{$r}{$q} / $rqnIndels * 100.0 : 0) ),
+                  ( sprintf "%10d(%.2f%%)",
+                    $rqSNPs{$q}{$r},
+                    ($rqnIndels ? $rqSNPs{$q}{$r} / $rqnIndels * 100.0 : 0) );
+        }
       }
     }
-    foreach my $q ("A","C","G","T") {
-      my $r = ".";
-      if ( $r ne $q ) {
-        printf $fho "%-15s %20s %20s\n",
-          "$r$q",
-            ( sprintf "%10d(%.2f%%)",
-              $rqSNPs{$r}{$q},
-              ($rqnIndels ? $rqSNPs{$r}{$q} / $rqnIndels * 100.0 : 0) ),
-                ( sprintf "%10d(%.2f%%)",
-                  $rqSNPs{$q}{$r},
-                  ($rqnIndels ? $rqSNPs{$q}{$r} / $rqnIndels * 100.0 : 0) );
+    foreach my $r (keys %rqSNPs) {
+      foreach my $q (keys %{$rqSNPs{$r}}) {
+        if ( $r eq "." ) {
+          printf $fho "%-15s %20s %20s\n",
+            "$r$q",
+              ( sprintf "%10d(%.2f%%)",
+                $rqSNPs{$r}{$q},
+                ($rqnIndels ? $rqSNPs{$r}{$q} / $rqnIndels * 100.0 : 0) ),
+                  ( sprintf "%10d(%.2f%%)",
+                    $rqSNPs{$q}{$r},
+                    ($rqnIndels ? $rqSNPs{$q}{$r} / $rqnIndels * 100.0 : 0) );
+        }
       }
     }
-
 
     print  $fho "\n";
 
     printf $fho "%-15s %20d %20d\n",
     "TotalGIndels", $rqnGIndels, $rqnGIndels;
-    foreach my $r ("A","C","G","T") {
-      my $q = ".";
-      if ( $r ne $q ) {
-        printf $fho "%-15s %20s %20s\n",
-          "$r$q",
-            ( sprintf "%10d(%.2f%%)",
-              $rqGSNPs{$r}{$q},
-              ($rqnGIndels ? $rqGSNPs{$r}{$q} / $rqnGIndels * 100.0 : 0) ),
-                ( sprintf "%10d(%.2f%%)",
-                  $rqGSNPs{$q}{$r},
-                  ($rqnGIndels ? $rqGSNPs{$q}{$r} / $rqnGIndels * 100.0 : 0) );
+    foreach my $r (keys %rqGSNPs) {
+      foreach my $q (keys %{$rqGSNPs{$r}}) {
+        if ( $q eq "." ) {
+          printf $fho "%-15s %20s %20s\n",
+            "$r$q",
+              ( sprintf "%10d(%.2f%%)",
+                $rqGSNPs{$r}{$q},
+                ($rqnGIndels ? $rqGSNPs{$r}{$q} / $rqnGIndels * 100.0 : 0) ),
+                  ( sprintf "%10d(%.2f%%)",
+                    $rqGSNPs{$q}{$r},
+                    ($rqnGIndels ? $rqGSNPs{$q}{$r} / $rqnGIndels * 100.0 : 0) );
+        }
       }
     }
-    foreach my $q ("A","C","G","T") {
-      my $r = ".";
-      if ( $r ne $q ) {
-        printf $fho "%-15s %20s %20s\n",
-          "$r$q",
-            ( sprintf "%10d(%.2f%%)",
-              $rqGSNPs{$r}{$q},
-              ($rqnGIndels ? $rqGSNPs{$r}{$q} / $rqnGIndels * 100.0 : 0) ),
-                ( sprintf "%10d(%.2f%%)",
-                  $rqGSNPs{$q}{$r},
-                  ($rqnGIndels ? $rqGSNPs{$q}{$r} / $rqnGIndels * 100.0 : 0) );
+    foreach my $r (keys %rqGSNPs) {
+      foreach my $q (keys %{$rqGSNPs{$r}}) {
+        if ( $r eq "." ) {
+          printf $fho "%-15s %20s %20s\n",
+            "$r$q",
+              ( sprintf "%10d(%.2f%%)",
+                $rqGSNPs{$r}{$q},
+                ($rqnGIndels ? $rqGSNPs{$r}{$q} / $rqnGIndels * 100.0 : 0) ),
+                  ( sprintf "%10d(%.2f%%)",
+                    $rqGSNPs{$q}{$r},
+                    ($rqnGIndels ? $rqGSNPs{$q}{$r} / $rqnGIndels * 100.0 : 0) );
+        }
       }
     }
 
