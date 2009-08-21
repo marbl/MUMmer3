@@ -51,8 +51,8 @@ Output will be...
    out.snps    - SNPs from show-snps -rlTHC .1delta
    out.rdiff   - Classified ref breakpoints from show-diff -rH .mdelta
    out.qdiff   - Classified qry breakpoints from show-diff -qH .mdelta
-   out.unref   - Unaligned reference IDs and lengths (if applicable)
-   out.unqry   - Unaligned query IDs and lengths (if applicable)
+   out.unref   - Unaligned reference sequence IDs and lengths
+   out.unqry   - Unaligned query sequence IDs and lengths
 
 For more information on the formats and meanings of all the files
 produced, please see the documentation for the corresponding
@@ -80,6 +80,8 @@ and interpreting the produced .report file.
     .rdiff   - Classified alignment breakpoints from show-diff -rH .mdelta
     .qdiff   - Classified alignment breakpoints from show-diff -qH .mdelta
     .report  - Summary of alignments, differences and SNPs
+    .unref   - Unaligned reference sequence IDs and lengths
+    .unqry   - Unaligned query sequence IDs and lengths
 
   MANDATORY:
     Reference       Set the input reference multi-FASTA filename
@@ -185,6 +187,11 @@ Insertions     - Rough count of insertion events. Note that this is
                  included sequences that have no alignments as
                  insertions, whereas UnalignedBases does. Note than
                  insertions in R can be viewed as deletions from Q.
+                 This number reports only "major" insertions defined
+                 as insertions large enough to break an alignment.
+                 Nucmer will align through smaller insertions of less
+                 than ~60 bases. These smaller insertions are
+                 reported in the "Indels" count below.
 InsertionSum   - Rough sum of inserted sequence.
 InsertionAvg   - Average length of insertion.
 
@@ -196,35 +203,22 @@ TandemInsAvg   - Average length of tandem duplications.
 
 [SNPs]         - Single Nucleotide Polymorphism counts.
 TotalSNPs      - Total number of SNPs, same for both sequences.
-AC             - A-to-C SNP. For reference, this means reference 'A'
-                 to query 'C'. For query, this means query 'A' to
-                 reference 'C'. The same convention applies below.
-AG             - A-to-G SNP.
-AT             - A-to-T SNP.
-CA             - C-to-A SNP.
-CG             - C-to-G SNP.
-CT             - C-to-T SNP.
+XY             - X-to-Y SNP. For reference column, this means
+                 reference 'X' to query 'Y'. For query column, this
+                 means query 'X' to reference 'Y'. The same
+                 convention applies below.
 
 TotalGSNPs     - Single Nucleotide Polymorphisms bounded by 20 exact,
                  base-pair matches on both sides.
-AC             - A-to-C SNP.
-AG             - A-to-G SNP.
-AT             - A-to-T SNP.
-CA             - C-to-A SNP.
-CG             - C-to-G SNP.
-CT             - C-to-T SNP.
 
 TotalIndels    - Single Nucleotide Insertions/Deleltions.
-A.             - A InDel. For reference, 'A' insertion in
-                 reference. For query, 'A' insertion in query. The
-                 same convention applies below.
-C.             - C InDel.
-G.             - G InDel.
-T.             - T InDel.
+X.             - X insertion. For reference column, 'X.' means
+                 insertion of 'X' in the reference. For query column,
+                 'X.' means insertion of 'X' in the query. Nucmer will
+                 align through group insertions of up to ~60 bases.
+                 Each base of these group insertions will be reported
+                 in this count. Large insertions will be reported in
+                 the "Insertions" count about.
 
 TotalGIndels   - Single Nucleotide Insertions/Deleltions bounded by 20
                  exact, base-pair matches on both sides.
-A.             - A InDel.
-C.             - C InDel.
-G.             - G InDel.
-T.             - T InDel.
