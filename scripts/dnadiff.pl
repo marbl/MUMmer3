@@ -574,7 +574,7 @@ sub MakeReport()
     printf $fho "%-15s %20d %20d\n",
     "TotalIndels", $rqnIndels, $rqnIndels;
     foreach my $r ("A","C","G","T") {
-      $q = ".";
+      my $q = ".";
       if ( $r ne $q ) {
         printf $fho "%-15s %20s %20s\n",
           "$r$q",
@@ -587,7 +587,7 @@ sub MakeReport()
       }
     }
     foreach my $q ("A","C","G","T") {
-      $r = ".";
+      my $r = ".";
       if ( $r ne $q ) {
         printf $fho "%-15s %20s %20s\n",
           "$r$q",
@@ -600,13 +600,12 @@ sub MakeReport()
       }
     }
 
-
     print  $fho "\n";
 
     printf $fho "%-15s %20d %20d\n",
     "TotalGIndels", $rqnGIndels, $rqnGIndels;
     foreach my $r ("A","C","G","T") {
-      $q = ".";
+      my $q = ".";
       if ( $r ne $q ) {
         printf $fho "%-15s %20s %20s\n",
           "$r$q",
@@ -619,7 +618,7 @@ sub MakeReport()
       }
     }
     foreach my $q ("A","C","G","T") {
-      $r = ".";
+      my $r = ".";
       if ( $r ne $q ) {
         printf $fho "%-15s %20s %20s\n",
           "$r$q",
