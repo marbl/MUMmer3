@@ -600,6 +600,7 @@ sub MakeReport()
       }
     }
 
+
     print  $fho "\n";
 
     printf $fho "%-15s %20d %20d\n",
