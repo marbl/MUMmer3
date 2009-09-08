@@ -247,7 +247,7 @@ void  Show_Alignment (char A [], long int M, char B [], long int N)
           Show_A [Ct] = A [i --];
           Show_B [Ct ++] = '.';
           break;
-        case  'd' :                      // delete from B
+        case  'd' :                      // delete from A
           Show_A [Ct] = '.';
           Show_B [Ct ++] = B [j --];
           break;
