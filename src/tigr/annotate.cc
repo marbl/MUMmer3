@@ -10,6 +10,8 @@
 */
 
 #include "tigrinc.hh"
+#include <vector>
+using namespace std;
 
 #define  FIELD_LEN  20
 #define  MAX_ALIGN  10000
@@ -132,16 +134,52 @@ int main  (int argc, char * argv [])
   }
 
 
+template<typename T>
+class Matrix_t
+{
+public:
+  Matrix_t()
+  { clear(); }
+
+  void clear()
+  {
+    d_m.clear();
+    nRows_m = nCols_m = 0;
+  }
+
+  void resize(long nRows, long nCols)
+  {
+    nRows_m = nRows;
+    nCols_m = nCols;
+    if ( nRows*nCols > d_m.size() )
+      {
+        try {
+          d_m.resize(nRows*nCols);
+        } catch (...) {
+          d_m.clear();
+          throw;
+        }
+      }
+  }
+
+  inline T & operator()(long row, long col)
+  { return d_m[nCols_m*row+col]; }
+
+private:
+
+  vector<T> d_m;
+  long nRows_m, nCols_m;
+};
 
 void  Show_Alignment (char A [], long int M, char B [], long int N)
 
 //  Print the alignment between strings  A [1 .. M]  and  B [1 .. N] .
 
   {
-   static int  D [MAX_ALIGN] [MAX_ALIGN];
-   static char  Op [MAX_ALIGN] [MAX_ALIGN];
-   static char  Show_A [2 * MAX_ALIGN];
-   static char  Show_B [2 * MAX_ALIGN];
+   static Matrix_t<int> D;
+   static Matrix_t<char> Op;
+   static vector<char> Show_A;
+   static vector<char> Show_B;
    int  Errors, Tmp;
    long int  i, j, Ct;
 
@@ -152,35 +190,46 @@ void  Show_Alignment (char A [], long int M, char B [], long int N)
         return;
        }
 
-   D [0] [0] = 0;
-   Op [0] [0] = 'a';
+   try {
+     D.resize(M+1,N+1);
+     Op.resize(M+1,N+1);
+     Show_A.resize(M+N+2);
+     Show_B.resize(M+N+2);
+   } catch (...) {
+     printf ("\n   *** Too long ***\n\n");
+     fprintf (Gaps_With_Errors_File, "%s %7s\n", Line, "-");
+     return;
+   }
+
+   D (0,0) = 0;
+   Op (0,0) = 'a';
    for  (i = 1;  i <= M;  i ++)
      {
-      D [i] [0] = i + 1;
-      Op [i] [0] = 'd';
+      D (i,0) = i + 1;
+      Op (i,0) = 'i';
      }
    for  (j = 1;  j <= N;  j ++)
      {
-      D [0] [j] = j + 1;
-      Op [0] [j] = 'i';
+      D (0,j) = j + 1;
+      Op (0,j) = 'd';
      }
 
-   for  (i = 1;  i <= M;  i ++)
-     for  (j = 1;  j <= N;  j ++)
+   for  (i = 1;  i <= M;  i ++) // for each row (A)
+     for  (j = 1;  j <= N;  j ++) // for each col (B)
        {
-        D [i] [j] = D [i] [j - 1] + 1 + (Op [i] [j - 1] == 'i' ? 0 : 1);
-        Op [i] [j] = 'i';
-        Tmp = D [i - 1] [j] + 1 + (Op [i - 1] [j] == 'd' ? 0 : 1);
-        if  (Tmp < D [i] [j])
+        D (i,j) = D (i,j - 1) + 1 + (Op (i,j - 1) == 'd' ? 0 : 1);
+        Op (i,j) = 'd';
+        Tmp = D (i - 1,j) + 1 + (Op (i - 1,j) == 'i' ? 0 : 1);
+        if  (Tmp < D (i,j))
             {
-             D [i] [j] = Tmp;
-             Op [i] [j] = 'd';
+             D (i,j) = Tmp;
+             Op (i,j) = 'i';
             }
-        Tmp = D [i - 1] [j - 1] + (A [i] == B [j] ? 0 : 1);
-        if  (Tmp < D [i] [j])
+        Tmp = D (i - 1,j - 1) + (A [i] == B [j] ? 0 : 1);
+        if  (Tmp < D (i,j))
             {
-             D [i] [j] = Tmp;
-             Op [i] [j] = 'a';
+             D (i,j) = Tmp;
+             Op (i,j) = 'a';
             }
        }
 
@@ -188,23 +237,23 @@ void  Show_Alignment (char A [], long int M, char B [], long int N)
    i = M;
    j = N;
    while  (i > 0 || j > 0)
-     switch  (Op [i] [j])
+     switch  (Op (i,j))
        {
         case  'a' :                      // align
           Show_A [Ct] = A [i --];
           Show_B [Ct ++] = B [j --];
           break;
-        case  'd' :                      // delete from A
+        case  'i' :                      // insert into A
           Show_A [Ct] = A [i --];
           Show_B [Ct ++] = '.';
           break;
-        case  'i' :                      // insert into B
+        case  'd' :                      // delete from B
           Show_A [Ct] = '.';
           Show_B [Ct ++] = B [j --];
           break;
         default :
-          printf (" *** i = %ld   j = %ld   Op [i] [j] = %c\n",
-                      i, j, Op [i] [j]);
+          printf (" *** i = %ld   j = %ld   Op (i,j) = %c\n",
+                      i, j, Op (i,j));
           exit (EXIT_FAILURE);
        }
    Errors = 0;
