@@ -2,8 +2,8 @@
 
 3.22 - Significant 'dnadiff' bug fixes. Breakpoints, unaligned seqs, and
        SNP counts now reported accurately. Unaligned contig output format
-       switched to match show-diff format. Applied memory allocation patch
-       for Debian compatability.
+       switched to match show-diff format. Dynamic memory allocation for
+       run-mummer1.
 3.21 - gcc compatability fix.
 3.20 - Added 'dnadiff' comparative analysis script, 'show-diff' nucmer
        utility, and fixed a number of build issues.
