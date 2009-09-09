@@ -614,8 +614,8 @@ td {
   contain any set of upper and lowercase characters, however <em>only</em> the 
   DNA characters <em>a</em>, <em>c</em>, <em>t</em> and <em>g</em> will be aligned 
   (case insensitive). There is no limit on how many sequences the reference or 
-  query files may contain. Output is written to the files <code>out.cluster</code> 
-  and <code>out.delta</code>. Each is an ASCII file, but not formatted for human 
+  query files may contain. Output is written to the file <code>out.delta</code> 
+  This is an ASCII file, but not formatted for human 
   consumption, so it is necessary to run a utility program to parse the output. 
   The two primary utility programs for viewing the contents of a <code>.delta</code> 
   file are <code>show-aligns</code>, and <code>show-coords</code>. <code>show-aligns</code> 
@@ -1616,81 +1616,14 @@ by a <code>'#'</code> character, and the six columns are exactly the same as the
   itself in order to find inexact repeats.</p>
 <h5><a name="nucmeroutput" id="nucmeroutput"></a>Output format</h5>
 <p>Because <code>nucmer</code> and <code>promer</code> produce the same output 
-  files, this section will serve to explain the <code>&lt;prefix&gt;.cluster</code> 
-  and <code>&lt;prefix&gt;.delta</code> for both programs (that we will refer 
-  to as the cluster and delta files respectively). The cluster file contains a 
-  list of all the clustered maximal exact matches identified in the &quot;seed&quot; 
-  phase of the pipeline, and the delta file contains an encoded representation 
-  of all the alignments generated in the &quot;extend&quot; phase of the pipeline. 
-  The cluster file is a derivative of both the <code>gaps</code> and <code>mgaps</code> 
-  output, while the delta file is a unique format for concise, machine representation 
+  files, this section will serve to explain the <code>&lt;prefix&gt;.delta</code> 
+  format for both programs. The delta file contains an encoded representation 
+  of all the alignments generated in the &quot;extend&quot; phase of the pipeline, 
+  and is a unique format for concise, machine representation 
   of the pair-wise alignments. Several tools described in the <a href="#utilities">Utilities</a> 
   section were designed to interpret these files and extract useful, human-readable 
-  information from them, however the full format description for both the cluster 
-  and delta files is described below to aid developers.</p>
-<h5>The &quot;cluster&quot; file format</h5>
-<p>The &quot;cluster&quot; file contains a list of the match clusters that were 
-  generated during the clustering phase of the NUCmer or PROmer pipeline. It is 
-  primarily a five column match list, with the exception of the headers to be 
-  described later. For example, a few &quot;match&quot; rows could read:</p>
-<pre><code>
-     168        2     30     -      -
-     288      122     51    90     90
-     354      188     84    15     15
-</code></pre>
-<p>Where the columns are the start of the match in the reference, the start of 
-  the match in the query, the length of the match, the gap between this match 
-  and the previous match in the reference, and the gap between this match and 
-  the previous match in the query respectively. All coordinates reference the 
-  forward strand of each sequence, regardless of match direction, and are <em>always</em> 
-  measured in DNA bases regardless of alignment type (DNA or amino acid). Therefore, 
-  when running PROmer, all the numbers in the length and gaps columns must be 
-  multiples of three. In addition, because the matches reference the forward DNA 
-  strand forward match clusters will be sorted in ascending fashion while reverse 
-  match clusters will be sorted in descending fashion.</p>
-<p>Each individual cluster has a header formed from two digits in the set <code>[-1, 
-  -2, -3, 1, 2, 3]</code>. These two digits represent the direction of the cluster 
-  (negative for reverse and positive for forward) and the frame of the cluster 
-  in the reference and query sequences respectively (note that matches within 
-  the same cluster must have a consistent reading frame). For NUCmer output, the 
-  header will always show a <code>&quot;1&quot;</code> for the reference and a 
-  <code>&quot;-1&quot;</code> or <code>&quot;1&quot;</code> for the query, since 
-  only the query can be reverse complemented. However, for PROmer output all 36 
-  combinations of these two digits are valid headers. For instance, <code>&quot; 
-  -2 3&quot;</code> would represent a cluster on the 2nd reading frame of the 
-  reversed reference sequence and on the 3rd reading frame of the forward query 
-  sequence.</p>
-<p>There are also three other types of headers. The first line of each cluster 
-  file lists the two original input files separated by a space, while the second 
-  line of each cluster file lists the type of alignment data - either <code>&quot;NUCMER&quot;</code> 
-  or <code>&quot;PROMER&quot;</code>. Finally the third type of header lists two 
-  sequences and their sequence lengths following a <code>'&gt;'</code> character 
-  and separated by whitespace. Each of these sequence headers is unique, so all 
-  clusters/matches between any two sequences will appear under a single header 
-  identifying those two sequences. These sequence headers will only be present 
-  if there is at least one cluster between the two sequences, otherwise the sequence 
-  header will be omitted from the file. Below is a short example of what a cluster 
-  file might look like:</p>
-<pre><code>
-/home/username/reference.fasta /home/username/query.fasta
-PROMER
->tagA1 tagB1 1000 2000000
- 1  3
-     184       18     21     -      -
-     223       57    123    18     18
- 3  2
-     168        2     30     -      -
-     288      122     51    90     90
-     354      188     84    15     15
-     483      317     24    45     45
-     558      392     81    51     51
-     642      476    144     3      3
->tagA2 tagB1 2000000 2000000
--3 -2
- 1665663  1641799     18     -      -
- 1665585  1641712     21    60     69
- 1665546  1641673     39    18     18
-(output continues ...)</code></pre>
+  information from them, however the full format description the 
+  delta file is described below to aid developers.</p>
 <h5>The &quot;delta&quot; file format</h5>
 <p>The &quot;delta&quot; file is an encoded representation of the all-vs-all alignment 
   between the input sequences to either the NUCmer or PROmer pipeline. It is the 
@@ -1703,12 +1636,11 @@ PROMER
   insertions and deletions contained in these alignments. By only storing the 
   location of each indel as an offset, disk space is efficiently utilized, and 
   a potentially enormous alignment can be stored in a relatively small space. 
-  The first two lines of the file are identical to the cluster file. The first 
-  line lists the two original input files separated by a space, while the second 
+  The first line lists the two original input files separated by a space, while the second 
   line specifies the alignment data type, either <code>&quot;NUCMER&quot;</code> 
   or <code>&quot;PROMER&quot;</code>. Every grouping of alignments have a unique 
   header specifying the two aligning sequences. Only sequences with shared alignments 
-  will have a header, therefore, as in the cluster file, there can be no empty 
+  will have a header; therefore, there can be no empty 
   headers (i.e. those that have no alignments following them). An example header 
   might look like</p>
 <pre><code>
@@ -2387,8 +2319,7 @@ Region:    5183942 .. 5188515         4578 .. 4                4 / 4575        0
 <p><code>mummerplot [options] &lt;match file&gt;</code></p>
 <p>The <code>&lt;match file&gt;</code> can either be a three column match list 
   from <code>mummer</code> (either 3 or 4 column format), the delta file from 
-  <code>nucmer</code> or <code>promer</code>, the cluster file from <code>nucmer</code> 
-  or <code>promer</code>, or the default output from <code>show-tiling</code>. 
+  <code>nucmer</code> or <code>promer</code>, or the default output from <code>show-tiling</code>. 
   <code>mummerplot</code> will automatically detect the type of input file it 
   is given, regardless of its file extension, or it will fail if the input file 
   is of an unrecognized type. If the X11 terminal is selected for output (default 

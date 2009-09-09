@@ -64,7 +64,6 @@ format (qry.seq) type the following at the command line:
    './nucmer  -p <prefix>  ref.seq  qry.seq'
 
    To produce the following files:
-        <prefix>.cluster
         <prefix>.delta
 
 or
@@ -85,7 +84,7 @@ explanation.
 
    To see a simple gnuplot output, if you have gnuplot installed, run
 the perl script 'mummerplot' on the output files. This script can be run
-on mummer output (.out), or nucmer/promer output (.cluster .delta). Edit the
+on mummer output (.out), or nucmer/promer output (.delta). Edit the
 <prefix>.gp file that is created to change colors, line thicknesses, etc. or
 explore the <prefix>.[fr]plot file to see the data collection.
 
@@ -128,8 +127,6 @@ descriptions and usage definitions for these scripts.  Please refer to the
                      the query sequences, to be aligned with the references.
 
         OUTPUT:
-        out.cluster  the partitioned list of maximal-match clusters that were
-                     used to anchor the resulting alignments.
         out.delta    the delta encoded alignments between the reference and
                      query sequences.  This file can be parsed with any of
                      the show-* programs which are described in the "RUNNING
@@ -169,8 +166,6 @@ descriptions and usage definitions for these scripts.  Please refer to the
                      the query sequences, to be aligned with the references.
 
         OUTPUT:
-        out.cluster  the partitioned list of maximal-match clusters that were
-                     used to anchor the resulting alignments.
         out.delta    the delta encoded alignments between the reference and
                      query sequences.  This file can be parsed with any of
                      the show-* programs which are described in the "RUNNING

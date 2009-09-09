@@ -27,7 +27,7 @@ my $SCRIPT_DIR = "__SCRIPT_DIR";
 
 
 my $VERSION_INFO = q~
-PROmer (PROtein MUMmer) version 3.06
+PROmer (PROtein MUMmer) version 3.07
     ~;
 
 
@@ -322,15 +322,14 @@ sub main ( )
 
     if ( $err[0] != 0 ) {
 	$tigr->bail
-	    ("ERROR: prepro -r returned non-zero, please file a bug report\n");
+	    ("ERROR: prepro -r returned non-zero\n");
     }
 
     $err[0] = $tigr->runCommand
 	("$prepro_path -m $mask -q $qry_file > $pfx.aaqry");
 
     if ( $err[0] != 0 ) {
-	$tigr->bail ("ERROR: prepro -q returned non-zero,".
-		     " please file a bug report\n");
+	$tigr->bail ("ERROR: prepro -q returned non-zero\n");
     }
 
 
@@ -348,8 +347,7 @@ sub main ( )
     $err[1] = close(CLUS_PIPE);
 
     if ( $err[0] == 0  ||  $err[1] == 0 ) {
-	$tigr->bail ("ERROR: mummer and/or mgaps returned non-zero,".
-		     " please file a bug report\n");
+	$tigr->bail ("ERROR: mummer and/or mgaps returned non-zero\n");
     }
 
 
@@ -360,8 +358,7 @@ sub main ( )
 	 "$ref_file $qry_file $pfx < $pfx.mgaps");
 
     if ( $err[0] != 0 ) {
-	$tigr->bail ("ERROR: postpro returned non-zero,".
-		     " please file a bug report\n");
+	$tigr->bail ("ERROR: postpro returned non-zero\n");
     }
 
     #-- If the -o flag was set, run show-coords using PROmer1.1 settings
@@ -371,8 +368,7 @@ sub main ( )
 	    ("$showcoords_path -r $pfx.delta > $pfx.coords");
 	
 	if ( $err[0] != 0 ) {
-	    $tigr->bail ("ERROR: show-coords returned non-zero,".
-			 " please file a bug report\n");
+	    $tigr->bail ("ERROR: show-coords returned non-zero\n");
 	}
     }
  

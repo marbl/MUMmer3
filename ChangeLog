@@ -3,7 +3,8 @@
 3.22 - Significant 'dnadiff' bug fixes. Breakpoints, unaligned seqs, and
        SNP counts now reported accurately. Unaligned contig output format
        switched to match show-diff format. Dynamic memory allocation for
-       run-mummer1.
+       run-mummer1. Turned off output of the near useless .cluster files
+       from nucmer and promer (let us know if you still want them).
 3.21 - gcc compatability fix.
 3.20 - Added 'dnadiff' comparative analysis script, 'show-diff' nucmer
        utility, and fixed a number of build issues.

@@ -26,7 +26,7 @@ my $SCRIPT_DIR = "__SCRIPT_DIR";
 
 
 my $VERSION_INFO = q~
-NUCmer (NUCleotide MUMmer) version 3.06
+NUCmer (NUCleotide MUMmer) version 3.07
     ~;
 
 
@@ -324,7 +324,7 @@ sub main ( )
 
     if ( $err[0] != 0 ) {
 	$tigr->bail
-	    ("ERROR: prenuc returned non-zero, please file a bug report\n");
+	    ("ERROR: prenuc returned non-zero\n");
     }
 
 
@@ -342,8 +342,7 @@ sub main ( )
     $err[1] = close(CLUS_PIPE);
 
     if ( $err[0] == 0  ||  $err[1] == 0 ) {
-	$tigr->bail ("ERROR: mummer and/or mgaps returned non-zero,".
-		     " please file a bug report\n");
+	$tigr->bail ("ERROR: mummer and/or mgaps returned non-zero\n");
     }
 
 
@@ -353,8 +352,7 @@ sub main ( )
 	("$postnuc_path $psw -b $blen $ref_file $qry_file $pfx < $pfx.mgaps");
 
     if ( $err[0] != 0 ) {
-	$tigr->bail ("ERROR: postnuc returned non-zero,".
-		     " please file a bug report\n");
+	$tigr->bail ("ERROR: postnuc returned non-zero\n");
     }
 
     #-- If the -o flag was set, run show-coords using NUCmer1.1 settings
@@ -364,8 +362,7 @@ sub main ( )
 	    ("$showcoords_path -r $pfx.delta > $pfx.coords");
 	
 	if ( $err[0] != 0 ) {
-	    $tigr->bail ("ERROR: show-coords returned non-zero,".
-			 " please file a bug report\n");
+	    $tigr->bail ("ERROR: show-coords returned non-zero\n");
 	}
     }
 

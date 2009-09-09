@@ -17,6 +17,8 @@
 //            placed in front of the two output filenames <pfx>.cluster and
 //           <pfx>.delta
 //
+// NOTE: Cluster file is now suppressed by default (see -d option).
+//
 //       Output: Output is to two output files, <pfx>.cluster and <pfx>.delta.
 //              <pfx>.cluster lists MUM clusters as identified by "mgaps".
 //             However, the clusters now reference their corresponding
@@ -295,16 +297,22 @@ int main
   //-- Open all the files
   RefFile = File_Open (RefFileName, "r");
   QryFile = File_Open (QryFileName, "r");
-  ClusterFile = File_Open (ClusterFileName, "w");
   if ( DO_DELTA )
-    DeltaFile = File_Open (DeltaFileName, "w");
+    {
+      ClusterFile = NULL;
+      DeltaFile = File_Open (DeltaFileName, "w");
+    }
   else
-    DeltaFile = NULL;
+    {
+      ClusterFile = File_Open (ClusterFileName, "w");
+      DeltaFile = NULL;
+    }
 
   //-- Print the headers of the output files
-  fprintf (ClusterFile, "%s %s\nPROMER\n", RefFileName, QryFileName);
   if ( DO_DELTA )
     fprintf (DeltaFile, "%s %s\nPROMER\n", RefFileName, QryFileName);
+  else
+    fprintf (ClusterFile, "%s %s\nPROMER\n", RefFileName, QryFileName);
 
   //-- Generate the array of the reference sequences
   InitSize = INIT_SIZE;
@@ -971,32 +979,46 @@ void flushSyntenys
   vector<Cluster>::iterator Cp;         // cluster pointer
   vector<Match>::iterator Mp;           // match pointer
 
-  for ( Sp = Syntenys.begin( ); Sp < Syntenys.end( ); Sp ++ )
+  if ( ClusterFile )
     {
-      fprintf (ClusterFile, ">%s %s %ld %ld\n", Sp->AfP->Id, Sp->Bf.Id,
-	       Sp->AfP->len, Sp->Bf.len);
-      for ( Cp = Sp->clusters.begin( ); Cp < Sp->clusters.end( ); Cp ++ )
+      for ( Sp = Syntenys.begin( ); Sp < Syntenys.end( ); Sp ++ )
         {
-          fprintf (ClusterFile, "%2d %2d\n",
-		   Cp->frameA > 3 ? (Cp->frameA - 3) * -1 : Cp->frameA,
-		   Cp->frameB > 3 ? (Cp->frameB - 3) * -1 : Cp->frameB);
-          for ( Mp = Cp->matches.begin( ); Mp < Cp->matches.end( ); Mp ++ )
+          fprintf (ClusterFile, ">%s %s %ld %ld\n", Sp->AfP->Id, Sp->Bf.Id,
+                   Sp->AfP->len, Sp->Bf.len);
+          for ( Cp = Sp->clusters.begin( ); Cp < Sp->clusters.end( ); Cp ++ )
             {
-	      fprintf (ClusterFile, "%8ld %8ld %6ld",
-		       transC (Mp->sA, Cp->frameA, Sp->AfP->len),
-		       transC (Mp->sB, Cp->frameB, Sp->Bf.len),
-		       Mp->len * 3);
+              fprintf (ClusterFile, "%2d %2d\n",
+                       Cp->frameA > 3 ? (Cp->frameA - 3) * -1 : Cp->frameA,
+                       Cp->frameB > 3 ? (Cp->frameB - 3) * -1 : Cp->frameB);
+              for ( Mp = Cp->matches.begin( ); Mp < Cp->matches.end( ); Mp ++ )
+                {
+                  fprintf (ClusterFile, "%8ld %8ld %6ld",
+                           transC (Mp->sA, Cp->frameA, Sp->AfP->len),
+                           transC (Mp->sB, Cp->frameB, Sp->Bf.len),
+                           Mp->len * 3);
 	      
-              if ( Mp != Cp->matches.begin( ) )
-                fprintf (ClusterFile, "%6ld %6ld\n",
-                         (Mp->sA - (Mp - 1)->sA - (Mp - 1)->len) * 3,
-                         (Mp->sB - (Mp - 1)->sB - (Mp - 1)->len) * 3);
-              else
-                fprintf (ClusterFile, "%6s %6s\n", "-", "-");
+                  if ( Mp != Cp->matches.begin( ) )
+                    fprintf (ClusterFile, "%6ld %6ld\n",
+                             (Mp->sA - (Mp - 1)->sA - (Mp - 1)->len) * 3,
+                             (Mp->sB - (Mp - 1)->sB - (Mp - 1)->len) * 3);
+                  else
+                    fprintf (ClusterFile, "%6s %6s\n", "-", "-");
+                }
+              Cp->matches.clear( );
             }
-          Cp->matches.clear( );
+          Sp->clusters.clear( );
         }
-      Sp->clusters.clear( );
+    }
+  else
+    {
+      for ( Sp = Syntenys.begin( ); Sp < Syntenys.end( ); Sp ++ )
+        {
+          for ( Cp = Sp->clusters.begin( ); Cp < Sp->clusters.end( ); Cp ++ )
+            {
+              Cp->matches.clear( );
+            }
+          Sp->clusters.clear( );
+        }
     }
   
   Syntenys.clear( );
@@ -1511,7 +1533,7 @@ void printHelp
     "\nUSAGE: %s  [options]  <reference>  <query>  <pfx>  <  <input>\n\n", s);
   fprintf (stderr,
      "-b int   set the alignment break (give-up) length to int (amino acids)\n"
-     "-d       suppress the delta file and the MUM extensions\n"
+     "-d       output only match clusters rather than extended alignments\n"
      "-e       do not extend alignments outward from clusters\n"
      "-h       display help information\n"
      "-t       force alignment to ends of sequence if within -b distance\n"
@@ -1520,14 +1542,12 @@ void printHelp
   fprintf (stderr,
           "  Input is the output of the \"mgaps\" program from stdin, and\n"
           "the two original PROmer sequence files passed on the command\n"
-          "line. <pfx> is the prefix to be added to the front of the two\n"
-          "output files <pfx>.cluster and <pfx>.delta\n"
-          "  Output is to two files: <pfx>.cluster consists of an ordered\n"
-          "list of clusters from each individual sequence in the query.\n"
-          "<pfx>.delta is the alignment object the catalogs the distance\n"
+          "line. <pfx> is the prefix to be added to the front of the\n"
+          "output file <pfx>.delta\n"
+          "  <pfx>.delta is the alignment object that catalogs the distance\n"
           "between insertions and deletions. For further information\n"
           "regarding this file, please refer to the documentation under\n"
-          "the .cluster and .delta output descriptions.\n\n");
+          "the .delta output description.\n\n");
   return;
 }
 
