@@ -1,5 +1,5 @@
 #-- Imported variables from top level makefile
-# BIN_DIR AUX_BIN_DIR CXX CC CPPFLAGS LDFLAGS
+# BIN_DIR AUX_BIN_DIR CXX CC CXXFLAGS LDFLAGS
 
 ifndef BIN_DIR
 BIN_DIR := $(CURDIR)
@@ -8,10 +8,10 @@ ifndef AUX_BIN_DIR
 AUX_BIN_DIR := $(CURDIR)
 endif
 
-OBJ_RULE = $(CXX) $(CPPFLAGS) $< -c -o $@
-BIN_RULE = $(CXX) $(CPPFLAGS) $^ -o $(BIN_DIR)/$@; \
+OBJ_RULE = $(CXX) $(CXXFLAGS) $< -c -o $@
+BIN_RULE = $(CXX) $(CXXFLAGS) $^ -o $(BIN_DIR)/$@; \
            chmod 755 $(BIN_DIR)/$@
-AUX_BIN_RULE = $(CXX) $(CPPFLAGS) $^ -o $(AUX_BIN_DIR)/$@; \
+AUX_BIN_RULE = $(CXX) $(CXXFLAGS) $^ -o $(AUX_BIN_DIR)/$@; \
            chmod 755 $(AUX_BIN_DIR)/$@
 VPATH := $(AUX_BIN_DIR):$(BIN_DIR)
 

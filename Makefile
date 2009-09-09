@@ -42,7 +42,7 @@ CSH  := $(filter /%,$(shell /bin/sh -c 'type csh'))
 PERL := $(filter /%,$(shell /bin/sh -c 'type perl'))
 AR   := $(filter /%,$(shell /bin/sh -c 'type ar'))
 
-CPPFLAGS = -O3
+CXXFLAGS = -O3
 LDFLAGS  =
 
 FLATS = ACKNOWLEDGEMENTS COPYRIGHT INSTALL LICENSE Makefile README ChangeLog
@@ -50,7 +50,7 @@ FLATS = ACKNOWLEDGEMENTS COPYRIGHT INSTALL LICENSE Makefile README ChangeLog
 
 
 #-- EXPORT THESE VARIABLES TO OTHER MAKEFILES
-export BIN_DIR AUX_BIN_DIR CXX CC CPPFLAGS LDFLAGS
+export BIN_DIR AUX_BIN_DIR CXX CC CXXFLAGS LDFLAGS
 
 
 
