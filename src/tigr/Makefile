@@ -1,5 +1,5 @@
 #-- Imported variables from top level makefile
-# BIN_DIR AUX_BIN_DIR CXX CC CXXFLAGS LDFLAGS
+# BIN_DIR AUX_BIN_DIR CXX CC CFLAGS CXXFLAGS LDFLAGS
 
 ifndef BIN_DIR
 BIN_DIR := $(CURDIR)
