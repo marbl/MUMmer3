@@ -35,10 +35,9 @@ my $HELP_INFO = q~
 
   DESCRIPTION:
     nucmer generates nucleotide alignments between two mutli-FASTA input
-    files. Two output files are generated. The .cluster output file lists
-    clusters of matches between each sequence. The .delta file lists the
-    distance between insertions and deletions that produce maximal scoring
-    alignments between each sequence.
+    files. The out.delta output file lists the distance between insertions
+    and deletions that produce maximal scoring alignments between each
+    sequence. The show-* utilities know how to read this format.
 
   MANDATORY:
     Reference       Set the input reference multi-FASTA filename
@@ -277,12 +276,6 @@ sub main ( )
 	if ( !$tigr->isCreatableFile ("$pfx.mgaps") ) {
 	    if ( !$tigr->isWritableFile ("$pfx.mgaps") ) {
 		push (@err, "$pfx.mgaps");
-	    }
-	}
-	
-	if ( !$tigr->isCreatableFile ("$pfx.cluster") ) {
-	    if ( !$tigr->isWritableFile ("$pfx.cluster") ) {
-		push (@err, "$pfx.cluster");
 	    }
 	}
 	

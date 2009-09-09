@@ -37,12 +37,11 @@ my $HELP_INFO = q~
 
   DESCRIPTION:
     promer generates amino acid alignments between two mutli-FASTA DNA input
-    files. Two output files are generated. The .cluster output file lists
-    clusters of matches between each sequence. The .delta file lists the
-    distance between insertions and deletions that produce maximal scoring
-    alignments between each sequence. The DNA input is translated into all 6
-    reading frames in order to generate the output, but the output coordinates
-    reference the original DNA input.
+    files. The out.delta output file lists the distance between insertions
+    and deletions that produce maximal scoring alignments between each
+    sequence. The show-* utilities know how to read this format. The DNA
+    input is translated into all 6 reading frames in order to generate the
+    output, but the output coordinates reference the original DNA input.
 
   MANDATORY:
     Reference       Set the input reference multi-FASTA DNA file
@@ -275,12 +274,6 @@ sub main ( )
 	if ( !$tigr->isCreatableFile ("$pfx.mgaps") ) {
 	    if ( !$tigr->isWritableFile ("$pfx.mgaps") ) {
 		push (@err, "$pfx.mgaps");
-	    }
-	}
-	
-	if ( !$tigr->isCreatableFile ("$pfx.cluster") ) {
-	    if ( !$tigr->isWritableFile ("$pfx.cluster") ) {
-		push (@err, "$pfx.cluster");
 	    }
 	}
 	
