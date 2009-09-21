@@ -18,7 +18,7 @@ my $BIN_DIR = "__BIN_DIR";
 my $SCRIPT_DIR = "__SCRIPT_DIR";
 
 my $VERSION_INFO = q~
-DNAdiff version 1.1
+DNAdiff version 1.2
     ~;
 
 my $HELP_INFO = q~
