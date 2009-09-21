@@ -273,8 +273,8 @@ sub MakeReport()
         $rqnAlignsM++;
         $rSumLenM += $A[4];
         $qSumLenM += $A[5];
-        $rqSumIdyM += ($A[6] / 100.0) * ($rSumLenM + $qSumLenM);
-        $rqSumLenM += $rSumLenM + $qSumLenM;
+        $rqSumIdyM += ($A[6] / 100.0) * ($A[4] + $A[5]);
+        $rqSumLenM += ($A[4] + $A[5]);
 
         #-- If new ID, add to sequence and base count
         if ( $refs{$A[11]} > 0 ) {
@@ -314,8 +314,8 @@ sub MakeReport()
         $rqnAligns1++;
         $rSumLen1 += $A[4];
         $qSumLen1 += $A[5];
-        $rqSumIdy1 += ($A[6] / 100.0) * ($rSumLen1 + $qSumLen1);
-        $rqSumLen1 += $rSumLen1 + $qSumLen1;
+        $rqSumIdy1 += ($A[6] / 100.0) * ($A[4] + $A[5]);
+        $rqSumLen1 += ($A[4] + $A[5]);
     }
     FileClose($fhi, $OPT_CoordsFile1);
 
