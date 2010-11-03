@@ -1230,7 +1230,7 @@ sub WriteGP ($$)
         "set grid\n",
         "$P_KEY\n",
         "set border $border\n",
-        "set ticscale 0 0\n",
+        "set tics scale 0\n",
         "set xlabel \"$xlabel\"\n",
         "set ylabel \"$ylabel\"\n",
         "$P_FORMAT\n";
