@@ -64,7 +64,7 @@ static const unsigned int FORCED_BACKWARD_SEARCH = 0x6;
 //   If "FORCED" ignore score and force alignment to reach its target
 
 //-- Maximum number of bases (in either sequence) that the alignSearch may go
-static const long int MAX_SEARCH_LENGTH = 50000;
+static const long int MAX_SEARCH_LENGTH = 10000;
 
 //-- Maximum number of bases (in either sequence) that the alignTarget may go
 static const long int MAX_ALIGNMENT_LENGTH = 10000;
@@ -95,6 +95,7 @@ struct Diagonal
 
 //--------------------------------------------------------------- Externs ----//
 extern int _break_len;
+extern int _banding;
 extern int _matrix_type;
 
 
@@ -289,6 +290,8 @@ inline int getBreakLen
   return _break_len;
 }
 
+inline int getBanding()
+{ return _banding; }
 
 
 
@@ -317,6 +320,14 @@ inline void setBreakLen
   return;
 }
 
+inline void setBanding(const int Banding)
+{
+  if ( Banding < 0 )
+    fprintf (stderr, "WARNING: Invalid banding %d, ignoring\n", Banding);
+  else
+    _banding = Banding;
+  return;
+}
 
 
 

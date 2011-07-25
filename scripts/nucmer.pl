@@ -26,7 +26,7 @@ my $SCRIPT_DIR = "__SCRIPT_DIR";
 
 
 my $VERSION_INFO = q~
-NUCmer (NUCleotide MUMmer) version 3.07
+NUCmer (NUCleotide MUMmer) version 3.1
     ~;
 
 
@@ -53,11 +53,16 @@ my $HELP_INFO = q~
 
     -b|breaklen     Set the distance an alignment extension will attempt to
                     extend poor scoring regions before giving up (default 200)
+    --[no]banded   Enforce absolute banding of dynamic programming matrix
+                    based on diagdiff parameter EXPERIMENTAL (default no)
     -c|mincluster   Sets the minimum length of a cluster of matches (default 65)
     --[no]delta     Toggle the creation of the delta file (default --delta)
     --depend        Print the dependency information and exit
-    -d|diagfactor   Set the clustering diagonal difference separation factor
-                    (default 0.12)
+    -D|diagdiff     Set the maximum diagonal difference between two adjacent
+                    anchors in a cluster (default 5)
+    -d|diagfactor   Set the maximum diagonal difference between two adjacent
+                    anchors in a cluster as a differential fraction of the gap
+                    length (default 0.12)
     --[no]extend    Toggle the cluster extension step (default --extend)
     -f
     --forward       Use only the forward strand of the Query sequences
@@ -108,6 +113,7 @@ my %DEFAULT_PARAMETERS =
      "MIN_MATCH"         =>   "20",         # minimum match size
      "MAX_GAP"           =>   "90",         # maximum gap between matches
      "MIN_CLUSTER"       =>   "65",         # minimum cluster size
+     "DIAG_DIFF"         =>   "5",          # diagonal difference absolute
      "DIAG_FACTOR"       =>   ".12",        # diagonal difference fraction
      "BREAK_LEN"         =>   "200",        # extension break length
      "POST_SWITCHES"     =>   ""            # switches for the post processing
@@ -129,7 +135,8 @@ sub main ( )
     my $size = $DEFAULT_PARAMETERS { "MIN_MATCH" };
     my $gap = $DEFAULT_PARAMETERS { "MAX_GAP" };
     my $clus = $DEFAULT_PARAMETERS { "MIN_CLUSTER" };
-    my $diff = $DEFAULT_PARAMETERS { "DIAG_FACTOR" };
+    my $ddiff = $DEFAULT_PARAMETERS { "DIAG_DIFF" };
+    my $dfrac = $DEFAULT_PARAMETERS { "DIAG_FACTOR" };
     my $blen = $DEFAULT_PARAMETERS { "BREAK_LEN" };
     my $psw = $DEFAULT_PARAMETERS { "POST_SWITCHES" };
 
@@ -138,6 +145,7 @@ sub main ( )
     my $maxmatch;         # matching algorithm switches
     my $mumreference;
     my $mum;
+    my $banded = 0;       # if true, enforce absolute dp banding
     my $extend = 1;       # if true, extend clusters
     my $delta = 1;        # if true, create the delta file
     my $optimize = 1;     # if true, optimize alignment scores
@@ -166,9 +174,11 @@ sub main ( )
          "mumreference" => \$mumreference,
          "mum" => \$mum,
 	 "b|breaklen=i" => \$blen,
+         "banded!" => \$banded,
 	 "c|mincluster=i" => \$clus,
 	 "delta!" => \$delta,
-	 "d|diagfactor=f" => \$diff,
+         "D|diagdiff=i" => \$ddiff,
+	 "d|diagfactor=f" => \$dfrac,
 	 "extend!" => \$extend,
 	 "f|forward"   => \$fwd,
 	 "g|maxgap=i" => \$gap,
@@ -325,7 +335,7 @@ sub main ( )
     print (STDERR "2,3: RUNNING mummer AND CREATING CLUSTERS\n");
     open(ALGO_PIPE, "$algo_path $algo $mdir -l $size -n $pfx.ntref $qry_file |")
 	or $tigr->bail ("ERROR: could not open $algo_path output pipe $!");
-    open(CLUS_PIPE, "| $mgaps_path -l $clus -s $gap -f $diff > $pfx.mgaps")
+    open(CLUS_PIPE, "| $mgaps_path -l $clus -s $gap -d $ddiff -f $dfrac > $pfx.mgaps")
 	or $tigr->bail ("ERROR: could not open $mgaps_path input pipe $!");
     while ( <ALGO_PIPE> ) {
 	print CLUS_PIPE
@@ -341,8 +351,16 @@ sub main ( )
 
     #-- Run postnuc and assert return value is zero
     print (STDERR "4: FINISHING DATA\n");
-    $err[0] = $tigr->runCommand
-	("$postnuc_path $psw -b $blen $ref_file $qry_file $pfx < $pfx.mgaps");
+    if ( $banded )
+      {
+        $err[0] = $tigr->runCommand
+          ("$postnuc_path $psw -b $blen -B $ddiff $ref_file $qry_file $pfx < $pfx.mgaps");
+      }
+    else
+      {
+        $err[0] = $tigr->runCommand
+          ("$postnuc_path $psw -b $blen $ref_file $qry_file $pfx < $pfx.mgaps");
+      }
 
     if ( $err[0] != 0 ) {
 	$tigr->bail ("ERROR: postnuc returned non-zero\n");
@@ -360,7 +378,7 @@ sub main ( )
     }
 
     #-- Remove the temporary output
-    $err[0] = unlink ("$pfx.ntref", "$pfx.mgaps");
+#    $err[0] = unlink ("$pfx.ntref", "$pfx.mgaps");
 
     if ( $err[0] != 2 ) {
 	$tigr->logError ("WARNING: there was a problem deleting".

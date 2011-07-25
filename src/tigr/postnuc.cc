@@ -230,17 +230,22 @@ int main
   //-- Set the alignment data type and break length (sw_align.h)
   setMatrixType ( NUCLEOTIDE );
   setBreakLen ( 200 );
+  setBanding ( 0 );
 
   //-- Parse the command line arguments
   {
     optarg = NULL;
     int ch, errflg = 0;
-    while ( !errflg  &&  ((ch = getopt (argc, argv, "dehb:st")) != EOF) )
+    while ( !errflg  &&  ((ch = getopt (argc, argv, "dehB:b:st")) != EOF) )
       switch (ch)
 	{
 	case 'b' :
 	  setBreakLen( atoi (optarg) );
 	  break;
+
+        case 'B' :
+          setBanding( atoi (optarg) );
+          break;
 
 	case 'd' :
 	  DO_DELTA = false;
@@ -1426,6 +1431,7 @@ void printHelp
     "\nUSAGE: %s  [options]  <reference>  <query>  <pfx>  <  <input>\n\n", s);
   fprintf (stderr,
       "-b int  set the alignment break (give-up) length to int\n"
+      "-B int  set the diagonal banding for extension to int\n"
       "-d      output only match clusters rather than extended alignments\n"
       "-e      do not extend alignments outward from clusters\n"
       "-h      display help information\n"

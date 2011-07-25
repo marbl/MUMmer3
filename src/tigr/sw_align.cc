@@ -1,11 +1,12 @@
 #include "sw_align.hh"
-
-
-
+#include <math.h>
 
 
 //-- Number of bases to extend past global high score before giving up
 static const int DEFAULT_BREAK_LEN = 200;
+
+//-- Maximum diagonal banding for extension
+static const int DEFAULT_BANDING = 0; // no banding by default
 
 //-- Characters used in creating the alignment edit matrix, DO NOT ALTER!
 static const int DELETE = 0;
@@ -16,6 +17,7 @@ static const int NONE   = 4;
 
 
 int _break_len = DEFAULT_BREAK_LEN;
+int _banding = DEFAULT_BANDING;
 int _matrix_type = NUCLEOTIDE;
 
 
@@ -90,6 +92,10 @@ bool _alignEngine
   long int xFinishCt = 0;    // non-optimal ...
   long int xFinishCDi = 0;   // non-optimal ...
   long int N, M, L;          // maximum matrix dimensions... N rows, M columns
+
+  long int tlb, trb;
+  double Dmid = .5;            // diag midpoint
+  double Dband = _banding/2.0; // diag banding
 
   int Iadj, Dadj, Madj;      // insert, delete and match adjust values
 
@@ -338,18 +344,40 @@ bool _alignEngine
       
       //-- Grow new diagonal and reset boundaries
       if ( Dct < N && Dct < M )
-	{ Dl ++; rbound ++; }
+	{ Dl ++; rbound ++; Dmid = (Dct+1)/2.0; }
       else if ( Dct >= N && Dct >= M )
-	{ Dl --; lbound --; }
+	{ Dl --; lbound --; Dmid = N-1 - (Dct+1)/2.0; }
       else if ( Dct >= N )
-	lbound --;
+        { lbound --; Dmid = N-1 - (Dct+1)/2.0; }
       else
-	rbound ++;
+        { rbound ++; Dmid = (Dct+1)/2.0; }
+
+      //-- Trim at hard band
+      if ( Dband > 0 )
+        {
+          tlb = (long int)ceil(Dmid - Dband);
+          if ( lbound < tlb )
+            lbound = tlb;
+          trb = (long int)floor(Dmid + Dband);
+          if ( rbound > trb )
+            rbound = trb;
+
+          if ( Bstart == 62785 )
+            fprintf(stderr,"%d: %d,%d\n", Dct+1,lbound,rbound);
+        }
 
       if ( lbound < 0 )
 	lbound = 0;
       if ( rbound >= Dl )
 	rbound = Dl - 1;
+
+      if ( Dband > 0 )
+        {
+          if ( lbound >= Dl )
+            rbound = lbound - 1;
+          if ( rbound < 0 )
+            lbound = rbound + 1;
+        }
     }
   //-- **END** of diagonal processing loop
   Dct --;
@@ -386,7 +414,6 @@ bool _alignEngine
   Aend = Astart + Aadj;
   Bend = Bstart + Badj;
 
-
 #ifdef _DEBUG_VERBOSE
   assert (FinishCt > 1);
 
@@ -405,7 +432,6 @@ bool _alignEngine
     fprintf(stderr, "%ld bytes used\n",
 	    ((long int)sizeof(Diagonal) + (long int)sizeof(Node) * MaxL) * 2);
 #endif
-
 
   //-- If in forward alignment m_o, create the Delta information
   if ( ~m_o & SEARCH_BIT )
