@@ -18,7 +18,7 @@ my $BIN_DIR = "__BIN_DIR";
 my $SCRIPT_DIR = "__SCRIPT_DIR";
 
 my $VERSION_INFO = q~
-DNAdiff version 1.2
+DNAdiff version 1.3
     ~;
 
 my $HELP_INFO = q~
@@ -53,6 +53,8 @@ my $HELP_INFO = q~
     -d|delta        Provide precomputed delta file for analysis
     -h
     --help          Display help information and exit
+    -i|indel int    Set the maximum indel size allowed within an alignment
+                    segment EXPERIMENTAL
     -p|prefix       Set the prefix of the output files (default "out")
     -V
     --version       Display the version information and exit
@@ -82,6 +84,7 @@ my $SHOW_COORDS = "$BIN_DIR/show-coords";
 my $NUCMER = "$BIN_DIR/nucmer";
 
 my $SNPBuff         = 20;            # required buffer around "good" snps
+my $OPT_MaxIndel    = 0;             # 0 is "off"
 my $OPT_Prefix      = "out";         # prefix for all output files
 my $OPT_RefFile;                     # reference file
 my $OPT_QryFile;                     # query file
@@ -136,7 +139,12 @@ sub GetOpt();
 sub RunAlignment()
 {
     print STDERR "Building alignments\n";
-    my $cmd = "$NUCMER --maxmatch -p $OPT_Prefix $OPT_RefFile $OPT_QryFile";
+    my $cmd;
+    if ( $OPT_MaxIndel > 0 )
+      { $cmd = "$NUCMER --maxmatch --banded -D $OPT_MaxIndel -p $OPT_Prefix $OPT_RefFile $OPT_QryFile"; }
+    else
+      { $cmd = "$NUCMER --maxmatch -p $OPT_Prefix $OPT_RefFile $OPT_QryFile"; }
+
     my $err = "ERROR: Failed to run nucmer, aborting.\n";
 
     system($cmd) == 0 or die $err;
@@ -730,6 +738,7 @@ sub GetOpt()
     my $err = !$TIGR->TIGR_GetOptions
         (
          "d|delta=s"  => \$OPT_DeltaFile,
+         "i|indel=i"  => \$OPT_MaxIndel,
          "p|prefix=s" => \$OPT_Prefix,
          );
 
