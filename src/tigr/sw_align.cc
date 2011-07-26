@@ -142,9 +142,9 @@ bool _alignEngine
 
   //-- **START** of diagonal processing loop
   //-- Calculate the rest of the diagonals until goal reached or score worsens
-  for ( Dct = 1;
-	Dct <= N + M  &&  (Dct - FinishCt) <= _break_len  &&  lbound <= rbound;
-	Dct ++ )
+  for ( Dct = 1; Dct <= N + M  &&
+          (Dct - FinishCt) <= _break_len  &&
+          lbound <= rbound; Dct++ )
     {
       //-- If diagonals capacity exceeded, realloc
       if ( Dct >= Ll )
@@ -346,9 +346,9 @@ bool _alignEngine
       if ( Dct < N && Dct < M )
 	{ Dl ++; rbound ++; Dmid = (Dct+1)/2.0; }
       else if ( Dct >= N && Dct >= M )
-	{ Dl --; lbound --; Dmid = N-1 - (Dct+1)/2.0; }
+	{ Dl --; lbound --; Dmid = N - (Dct+1)/2.0; }
       else if ( Dct >= N )
-        { lbound --; Dmid = N-1 - (Dct+1)/2.0; }
+        { lbound --; Dmid = N - (Dct+1)/2.0; }
       else
         { rbound ++; Dmid = (Dct+1)/2.0; }
 
@@ -361,23 +361,12 @@ bool _alignEngine
           trb = (long int)floor(Dmid + Dband);
           if ( rbound > trb )
             rbound = trb;
-
-          if ( Bstart == 62785 )
-            fprintf(stderr,"%d: %d,%d\n", Dct+1,lbound,rbound);
         }
 
       if ( lbound < 0 )
 	lbound = 0;
       if ( rbound >= Dl )
 	rbound = Dl - 1;
-
-      if ( Dband > 0 )
-        {
-          if ( lbound >= Dl )
-            rbound = lbound - 1;
-          if ( rbound < 0 )
-            lbound = rbound + 1;
-        }
     }
   //-- **END** of diagonal processing loop
   Dct --;

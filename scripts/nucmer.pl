@@ -378,7 +378,7 @@ sub main ( )
     }
 
     #-- Remove the temporary output
-#    $err[0] = unlink ("$pfx.ntref", "$pfx.mgaps");
+    $err[0] = unlink ("$pfx.ntref", "$pfx.mgaps");
 
     if ( $err[0] != 2 ) {
 	$tigr->logError ("WARNING: there was a problem deleting".
