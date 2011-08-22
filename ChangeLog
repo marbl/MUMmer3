@@ -1,7 +1,8 @@
 -- Version history --
 
-3.23 - Added -i option to 'dnadiff' that specifies the biggest indel that will
-       be included in an alignment segment without breaking it in two pieces.
+3.23 - Added -D and --banded option to nucmer. These options can be used to
+       specify the largest indel that will be included in an alignment
+       segment without breaking it in two pieces.
 3.22 - Significant 'dnadiff' bug fixes. Breakpoints, unaligned seqs, and
        SNP counts now reported accurately. Unaligned contig output format
        switched to match show-diff format. Dynamic memory allocation for
