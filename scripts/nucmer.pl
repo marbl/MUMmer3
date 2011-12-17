@@ -53,7 +53,7 @@ my $HELP_INFO = q~
 
     -b|breaklen     Set the distance an alignment extension will attempt to
                     extend poor scoring regions before giving up (default 200)
-    --[no]banded   Enforce absolute banding of dynamic programming matrix
+    --[no]banded    Enforce absolute banding of dynamic programming matrix
                     based on diagdiff parameter EXPERIMENTAL (default no)
     -c|mincluster   Sets the minimum length of a cluster of matches (default 65)
     --[no]delta     Toggle the creation of the delta file (default --delta)
