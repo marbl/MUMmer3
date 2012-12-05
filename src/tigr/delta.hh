@@ -332,6 +332,33 @@ struct SNP_t
 };
 
 
+//===================================================== VCFe_t ==================
+struct VCFe_t
+     //!< A single VCF row
+{
+  long buff;
+  char cQ, cR;
+  long pQ, pR;
+  int conQ, conR;
+  std::string ctxQ, ctxR;
+  DeltaEdgelet_t * lp;
+  DeltaEdge_t * ep;
+  std::string type;
+  std::string infType;
+  long inf_sQ;
+  long inf_eQ;
+  int inf_fQ;
+  unsigned int Nlength;
+  float Nper;
+  bool stdN;
+  VCFe_t ( )
+  {
+	stdN = true;
+	pQ = pR = 0;  
+    cQ = cR = 0;
+    conQ = conR = 0;
+  };
+};
 
 //===================================================== DeltaEdgelet_t =========
 struct DeltaEdgelet_t
@@ -352,6 +379,7 @@ struct DeltaEdgelet_t
 
   std::string delta;          //!< delta information
   std::vector<SNP_t *> snps;  //!< snps for this edgelet
+  std::vector<VCFe_t *> vcfs; //!< vcfs for this edgelet
 
   DeltaEdgelet_t ( )
   {
