@@ -47,9 +47,9 @@ bool    OPT_PrintHeader   = true;       // -H option
 bool    OPT_SelectAligns  = false;      // -S option
 bool    OPT_SNPs          = true;       // -V option
 
-bool    OPT_filtNs        = false;       // -N option
-unsigned int     OPT_minNlen	      = 10;         // -L option
-float   OPT_minNper       = 0.70;        // -% option
+bool    OPT_filtNs        = false;      // -N option
+float   OPT_minNper       = 0.70;       // -P option
+unsigned int OPT_minNlen  = 10;         // -L option
 
 int     OPT_Context       = 0;          // -x option
 
@@ -1975,7 +1975,7 @@ void ParseArgs (int argc, char ** argv)
   optarg = NULL;
   
   while ( !errflg  &&
-          ((ch = getopt (argc, argv, "ChHIlqrSTVx:NL:%:")) != EOF) )
+          ((ch = getopt (argc, argv, "ChHIlqrSTVx:NL:P:")) != EOF) )
     switch (ch)
       {
       case 'C':
@@ -2031,7 +2031,7 @@ void ParseArgs (int argc, char ** argv)
         OPT_minNlen=atoi(optarg);
         break;
         
-      case '%':
+      case 'P':
         OPT_minNper=atof(optarg);
         break;
 
@@ -2084,11 +2084,10 @@ void PrintHelp (const char * s)
     << "-x int        Include x characters of surrounding SNP context in the\n"
     << "              output, default "<< OPT_Context << endl
     << "-V            Output in VCF format\n"
-    << "-N -L -%      A sequence range containing at least one contiguous row of Ns\n"
-    << "              longer or equal to -L and such that -% of the sequence\n"
-    << "              is composed of Ns is considered a N-insert.\n" 
-    << "              Setting -N will filter N-inserts from the VCF file.\n"
-    << "              (Defaults: -N:false, -L:"<<OPT_minNlen<<", -%:"<<OPT_minNper<<")\n"
+    << "-N            Filter N-inserts from VCF file: These are differences\n"
+    << "              at least L bp long and at least P percent Ns\n"	  
+    << "-L int        Minimum N-insert length for filtering (Default: " << OPT_minNlen << ")\n"
+    << "-P float      Minimum sequence percentage being Ns, for filtering (Default: " << OPT_minNper << ")\n"
     << endl;
 
   cerr
