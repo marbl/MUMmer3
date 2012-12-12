@@ -55,19 +55,6 @@ int     OPT_Context       = 0;          // -x option
 
 set<string> OPT_Aligns;                 // -S option
 
-
-//=============================================================== Globals ====// 
-vector< DeltaEdge_t * >::iterator ei;
-vector< DeltaEdgelet_t * >::iterator li;
-
-int ri, qi;
-char ** R;
-char ** Q;
-
-long lenR ;
-long lenQ ;
-
-
 //============================================================= Constants ====//
 const char  INDEL_CHAR = '.';
 const char SEQEND_CHAR = '-';
@@ -266,12 +253,16 @@ void FindSNPs (DeltaGraph_t & graph);
 VCFe_t getIndelSNPvcf(DeltaGraph_t & graph,
                       const vector<long>& deltas,
                       vector<long>::iterator& dit, 
-                      long delta, 
-                      long& rpos, 
-                      long& qpos, 
-                      int frameR, 
-                      int frameQ,
-                      bool add2VCFs);
+                      long delta,
+                      long& rpos, long& qpos,
+                      vector< DeltaEdge_t * >::iterator ei,
+                      vector< DeltaEdgelet_t * >::iterator li,
+                      char ** R, char ** Q,
+                      int ri, int qi,  
+                      int frameR, int frameQ,
+                      long lenR, long lenQ,
+                      bool add2VCFs
+                      );
 
 //-------------------------------------------------------------- FindVCFs ----//
 void FindVCFs (DeltaGraph_t & graph);
@@ -361,8 +352,16 @@ int main (int argc, char ** argv)
       PrintTabular (snps, graph);
     else
       PrintHuman (snps, graph); 
+      
   }else{
     vector<const VCFe_t *> vcfs;
+    
+    if(graph.datatype == PROMER_DATA){
+      cerr<<"The VCF format is only designed for\n"
+          <<"DNA variants. Please provide a delta\n"
+          <<"file generated with nucmer\n";
+      exit(1);
+    }
     
     //-- Locate the VCFevents
     FindVCFs (graph);
@@ -399,9 +398,7 @@ int main (int argc, char ** argv)
 //----------------------------------------------------------- toStdNucleo ----//
 
 char toStdNucleo (char x){
-	
 	switch (toupper(x)){
-  
     case 'R':
       return('A');
       break;
@@ -452,7 +449,6 @@ char toStdNucleo (char x){
 //----------------------------------------------------------- isStdNucleo ----//
 bool isStdNucleo(char x){
   switch(toupper(x)){
-    
     case 'A':
       return true;
       
@@ -598,7 +594,7 @@ void CheckVCFs (DeltaGraph_t & graph)
             if((*si)->pR >=1 && (*si)->pR <= ref_len)
 				(*si) -> conR = ref_cov [(*si)->pR] - 1;
 			else
-				cerr<<"Fuera de rango:\n"
+				cerr<<"Out of range:\n"
 				    <<"\t"<<*((*si)->ep->refnode->id)<<"\n"				
 				    <<"\t"<<(*si)->pR<<"\n";
     }
@@ -639,7 +635,7 @@ void CheckVCFs (DeltaGraph_t & graph)
             if((*si)->pQ >=1 && (*si)->pQ <= qry_len)
 				(*si) -> conQ = qry_cov [(*si)->pQ] - 1;
 			else
-				cerr<<"Fuera de rango:\n"
+				cerr<<"Out of range:\n"
 				    <<"\t"<<*((*si)->ep->qrynode->id)<<"\n"				
 				    <<"\t"<<(*si)->pQ<<"\n";
     }
@@ -651,15 +647,14 @@ void CheckVCFs (DeltaGraph_t & graph)
 void FindSNPs (DeltaGraph_t & graph)
 {
   map<string, DeltaNode_t>::iterator mi;
-//  vector<DeltaEdge_t *>::iterator ei;
-//  vector<DeltaEdgelet_t *>::iterator li;
+  vector<DeltaEdge_t *>::iterator ei;
+  vector<DeltaEdgelet_t *>::iterator li;
   vector<SNP_t *>::iterator si, psi, nsi;
 
   //-- For each alignment, identify the SNPs
   for ( mi = graph.refnodes.begin( ); mi != graph.refnodes.end( ); ++ mi )
     for ( ei = mi->second.edges.begin( ); ei != mi->second.edges.end( ); ++ ei )
       {
-		  
         SNP_t * snp;
         int ri, qi;
         char * R[] = {(*ei)->refnode->seq, NULL, NULL, NULL, NULL, NULL, NULL};
@@ -1013,34 +1008,24 @@ void FindVCFs (DeltaGraph_t & graph)
 {
   map< string, DeltaNode_t >::iterator mi;
   vector< VCFe_t * >::iterator vi, pvi, nvi;
-  vector< DeltaEdge_t * >::iterator eit;
-  vector< DeltaEdgelet_t * >::iterator lit;
+  vector< DeltaEdge_t * >::iterator ei;
+  vector< DeltaEdgelet_t * >::iterator li;
   
   //-- For each alignment, identify the SNPs
   for ( mi = graph.refnodes.begin( ); mi != graph.refnodes.end( ); ++ mi ){
-    for ( eit = mi->second.edges.begin( ); eit != mi->second.edges.end( ); eit ++ )
+    for ( ei = mi->second.edges.begin( ); ei != mi->second.edges.end( ); ei ++ )
       {
-
-        ei=eit;
         VCFe_t * vcf;
+        char * R[] = {(*ei)->refnode->seq, NULL, NULL, NULL, NULL, NULL, NULL};
+        char * Q[] = {(*ei)->qrynode->seq, NULL, NULL, NULL, NULL, NULL, NULL};
+        int ri, qi;
         
-        char * Rt[] = {(*ei)->refnode->seq, NULL, NULL, NULL, NULL, NULL, NULL};
-        char * Qt[] = {(*ei)->qrynode->seq, NULL, NULL, NULL, NULL, NULL, NULL};
-
-	    	R=Rt;
-		    Q=Qt;
-
         long i;
-        long lenRt = (*ei) -> refnode -> len;
-        long lenQt = (*ei) -> qrynode -> len;
-        
-        lenR=lenRt;
-        lenQ=lenQt;
+        long lenR = (*ei) -> refnode -> len;
+        long lenQ = (*ei) -> qrynode -> len;
 
-        for (lit = (*ei)->edgelets.begin( ); lit != (*ei)->edgelets.end( ); ++ lit)
+        for (li = (*ei)->edgelets.begin( ); li != (*ei)->edgelets.end( ); ++ li)
           {
-            li=lit;
-			  
             long delta;
             int frameR, frameQ;
             long sR, eR, sQ, eQ;
@@ -1178,7 +1163,14 @@ void FindVCFs (DeltaGraph_t & graph)
             
             vector<long>::iterator dit;
             for ( dit=deltas.begin();dit<deltas.end() && *dit != 0; dit++ )
-                getIndelSNPvcf(graph,deltas, dit, *dit, rpos, qpos, frameR, frameQ,true);  
+                getIndelSNPvcf(graph,deltas, dit, *dit,
+                                rpos, qpos, 
+                                ei, li,
+                                R, Q, 
+                                ri, qi,
+                                frameR, frameQ,
+                                lenR, lenQ,
+                                true);  
             
             //-- For all vcfs after the final indel
             remain = eR - rpos + 1;
@@ -1241,18 +1233,19 @@ void FindVCFs (DeltaGraph_t & graph)
 }
 
 //--------------------------------------------------------- getIndelSNPvcf ----//
-
 VCFe_t getIndelSNPvcf(DeltaGraph_t & graph,
                       const vector<long>& deltas,
                       vector<long>::iterator& dit, 
-                      long delta, 
-                      long& rpos, 
-                      long& qpos, 
-                      int frameR, 
-                      int frameQ,
+                      long delta,
+                      long& rpos, long& qpos,
+                      vector< DeltaEdge_t * >::iterator ei,
+                      vector< DeltaEdgelet_t * >::iterator li,
+                      char ** R, char ** Q,
+                      int ri, int qi,  
+                      int frameR, int frameQ,
+                      long lenR, long lenQ,
                       bool add2VCFs
                       ){
-                
                 VCFe_t* vcf;
                 
                 long rctx;
@@ -1439,7 +1432,7 @@ VCFe_t getIndelSNPvcf(DeltaGraph_t & graph,
                             qpos -1 + rctx <= lenQ &&
                             R [ri] [indend+rctx] != Q [qi][qpos -1 + rctx] && 
                             ( dit+1==deltas.end() || rctx < labs(*(dit+1))));
-                    
+
                     if(R [ri] [indend+rctx] != Q [qi][qpos -1 + rctx] &&
                        dit+1 < deltas.end() && rctx == labs(*(dit+1))){
                       //IF bump into next indel before finding 
@@ -1448,7 +1441,13 @@ VCFe_t getIndelSNPvcf(DeltaGraph_t & graph,
                       long tmprpos=indend+rctx;
                       long tmpqpos=qpos-1+rctx;
                       vector<long>::iterator ndit=dit+1;
-                      nInd=getIndelSNPvcf(graph,deltas, ndit, 0, tmprpos, tmpqpos, frameR, frameQ,false);
+                      nInd=getIndelSNPvcf(graph,deltas, ndit, 0, tmprpos, tmpqpos, 
+                                          ei, li, 
+                                          R, Q, 
+                                          ri, qi, 
+                                          frameR, frameQ, 
+                                          lenR, lenQ, 
+                                          false);
                       vcf -> ctxR = nInd . ctxR;
                       vcf -> pR   = nInd . pR;
                       vcf -> cR   = nInd . cR;
@@ -1619,7 +1618,13 @@ VCFe_t getIndelSNPvcf(DeltaGraph_t & graph,
                       long tmprpos=rpos-1+rctx;
                       long tmpqpos=indend+rctx;
                       vector<long>::iterator ndit=dit+1;
-                      nInd=getIndelSNPvcf(graph,deltas, ndit, 0, tmprpos, tmpqpos, frameR, frameQ,false);
+                      nInd=getIndelSNPvcf(graph,deltas, ndit, 0, tmprpos, tmpqpos, 
+                                          ei, li, 
+                                          R, Q, 
+                                          ri, qi, 
+                                          frameR, frameQ, 
+                                          lenR, lenQ,
+                                          false);
                       vcf -> ctxR = nInd . ctxR;
                       vcf -> pR   = nInd . pR;
                       vcf -> cR   = nInd . cR;
@@ -1800,7 +1805,6 @@ void PrintTabular (const vector<const SNP_t *> & snps,
 
 //------------------------------------------------------------- PrintVCFs ----//
 void PrintVCFs (const vector<const VCFe_t *> & vcfs,int argc, char ** argv, DeltaGraph_t & graph){
-
   vector<const VCFe_t *>::const_iterator vi;
 
   //Print VCF Headers:
@@ -1833,7 +1837,6 @@ void PrintVCFs (const vector<const VCFe_t *> & vcfs,int argc, char ** argv, Delt
   
   
   for ( vi = vcfs . begin( ); vi != vcfs . end( ); ++ vi ){
-    
     if((*vi) -> infType != "SNP" && 
        OPT_filtNs && 
        (*vi) -> Nlength >= OPT_minNlen &&
@@ -2081,9 +2084,11 @@ void PrintHelp (const char * s)
     << "-x int        Include x characters of surrounding SNP context in the\n"
     << "              output, default "<< OPT_Context << endl
     << "-V            Output in VCF format\n"
-    << "-N            Filter N-inserts from VCF file\n"
-    << "-L            Minimum N-insert length for filtering\n"
-    << "-%            Minimum sequence percentage being Ns, for filtering\n"
+    << "-N -L -%      A sequence range containing at least one contiguous row of Ns\n"
+    << "              longer or equal to -L and such that -% of the sequence\n"
+    << "              is composed of Ns is considered a N-insert.\n" 
+    << "              Setting -N will filter N-inserts from the VCF file.\n"
+    << "              (Defaults: -N:false, -L:"<<OPT_minNlen<<", -%:"<<OPT_minNper<<")\n"
     << endl;
 
   cerr
