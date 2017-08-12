@@ -1487,7 +1487,7 @@ sub ParseOptions ( )
     if ( $opt_small  ) { $OPT_size = $SMALL;  $cnt ++; }
     if ( $cnt > 1 ) {
         print STDERR
-            "WARNING: Multiple sizes now allowed, using '$OPT_size'\n";
+            "WARNING: Multiple sizes not allowed, using '$OPT_size'\n";
     }
 
     #-- Check that status of gnuplot
