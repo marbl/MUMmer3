@@ -38,14 +38,14 @@ my $LARGE  = "large";
 
 my %TERMSIZE =
     (
-     $X11 => { $SMALL => 500, $MEDIUM => 700,  $LARGE => 900  }, # screen pix
+     $X11 => { $SMALL => 900, $MEDIUM => 1000, $LARGE => 1200 }, # screen pix
      $PS  => { $SMALL => 1,   $MEDIUM => 2,    $LARGE => 3    }, # pages
      $PNG => { $SMALL => 800, $MEDIUM => 1024, $LARGE => 1400 }  # image pix
      );
 
 #-- terminal format
 my $FFACE    = "Courier";
-my $FSIZE    = "8";
+my $FSIZE    = "12";
 my $TFORMAT  = "%.0f";
 my $MFORMAT  = "[%.0f, %.0f]";
 
