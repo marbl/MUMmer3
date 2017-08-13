@@ -1082,13 +1082,13 @@ sub WriteGP ($$)
     foreach ( $OPT_terminal ) {
         /^$X11/    and do {
             $P_TERM = $OPT_gpstatus == 0 ?
-                "$X11 font \"$FFACE,$FSIZE\"" : "$X11";
+                "$X11 noenhanced font \"$FFACE,$FSIZE\"" : "$X11";
 
-            %P_PS = ( $FWD => 1.0, $REV => 1.0, $HLT => 1.0 );
+            %P_PS = ( $FWD => 1.0, $REV => 1.0, $HLT => 0.5 );    #  POINT SIZE
 
-            %P_LW = $OPT_coverage || $OPT_color ?
-                ( $FWD => 3.0, $REV => 3.0, $HLT => 3.0 ) :
-                ( $FWD => 2.0, $REV => 2.0, $HLT => 2.0 );
+            %P_LW = $OPT_coverage || $OPT_color ?                 #  LINE WIDTH
+                ( $FWD => 2.0, $REV => 2.0, $HLT => 2.0 ) :
+                ( $FWD => 0.8, $REV => 0.8, $HLT => 1.0 );
 
             $P_SIZE = $OPT_coverage ?
                 "set size 1,1" :
@@ -1099,15 +1099,15 @@ sub WriteGP ($$)
 
         /^$PS/     and do {
             $P_TERM = defined $OPT_color && $OPT_color == 0 ?
-                "$PS monochrome" : "$PS color";
+                "$PS noenhanced monochrome" : "$PS color";
             $P_TERM .= $OPT_gpstatus == 0 ?
                 " solid \"$FFACE\" $FSIZE" : " solid \"$FFACE\" $FSIZE";
 
-            %P_PS = ( $FWD => 0.5, $REV => 0.5, $HLT => 0.5 );
+            %P_PS = ( $FWD => 0.5, $REV => 0.5, $HLT => 0.5 );    #  POINT SIZE
 
-            %P_LW = $OPT_coverage || $OPT_color ?
-                ( $FWD => 4.0, $REV => 4.0, $HLT => 4.0 ) :
-                ( $FWD => 2.0, $REV => 2.0, $HLT => 2.0 );
+            %P_LW = $OPT_coverage || $OPT_color ?                 #  LINE WIDTH
+                ( $FWD => 2.0, $REV => 2.0, $HLT => 2.0 ) :
+                ( $FWD => 1.0, $REV => 1.0, $HLT => 1.0 );
 
             $P_SIZE = $OPT_coverage ?
                 "set size ".(1.0 * $SIZE).",".(0.5 * $SIZE) :
@@ -1118,18 +1118,18 @@ sub WriteGP ($$)
 
         /^$PNG/    and do {
             $P_TERM = $OPT_gpstatus == 0 ?
-                "$PNG tiny size $SIZE,$SIZE" : "$PNG small";
+                "$PNG noenhanced font 'sans,9' size $SIZE,$SIZE" : "$PNG small";
             if ( defined $OPT_color && $OPT_color == 0 ) {
                 $P_TERM .= " xffffff x000000 x000000";
                 $P_TERM .= " x000000 x000000 x000000";
                 $P_TERM .= " x000000 x000000 x000000";
             }
-            
-            %P_PS = ( $FWD => 1.0, $REV => 1.0, $HLT => 1.0 );
 
-            %P_LW = $OPT_coverage || $OPT_color ?
+            %P_PS = ( $FWD => 0.5, $REV => 0.5, $HLT => 0.5 );    #  POINT SIZE
+
+            %P_LW = $OPT_coverage || $OPT_color ?                 #  LINE WIDTH
                 ( $FWD => 3.0, $REV => 3.0, $HLT => 3.0 ) :
-                ( $FWD => 3.0, $REV => 3.0, $HLT => 3.0 );
+                ( $FWD => 2.0, $REV => 2.0, $HLT => 1.5 );
 
             $P_SIZE = $OPT_coverage ?
                 "set size 1,.375" :
@@ -1144,7 +1144,12 @@ sub WriteGP ($$)
     #-- plot commands
     my ($P_WITH, $P_FORMAT, $P_LS, $P_KEY, %P_PT, %P_LT);
 
-    %P_PT = ( $FWD => 6, $REV => 6, $HLT => 6 );
+    #  POINT TYPE
+    #    1 - +'s
+    #    2 - X's
+    #    6 - open circles
+    %P_PT = ( $FWD => 1, $REV => 1, $HLT => 6 );
+
     %P_LT = defined $OPT_Hfile ?
         ( $FWD => 2, $REV => 2, $HLT => 1 ) :
         ( $FWD => 1, $REV => 3, $HLT => 2 );
@@ -1189,15 +1194,19 @@ sub WriteGP ($$)
         $xrange = $rref->{$xlabel}[1];
     }
     else {
+        #  Single quotes are the only way to escape _'s to prevent them from being
+        #  used for subscripts.  However, 'enhanced' mode doesn't properly justify
+        #  the labels (they end up in the plot), and 'noenhanced' means don't parse
+        #  for subscripts anyway.
         $xrange = 0;
-        print GFILE "set xtics rotate \( \\\n";
+        print GFILE "set xtics noenhanced rotate \( \\\n";
         foreach $xlabel ( sort { $rref->{$a}[0] <=> $rref->{$b}[0] } @refk ) {
             $xrange += $rref->{$xlabel}[1];
             $tic = $rref->{$xlabel}[0] + 1;
             $dir = ($rref->{$xlabel}[2] == 1) ? "" : "*";
-            print GFILE " \"$dir$xlabel\" $tic, \\\n";
+            print GFILE " '$dir$xlabel' $tic.0, \\\n";
         }
-        print GFILE " \"\" $xrange \\\n\)\n";
+        print GFILE " '' $xrange.0 \\\n\)\n";
         $xlabel = "REF";
     }
     if ( $xrange == 0 ) { $xrange = "*"; }
@@ -1222,9 +1231,9 @@ sub WriteGP ($$)
             $yrange += $qref->{$ylabel}[1];
             $tic = $qref->{$ylabel}[0] + 1;
             $dir = ($qref->{$ylabel}[2] == 1) ? "" : "*";
-            print GFILE " \"$dir$ylabel\" $tic, \\\n";
+            print GFILE " '$dir$ylabel' $tic.0, \\\n";
         }
-        print GFILE " \"\" $yrange \\\n\)\n";
+        print GFILE " '' $yrange.0 \\\n\)\n";
         $ylabel = "QRY";
     }
     if ( $yrange == 0 ) { $yrange = "*"; }
@@ -1241,8 +1250,8 @@ sub WriteGP ($$)
         "$P_KEY\n",
         "set border $border\n",
         "set tics scale 0\n",
-        "set xlabel \"$xlabel\"\n",
-        "set ylabel \"$ylabel\"\n",
+        "set xlabel '$xlabel'\n",
+        "set ylabel '$ylabel'\n",
         "$P_FORMAT\n";
 
     #-- ranges
