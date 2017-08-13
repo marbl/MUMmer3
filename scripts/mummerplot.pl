@@ -81,6 +81,7 @@ my $OPT_IdR;                       # -r option
 my $OPT_IdQ;                       # -q option
 my $OPT_IDRfile;                   # -R option
 my $OPT_IDQfile;                   # -Q option
+my $OPT_Qtrim;                     # -qtrim
 my $OPT_rport;                     # -rport option
 my $OPT_qport;                     # -qport option
 my $OPT_size      = $SMALL;        # -small, -medium, -large
@@ -157,6 +158,9 @@ my $HELP = qq~
     -Q|Qfile        Plot an ordered set of query sequences from Qfile
                     Rfile/Qfile Can either be the original DNA multi-FastA
                     files or lists of sequence IDs, lens and dirs [ /+/-]
+    -qtrim          Don't plot query sequences with no hit in the layout
+                    NOTE: sequences with hits that are not in the best layout
+                    are not shown
     -r|rport        Specify the port to send reference ID and position on
                     mouse double click in X11 plot window
     -q|qport        Specify the port to send query IDs and position on mouse
@@ -783,10 +787,12 @@ sub LayoutIDs ($$)
         $qoff += $qref->{$idQ}[1] - 1;
     }
     #-- append the guys left out of the layout
-    foreach $idQ ( keys %{$qref} ) {
-        if ( !defined $qref->{$idQ}[0] ) {
-            $qref->{$idQ}[0] = $qoff;
-            $qoff += $qref->{$idQ}[1] - 1;
+    if ($OPT_Qtrim != 1) {
+        foreach $idQ ( keys %{$qref} ) {
+            if ( !defined $qref->{$idQ}[0] ) {
+                $qref->{$idQ}[0] = $qoff;
+                $qoff += $qref->{$idQ}[1] - 1;
+            }
         }
     }
 }
@@ -1450,6 +1456,7 @@ sub ParseOptions ( )
          "q|IdQ=s"      => \$OPT_IdQ,
          "R|Rfile=s"    => \$OPT_IDRfile,
          "Q|Qfile=s"    => \$OPT_IDQfile,
+         "qtrim"        => \$OPT_Qtrim,
          "rport=i"      => \$OPT_rport,
          "qport=i"      => \$OPT_qport,
          "s|size=s"     => \$OPT_size,
