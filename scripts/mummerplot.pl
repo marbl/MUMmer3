@@ -1215,6 +1215,10 @@ sub WriteGP ($$)
         $yrange = 0;
         print GFILE "set ytics \( \\\n";
         foreach $ylabel ( sort { $qref->{$a}[0] <=> $qref->{$b}[0] } @qryk ) {
+            if (($OPT_Qtrim == 1) && (!defined $qref->{$ylabel}[0])) {
+                next;
+            }
+
             $yrange += $qref->{$ylabel}[1];
             $tic = $qref->{$ylabel}[0] + 1;
             $dir = ($qref->{$ylabel}[2] == 1) ? "" : "*";
