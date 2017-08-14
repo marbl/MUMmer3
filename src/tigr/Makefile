@@ -66,15 +66,19 @@ mgaps: mgaps.cc tigrinc.o
 	$(BIN_RULE)
 
 postnuc: postnuc.cc tigrinc.o sw_align.o
+	mkdir -p $(AUX_BIN_DIR)
 	$(AUX_BIN_RULE)
 
 postpro: postpro.cc tigrinc.o sw_align.o translate.o
+	mkdir -p $(AUX_BIN_DIR)
 	$(AUX_BIN_RULE)
 
 prenuc: prenuc.cc tigrinc.o
+	mkdir -p $(AUX_BIN_DIR)
 	$(AUX_BIN_RULE)
 
 prepro: prepro.cc tigrinc.o translate.o
+	mkdir -p $(AUX_BIN_DIR)
 	$(AUX_BIN_RULE)
 
 repeat-match: repeat-match.cc tigrinc.o
