@@ -1,4 +1,4 @@
-#!__PERL_PATH -w
+#!__PERL_PATH
 
 #-------------------------------------------------------------------------------
 #   Programmer: Adam M Phillippy, University of Maryland
@@ -13,6 +13,7 @@ use lib "__SCRIPT_DIR";
 use Foundation;
 use File::Spec::Functions;
 use strict;
+use warnings;
 
 my $BIN_DIR = "__BIN_DIR";
 my $SCRIPT_DIR = "__SCRIPT_DIR";
